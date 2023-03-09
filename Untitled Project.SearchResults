@@ -1,0 +1,10 @@
+---- YMH_LOGO Matches (9 in 5 files) ----
+FactoryString.c (ui\f_logo):#elif (DisplayLogo==YMH_LOGO)
+FactoryString.c (ui\f_logo):#if (DisplayLogo==YMH_LOGO||DisplayLogo==YWYLBS_LOGO||DisplayLogo==YWYBIRD_LOGO||DisplayLogo==YWYDGM_LOGO||DisplayLogo==YWYPOLY_LOGO||DisplayLogo==YWYMIMO_LOGO||DisplayLogo==CHANG_LOGO||DisplayLogo==YWY_LOGO||DisplayLogo==TEST_LOGO\
+FactoryString.c (ui\f_logo):#elif (DisplayLogo==YMH_LOGO)
+FactoryString.c (ui\f_logo):#elif (DisplayLogo==YMH_LOGO)
+FactoryString.h (ui\f_logo\inc):#elif DisplayLogo==YMH_LOGO
+JRY_TESTBOARD_C_BOARD.h (model):#define DisplayLogo					YMH_LOGO//YWYBIRD_LOGO//YWYLBS_LOGO//YWYDGM_LOGO//LOGO_DUNPAI//YWYMIMO_LOGO//CHANG_LOGO//YWYPOLY_LOGO//TEST_LOGO//YWY_LOGO//LOGO_YINGYAN   
+LogoFontText.h (ui\hkcosd\inc):#elif (DisplayLogo==YMH_LOGO)
+LogoFontText.h (ui\hkcosd\inc):#elif (DisplayLogo == YMH_LOGO)
+Logo_define.h (config):#define YMH_LOGO				54

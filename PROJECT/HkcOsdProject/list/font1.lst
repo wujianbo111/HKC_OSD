@@ -1,0 +1,434 @@
+C51 COMPILER V9.01   FONT1                                                                 03/09/2023 15:39:15 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE FONT1
+OBJECT MODULE PLACED IN .\obj\font1.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\UI\HkcOsd\font1.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\DRIVER\INC;..\.
+                    -.\KERNEL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..\..\KERNEL\SYST
+                    -EM\INC\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\UI\HkcOsd\INC) 
+                    -DEFINE(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\font1.lst) OBJECT(.\obj\font1.obj)
+
+line level    source
+
+   1          #include <stdlib.h>
+   2          #include "types.h"
+   3          #include "ms_reg.h"
+   4          #include "panel.h"
+   5          #include "Board.h"
+   6          #include "debug.h"
+   7          #include "ms_rwreg.h"
+   8          #include "mstar.h"
+   9          #include "misc.h"
+  10          #include "global.h"
+  11          #include "menudef.h"
+  12          #include "drvosd.h"
+  13          #include "msOSD.h"
+  14          //#include "font.h"
+  15          #include "font1.h"
+  16          #include "extlib.h"
+  17          #include "MsID_V1.h"
+  18          
+  19          
+  20          void DynamicLoadHotIconFont_ECO( void ) //120713 Modify
+  21          {
+  22   1              if( UserPrefECOMode == ECO_Standard )
+  23   1              {
+  24   2                      LoadCompressColorFont(&tDCRStandardIconFont, NULL, 12);
+  25   2              }
+  26   1              else if( UserPrefECOMode == ECO_Internet )
+  27   1              {
+  28   2                      LoadCompressColorFont(&tECOWebIconFont, NULL, 12);
+  29   2              }
+  30   1              else if( UserPrefECOMode == ECO_Game )
+  31   1              {
+  32   2                      LoadCompressColorFont(&tECOGameIconFont, NULL, 12);
+  33   2              }       
+  34   1      #if ENABLE_FPS_RTS
+                      else if(UserPrefECOMode==ECO_FPS)
+                      {
+                                  LoadCompressColorFont( &tECOFPSIconFont, NULL, 12);
+                      }    
+                      else if(UserPrefECOMode==ECO_RTS)
+                      {
+                                  LoadCompressColorFont( &tECORTSIconFont, NULL, 12);
+                      }
+              #endif
+  44   1              else if( UserPrefECOMode == ECO_Movie)
+  45   1              {
+  46   2                      LoadCompressColorFont(&tECOMovieIconFont, NULL, 12);
+  47   2              }       
+  48   1      #if     PresetMode_Enable
+                      else if( UserPrefECOMode == ECO_Preset)
+                      {
+                              LoadCompressColorFont(&tECOPresetModeIconFont, NULL, 12);
+                      }       
+C51 COMPILER V9.01   FONT1                                                                 03/09/2023 15:39:15 PAGE 2   
+
+              #endif  
+  54   1      }
+  55          
+  56          
+  57          
+  58          void Osd_Load8ColorFont2(BYTE u8Addr, BYTE *pu8Font, WORD u16Num)
+  59          {
+  60   1      #if CHIP_ID>=CHIP_TSUMV
+  61   1          DWORD xdata u32Data;
+  62   1          BYTE xdata u8FontData0,u8FontData1,u8FontData2;
+  63   1          BYTE xdata u8PixelBit;
+  64   1          BYTE xdata i;
+  65   1          #if CHIP_ID==CHIP_TSUMC||CHIP_ID==CHIP_TSUMD||CHIP_ID == CHIP_TSUM9|| CHIP_ID == CHIP_TSUMF
+  66   1              msWriteByteMask(OSD1_6D, BIT6,BIT7|BIT6);   //00: for 1/2Bpp; 01: for 3Bpp; 10:for 4Bpp;
+  67   1          #elif  CHIP_ID==CHIP_TSUM2||CHIP_ID==CHIP_TSUMV
+                      msWriteByteMask(OSD1_6D, 0x00,BIT7);  //0: for 1/2/3Bpp; 1: for 4Bpp;
+                  #endif
+  70   1          
+  71   1          WRITE_CAFSRAM_ADDR(); 
+  72   1          msWrite2Byte(PORT_FONT_ADDR, GET_FONT_RAM_ADDR(u8Addr));
+  73   1          WRITE_FONT();
+  74   1          // handle 2 lines, 8 pixels each time, 2 lines x 12 pixels = 8 pixels x 3 times
+  75   1          while(u16Num)
+  76   1          {
+  77   2              for (i=0;i<3;i++)
+  78   2              {
+  79   3              //    0        1        2        3        4        5        6        7        8
+  80   3              //11110000 00000000 11111111 00002222 22222222 00000000 22221111 11111111 22222222 //line 0/1
+  81   3                  if (i==0)
+  82   3                  {
+  83   4                      u8FontData0=((*(pu8Font))<<4)+((*(pu8Font+1))>>4);
+  84   4                      u8FontData1=((*(pu8Font))&0xF0)+((*(pu8Font+2))>>4);
+  85   4                      u8FontData2=((*(pu8Font+3))<<4)+((*(pu8Font+4))>>4);
+  86   4                  }
+  87   3                  else if (i==1)
+  88   3                  {
+  89   4                      u8FontData0=((*(pu8Font+1))<<4)+((*(pu8Font+3))>>4);
+  90   4                      u8FontData1=((*(pu8Font+2))<<4)+((*(pu8Font+6))&0x0F);
+  91   4                      u8FontData2=((*(pu8Font+4))<<4)+((*(pu8Font+6))>>4);
+  92   4                  }
+  93   3                  else
+  94   3                  {
+  95   4                      u8FontData0=(*(pu8Font+5));
+  96   4                      u8FontData1=(*(pu8Font+7));
+  97   4                      u8FontData2=(*(pu8Font+8));
+  98   4                  }
+  99   3                  u8PixelBit=BIT7;
+ 100   3                  u32Data=0;
+ 101   3                  while(u8PixelBit)
+ 102   3                  {
+ 103   4                      u32Data<<=3;
+ 104   4                      if (u8FontData0&u8PixelBit) //color bit0
+ 105   4                          u32Data|=BIT0;
+ 106   4                      if (u8FontData1&u8PixelBit) //color bit1
+ 107   4                          u32Data|=BIT1;
+ 108   4                      if (u8FontData2&u8PixelBit) //color bit2
+ 109   4                          u32Data|=BIT2;
+ 110   4                      u8PixelBit>>=1;
+ 111   4                  }
+ 112   3                  msWriteByte(PORT_FONT_DATA, u32Data>>16);
+ 113   3                  msWriteByte(PORT_FONT_DATA, u32Data>>8);
+ 114   3                  msWriteByte(PORT_FONT_DATA, u32Data);
+C51 COMPILER V9.01   FONT1                                                                 03/09/2023 15:39:15 PAGE 3   
+
+ 115   3              }
+ 116   2              if (u16Num>=9)
+ 117   2              {
+ 118   3                  u16Num-=9;
+ 119   3                  pu8Font+=9;
+ 120   3              }
+ 121   2              else
+ 122   2                  u16Num=0;
+ 123   2          }
+ 124   1      
+ 125   1          #if CHIP_ID==CHIP_TSUMC||CHIP_ID==CHIP_TSUMD||CHIP_ID == CHIP_TSUM9|| CHIP_ID == CHIP_TSUMF
+ 126   1              msWriteByteMask(OSD1_6D, 0x00,BIT7|BIT6);    //00: for 1/2Bpp; 01: for 3Bpp; 10:for 4Bpp;
+ 127   1          #elif  CHIP_ID==CHIP_TSUM2||CHIP_ID==CHIP_TSUMV
+                      msWriteByteMask(OSD1_6D, 0x00,BIT7);          //0: for 1/2/3Bpp; 1: for 4Bpp;
+                  #endif
+ 130   1      
+ 131   1      #else
+                          msWriteByte(OSD2_A3, u8Addr);
+                          while (u16Num--)
+                              msWriteByte(OSD2_A4, *(pu8Font++));
+              
+              #endif
+ 137   1          
+ 138   1      
+ 139   1      }
+ 140          #if CHIP_ID>=CHIP_TSUMV
+ 141          
+ 142          void Load256ColorPalette2(BYTE u8Group, BYTE u8Addr, ColorPaletteType *colorPtr, WORD u16Num)
+ 143          {
+ 144   1      
+ 145   1      #if CHIP_ID>=CHIP_TSUM2
+ 146   1               WORD i;
+ 147   1          if (u8Group==0)
+ 148   1              WRITE_PSRAM0_ADDR();
+ 149   1          else
+ 150   1              WRITE_PSRAM1_ADDR();
+ 151   1          //write R/G/B
+ 152   1          msWriteByte(OSD1_66, u8Addr);
+ 153   1          if (u8Group==0)
+ 154   1              WRITE_PSRAM0_COLOR();
+ 155   1          else
+ 156   1              WRITE_PSRAM1_COLOR();
+ 157   1              
+ 158   1          for (i=0;i<u16Num;i++)
+ 159   1          {
+ 160   2              msWriteByte(OSD1_66, ((colorPtr+i)->u8Blue));
+ 161   2              msWriteByte(OSD1_66, ((colorPtr+i)->u8Green));
+ 162   2              msWriteByte(OSD1_66, ((colorPtr+i)->u8Red));
+ 163   2          }
+ 164   1      
+ 165   1          //write colorkey
+ 166   1          if (u8Group==0)
+ 167   1              WRITE_PSRAM0_ADDR();
+ 168   1          else
+ 169   1              WRITE_PSRAM1_ADDR();
+ 170   1          msWriteByte(OSD1_66, u8Addr);
+ 171   1          if (u8Group==0)
+ 172   1              WRITE_PSRAM0_COLOR_KEY();
+ 173   1          else
+ 174   1              WRITE_PSRAM0_COLOR_KEY();
+ 175   1          while (u16Num--)
+ 176   1          {
+C51 COMPILER V9.01   FONT1                                                                 03/09/2023 15:39:15 PAGE 4   
+
+ 177   2              if(colorPtr->u8ColorKey)
+ 178   2                  msWriteByteMask(OSD1_66, BIT0,BIT0);
+ 179   2              else
+ 180   2                  msWriteByteMask(OSD1_66, 0,BIT0);
+ 181   2              colorPtr++;
+ 182   2          }
+ 183   1      
+ 184   1      
+ 185   1      #else
+              
+                  WORD xdata i,u16PSRAM_AddrPort;
+                  BYTE u8Bank=msReadByte(OSD1_00);
+                  msWriteByte(OSD1_00,0x00);//subbank 0
+                  if (u8Group==0)
+                      u16PSRAM_AddrPort=OSD1_76;
+                  else
+                      u16PSRAM_AddrPort=OSD1_86;
+              //u8Addr=0;
+                  //write R/G/B
+                  msWriteByte(u16PSRAM_AddrPort, u8Addr);
+                  for (i=0;i<u16Num;i++)
+                  {   
+                      msWriteByte(u16PSRAM_AddrPort+2, ((colorPtr+i)->u8Blue));
+                      msWriteByte(u16PSRAM_AddrPort+2, ((colorPtr+i)->u8Green));
+                      msWriteByte(u16PSRAM_AddrPort+2, ((colorPtr+i)->u8Red));
+                  }
+              
+                  //write colorkey
+                  msWriteByte(u16PSRAM_AddrPort, u8Addr);
+                  while (u16Num--)
+                  {
+                      if(colorPtr->u8ColorKey)
+                          msWriteByteMask(u16PSRAM_AddrPort+3, BIT0,BIT0);
+                      else
+                          msWriteByteMask(u16PSRAM_AddrPort+3, 0,BIT0);
+                      colorPtr++;
+                  }
+                  msWriteByte(OSD1_00,u8Bank);//subbank 0
+                  #endif
+ 216   1      }
+ 217          
+ 218          #else
+              void Load256ColorPalette2(BYTE u8Group, BYTE u8Addr, ColorPaletteType *colorPtr, WORD u16Num)
+              {
+                      WORD xdata i;
+                      u8Group=0;
+                      msWriteByte( OSD2_AC, u8Addr );
+                      for (i=0; i<u16Num; i++)
+                      {
+                              msWriteByte(OSD2_AD, ((colorPtr+i)->u8Red));
+                              msWriteByte(OSD2_AD, ((colorPtr+i)->u8Green));
+                              msWriteByte(OSD2_AD, ((colorPtr+i)->u8Blue));
+                      }
+              
+              }
+              
+              #endif
+ 234          
+ 235          
+ 236          void DynamicLoadHotIconFont( void )
+ 237          {
+ 238   1          if ( MenuPageIndex != AutoMenu
+C51 COMPILER V9.01   FONT1                                                                 03/09/2023 15:39:15 PAGE 5   
+
+ 239   1                #if HotExpansionAdjust
+ 240   1            && MenuPageIndex != HotExpansionMenu 
+ 241   1                #endif
+ 242   1            && MenuPageIndex != HotKeyECOMenu
+ 243   1            #if Hotkey_DCR_Enable
+                    && MenuPageIndex != HotKeyDCRMenu
+                      #endif
+ 246   1                )     //110221 Modify
+ 247   1              return;
+ 248   1      
+ 249   1      
+ 250   1        #if HotExpansionAdjust 
+ 251   1       if(MenuPageIndex == HotExpansionMenu )
+ 252   1            Load256ColorPalette2(0, CP_SelectIcon, &tOSDColorPalette256_HotIcon, sizeof( tOSDColorPalette256_Hot
+             -Icon ) /sizeof(ColorPaletteType) );
+ 253   1        else
+ 254   1        #endif  
+ 255   1      #if !Hotkey_ECO_Text_Enable
+ 256   1        if( UserPrefECOMode == ECO_Standard )
+ 257   1              Load256ColorPalette2(0, CP_SelectIcon, &tOSDColorPalette256_ECOStandard, sizeof( tOSDColorPalette256_ECO
+             -Standard ) /sizeof(ColorPaletteType) );
+ 258   1      else   if( UserPrefECOMode == ECO_Internet )
+ 259   1              Load256ColorPalette2(0, CP_SelectIcon, &tOSDColorPalette256_ECO_Internet, sizeof( tOSDColorPalette256_EC
+             -OStandard ) /sizeof(ColorPaletteType) );
+ 260   1      else   if( UserPrefECOMode == ECO_Game )
+ 261   1              Load256ColorPalette2(0, CP_SelectIcon, &tOSDColorPalette256_ECO_Game, sizeof( tOSDColorPalette256_ECOSta
+             -ndard ) /sizeof(ColorPaletteType) );
+ 262   1      #if ENABLE_FPS_RTS
+              else   if( UserPrefECOMode == ECO_FPS )
+                      Load256ColorPalette2(0, CP_SelectIcon, &tOSDColorPalette256_ECO_FPS, sizeof( tOSDColorPalette256_E
+             -COStandard ) /sizeof(ColorPaletteType) );
+              else   if( UserPrefECOMode == ECO_RTS )
+                      Load256ColorPalette2(0, CP_SelectIcon, &tOSDColorPalette256_ECO_FPS, sizeof( tOSDColorPalette256_E
+             -COStandard ) /sizeof(ColorPaletteType) );
+              #endif
+ 268   1      else   if( UserPrefECOMode == ECO_Movie )
+ 269   1              Load256ColorPalette2(0, CP_SelectIcon, &tOSDColorPalette256_ECO_Movie, sizeof( tOSDColorPalette256_ECOSt
+             -andard ) /sizeof(ColorPaletteType) );
+ 270   1      #if PresetMode_Enable
+              else   if( UserPrefECOMode == ECO_Preset )
+                      Load256ColorPalette2(0, CP_SelectIcon, &tOSDColorPalette256_ECOStandard, sizeof( tOSDColorPalette256_ECO
+             -Standard ) /sizeof(ColorPaletteType) );
+              else
+              #endif
+ 275   1      #endif
+ 276   1      {
+ 277   2      
+ 278   2      }
+ 279   1          OSD_FONT_HI_ADDR_SET_BIT9();//0x200~0x2FF
+ 280   1          OSD_WRITE_FONT_ADDRESS(_4ColorHotIconStart);
+ 281   1      
+ 282   1           if( MenuPageIndex == HotKeyECOMenu )
+ 283   1          {
+ 284   2                      #if Hotkey_ECO_Text_Enable
+                              DynamicLoadHotIconFont_ECO();   //120713 Modify
+                              #endif
+ 287   2          }
+ 288   1      #if Hotkey_DCR_Enable
+                  else if( MenuPageIndex == HotKeyDCRMenu )   //110221 Modify
+                 {
+                      #if !HotKey_ECO_DCR
+                      if( !UserPrefDcrMode )
+C51 COMPILER V9.01   FONT1                                                                 03/09/2023 15:39:15 PAGE 6   
+
+                      {
+                              Load256ColorPalette2(0, CP_SelectIcon, &tOSDColorPalette256_DCROFF, sizeof( tOSDColorPalette256_DCROFF )
+             - /sizeof(ColorPaletteType) );
+                              LoadCompressColorFont(&tDCROFFIconFont, NULL, 12);
+                      }
+                      else
+                      #endif
+                      {
+                              Load256ColorPalette2(0, CP_SelectIcon, &tOSDColorPalette256_DCRON, sizeof( tOSDColorPalette256_DCRON ) /
+             -sizeof(ColorPaletteType) );
+                              LoadCompressColorFont(&tDCRONIconFont, NULL, 12);
+                      }
+                 }  
+              #endif  
+ 305   1              #if HotExpansionAdjust
+ 306   1          else if( MenuPageIndex == HotExpansionMenu )
+ 307   1          {
+ 308   2               OSD_WRITE_FONT_ADDRESS(_8ColorHotIconStart);
+ 309   2              if( UserprefExpansionMode == Expansion_Aspect && ExpansionFlag )
+ 310   2              {
+ 311   3                  Osd_Load8ColorFont2( _8ColorHotIconStart, &tIconFont_8Color_4_3, sizeof( tIconFont_8Color_4_3 
+             -) ); 
+ 312   3              }
+ 313   2              else
+ 314   2              {
+ 315   3                  Osd_Load8ColorFont2( _8ColorHotIconStart, &tIconFont_8Color_Wide, sizeof( tIconFont_8Color_Wid
+             -e ) ); 
+ 316   3              }
+ 317   2          }
+ 318   1              #endif
+ 319   1          OSD_FONT_HI_ADDR_CLR_TO_0();
+ 320   1      }
+ 321          
+ 322          #if Hot_Corss_ColorSelect
+              
+              void DynamicLoadHotCorssIcon( BYTE Mode )
+              {
+                    Mode = Mode;
+                      OSD_FONT_HI_ADDR_SET_BIT8();
+              
+              #if CHIP_ID>=CHIP_TSUM2
+                  mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(CorssAddr), tOSDFont_Tree, 0 ); 
+              #else
+                  mStar_LoadCompressedFont( CorssAddr, tOSDFont_Tree, 0 ); 
+              
+              #endif
+                      OSD_FONT_HI_ADDR_CLR_TO_0();
+              }
+              #elif Hot_Corss_FY_ColorSelect
+              void DynamicLoadHotCorssIcon( BYTE Mode )
+              {
+                      OSD_FONT_HI_ADDR_SET_BIT8();
+              
+              #if CHIP_ID>=CHIP_TSUM2
+                 if(Mode==0)
+                  mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(CorssAddr), tOSDFont_One, 0 ); 
+                  else  if(Mode==1)
+                  mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(CorssAddr), tOSDFont_Tow, 0 ); 
+                 else 
+                      mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(CorssAddr), tOSDFont_Tree, 0 ); 
+              #else
+                 if(Mode==0)
+C51 COMPILER V9.01   FONT1                                                                 03/09/2023 15:39:15 PAGE 7   
+
+                  mStar_LoadCompressedFont( (CorssAddr), tOSDFont_One, 0 ); 
+                  else  if(Mode==1)
+                  mStar_LoadCompressedFont( (CorssAddr), tOSDFont_Tow, 0 ); 
+                 else 
+                      mStar_LoadCompressedFont( (CorssAddr), tOSDFont_Tree, 0 ); 
+              #endif
+                      OSD_FONT_HI_ADDR_CLR_TO_0();
+              }
+              #elif Hot_Corss_FND_Select
+              void DynamicLoadHotCorssIcon( BYTE Mode )
+              {
+                      OSD_FONT_HI_ADDR_SET_BIT8();
+              
+              #if CHIP_ID>=CHIP_TSUM2
+                 if(Mode==0)
+                  mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(CorssAddr), tOSDFont_One, 0 ); 
+                  else  if(Mode==1)
+                  mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(CorssAddr), tOSDFont_Tow, 0 ); 
+                 else 
+                      mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(CorssAddr), tOSDFont_Tree, 0 ); 
+              #else
+                 if(Mode==0)
+                  mStar_LoadCompressedFont( (CorssAddr), tOSDFont_One, 0 ); 
+                  else  if(Mode==1)
+                  mStar_LoadCompressedFont( (CorssAddr), tOSDFont_Tow, 0 ); 
+                 else 
+                      mStar_LoadCompressedFont( (CorssAddr), tOSDFont_Tree, 0 ); 
+              #endif
+                      OSD_FONT_HI_ADDR_CLR_TO_0();
+              }
+              #endif
+ 382          
+ 383          
+ 384          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1240    ----
+   CONSTANT SIZE    =   4846    ----
+   XDATA SIZE       =   ----       9
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      15
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,330 @@
+C51 COMPILER V9.01   SWDOUBLEBUFFER                                                        03/09/2023 15:39:11 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE SWDOUBLEBUFFER
+OBJECT MODULE PLACED IN .\obj\SwDoubleBuffer.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\DRIVER\SwDoubleBuffer.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\DRIVER\IN
+                    -C;..\..\KERNEL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..\..\KERNE
+                    -L\SYSTEM\INC\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\UI\HkcOsd
+                    -\INC) DEFINE(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\SwDoubleBuffer.lst) OBJECT(.\obj\SwDoubleB
+                    -uffer.obj)
+
+line level    source
+
+   1          
+   2          #include "global.h"
+   3          
+   4          #if ENABLE_SW_DOUBLE_BUFFER
+   5          
+   6          #define _SW_DOUBLE_BUFFER_C
+   7          #define DB_DEBUG    0
+   8          #if ENABLE_DEBUG&&DB_DEBUG
+              #define DB_DEBUG_printData(str, value)   printData(str, value)
+              #define DB_DEBUG_printMsg(str)           printMsg(str)
+              #else
+  12          #define DB_DEBUG_printData(str, value)
+  13          #define DB_DEBUG_printMsg(str)
+  14          #endif
+  15          
+  16          enum
+  17          {
+  18              SW_DB_SW_TRIG,
+  19              SW_DB_OVSYNC_TRIG,
+  20              SW_DB_IVSYNC_TRIG,
+  21              SW_DB_OVDE_TRIG,
+  22          };
+  23          
+  24          #if (CHIP_ID == CHIP_TSUMC) || (CHIP_ID == CHIP_TSUMD)||(CHIP_ID == CHIP_TSUM9)||(CHIP_ID == CHIP_TSUMF)
+  25          XDATA StuSWDBCtrl SWDBCtrl _at_ XDATA_SWDB_ADDR_START;
+  26          #else
+              XDATA StuSWDBCtrl SWDBCtrl _at_ (0x45FF-sizeof(StuSWDBCtrl));
+              #endif
+  29          
+  30          #if (CHIP_ID == CHIP_TSUMF)
+              #define SW_DB_TRIG_MODE     SW_DB_OVSYNC_TRIG
+              #else
+  33          #define SW_DB_TRIG_MODE     SW_DB_OVDE_TRIG
+  34          #endif
+  35          
+  36          void msSWDBInit(void)
+  37          {
+  38   1          SWDBCtrl.ucSWDB_Mode = eDB_NORMAL_MODE;
+  39   1          SWDBCtrl.ucSWDB_Mode_Log = eDB_NORMAL_MODE;
+  40   1          SWDBCtrl.ucSWDB_Num = 1;    
+  41   1          SWDBCtrl.ucSWDB_Counter = 0;
+  42   1          SWDBCtrl.ucSWDB_OnFire = 0;
+  43   1          SWDBCtrl.ucSWDB_LastSCBank = 0xFF;
+  44   1          msWriteByteMask(REG_3C25,SW_DB_TRIG_MODE<<4,BIT5|BIT4);
+  45   1          msWrite2ByteMask(REG_3C24,((WORD)&SWDBCtrl.ucSWDB_Buffer[0])&0x7FF,0x07FF);
+  46   1          msWriteBit(REG_2B00,0,BIT5);
+  47   1      }
+  48          
+  49          void msSWDBWaitForRdy(void)
+  50          {
+  51   1          XDATA BYTE dlycnt=60;
+C51 COMPILER V9.01   SWDOUBLEBUFFER                                                        03/09/2023 15:39:11 PAGE 2   
+
+  52   1          while(SWDBCtrl.ucSWDB_OnFire)
+  53   1          {
+  54   2              dlycnt--;
+  55   2              if(!dlycnt)
+  56   2              {
+  57   3                  DB_DEBUG_printMsg("ML Time out, switch to SW Trig Mode !!");
+  58   3                  msWriteByteMask(REG_3C25,SW_DB_SW_TRIG<<4,BIT5|BIT4);
+  59   3                  msWriteByteMask(REG_3C25,BIT6,BIT6);
+  60   3                  while(SWDBCtrl.ucSWDB_OnFire);
+  61   3                  msWriteByteMask(REG_3C25,0x00,0xC0);
+  62   3                  msWriteByteMask(REG_3C25,SW_DB_TRIG_MODE<<4,BIT5|BIT4);
+  63   3                  SWDBCtrl.ucSWDB_Counter = 0;
+  64   3                  SWDBCtrl.ucSWDB_OnFire = 0;
+  65   3                  break;
+  66   3              }
+  67   2              ForceDelay1ms(1);
+  68   2          }
+  69   1      }
+  70          
+  71          #if CHIP_ID==CHIP_TSUMF // TSUMF no VDE end trig source, instead by OSD_VDE_End sw polling & trigger
+              void msSWDBWriteToRegisterByOsdEnd(void)
+              {
+                  XDATA BYTE index;
+                  WORD retry = 0xffff;
+              
+                  msSWDBWaitForRdy();
+              
+                  if(SWDBCtrl.ucSWDB_Counter)
+                  {
+                      index = SWDBCtrl.ucSWDB_Counter;
+                      msWrite2ByteMask(REG_3C26,((WORD)&SWDBCtrl.ucSWDB_Buffer[index-1])&0x7FF,0x07FF);
+                      msWriteByteMask(REG_3C25,SW_DB_SW_TRIG<<4,BIT5|BIT4);
+              
+                      // wait OSD VDE end
+                      while( retry-- && ( MEM_MSREAD_BYTE(REG_2B24)&BIT0 ) && !InputTimingChangeFlag );
+                      retry = 0xffff;
+                      while( retry-- && !( MEM_MSREAD_BYTE(REG_2B24)&BIT0 ) && !InputTimingChangeFlag );
+              
+                      // SWDB sw trigger
+                      MEM_MSWRITE_BYTE(REG_3C25,MEM_MSREAD_BYTE(REG_3C25) | 0xC0);
+              
+                      while(SWDBCtrl.ucSWDB_OnFire);
+                      msWriteByteMask(REG_3C25,0x00,0xC0);
+                      msWriteByteMask(REG_3C25,SW_DB_TRIG_MODE<<4,BIT5|BIT4);
+                      SWDBCtrl.ucSWDB_Counter = 0;
+                      SWDBCtrl.ucSWDB_OnFire = 0;
+                  }
+              }
+              #endif
+ 101          
+ 102          
+ 103          void msSWDBWriteToRegister(void)
+ 104          {
+ 105   1          XDATA BYTE index;
+ 106   1          
+ 107   1          msSWDBWaitForRdy();
+ 108   1          
+ 109   1          if(SWDBCtrl.ucSWDB_Counter)
+ 110   1          {
+ 111   2              index = SWDBCtrl.ucSWDB_Counter;
+ 112   2              msWrite2ByteMask(REG_3C26,((WORD)&SWDBCtrl.ucSWDB_Buffer[index-1])&0x7FF,0x07FF);
+ 113   2              SWDBCtrl.ucSWDB_OnFire = 1;
+C51 COMPILER V9.01   SWDOUBLEBUFFER                                                        03/09/2023 15:39:11 PAGE 3   
+
+ 114   2              msWriteByte(REG_3C25,msReadByte(REG_3C25)|0xC0);
+ 115   2          }
+ 116   1      }
+ 117          
+ 118          void msSWDBMode(DB_TYPE type)
+ 119          {
+ 120   1          SWDBCtrl.ucSWDB_Mode = type;
+ 121   1      }
+ 122          
+ 123          static BOOL msSWDBNewModeBufChk(WORD wReg)
+ 124          {
+ 125   1          BOOL NewMode = FALSE;
+ 126   1          XDATA BYTE size = 4;
+ 127   1          
+ 128   1          if((SWDBCtrl.ucSWDB_Mode_Log != SWDBCtrl.ucSWDB_Mode) 
+ 129   1             || (SWDBCtrl.ucSWDB_Counter == 0))
+ 130   1          {
+ 131   2              NewMode = TRUE;        
+ 132   2          }
+ 133   1          else
+ 134   1          {
+ 135   2              switch(SWDBCtrl.ucSWDB_Mode)
+ 136   2              {
+ 137   3                  case eDB_SUCCESSIVE_MODE:
+ 138   3                      if((wReg>>8) != (SWDBCtrl.ucSWDB_Buffer[SWDBCtrl.ucSWDB_Num - 1]&0x3F))
+ 139   3                          NewMode = TRUE;
+ 140   3                      break;                
+ 141   3                      
+ 142   3                  case eDB_BURST_MODE:
+ 143   3                      if(((wReg>>8) != (SWDBCtrl.ucSWDB_Buffer[SWDBCtrl.ucSWDB_Num - 1]&0x3F))
+ 144   3                         || ((wReg&0xFF) != (SWDBCtrl.ucSWDB_Buffer[SWDBCtrl.ucSWDB_Num + 1])))
+ 145   3                         NewMode = TRUE;
+ 146   3                      break;
+ 147   3                      
+ 148   3                  default:
+ 149   3                      break;
+ 150   3              }
+ 151   2          } 
+ 152   1      
+ 153   1          // if buffer size is not large enough then write to register first
+ 154   1          if(SWDBCtrl.ucSWDB_Mode == eDB_NORMAL_MODE)    
+ 155   1              size = 3;
+ 156   1          else if(SWDBCtrl.ucSWDB_Mode == eDB_SUCCESSIVE_MODE)
+ 157   1              size = NewMode?4:2;
+ 158   1          else if(SWDBCtrl.ucSWDB_Mode == eDB_BURST_MODE)
+ 159   1              size = NewMode?4:1; 
+ 160   1      
+ 161   1          if( (SWDBCtrl.ucSWDB_Counter+size) >= SWDB_MAX_SIZE )
+ 162   1          {
+ 163   2              DB_DEBUG_printMsg("SWDB buffer is Full !!");
+ 164   2              msSWDBWriteToRegister();
+ 165   2              msSWDBWaitForRdy();
+ 166   2              NewMode = TRUE;
+ 167   2          }
+ 168   1      
+ 169   1          if(NewMode)
+ 170   1              SWDBCtrl.ucSWDB_Num = SWDBCtrl.ucSWDB_Counter + 1;
+ 171   1          
+ 172   1          return NewMode;
+ 173   1      }
+ 174          void msSWDBWriteByte(WORD wReg,BYTE ucValue)
+ 175          {
+C51 COMPILER V9.01   SWDOUBLEBUFFER                                                        03/09/2023 15:39:11 PAGE 4   
+
+ 176   1          XDATA BYTE index, SWDBModeChg;
+ 177   1          XDATA BYTE SCBank,SCAddr,SCVal;
+ 178   1          
+ 179   1          msSWDBWaitForRdy();
+ 180   1          if( wReg&_BIT15 ) // Scaler bank
+ 181   1          {
+ 182   2              SCBank = (wReg>>8)&0x7F;
+ 183   2              SCAddr = (wReg&0xFF);
+ 184   2              SCVal = ucValue;
+ 185   2              if(SWDBCtrl.ucSWDB_LastSCBank!= SCBank)
+ 186   2              {
+ 187   3                  SWDBCtrl.ucSWDB_LastSCBank = SCBank;
+ 188   3                  msSWDBWriteByte(0x2F00,SCBank);
+ 189   3                  msSWDBWriteByte(0x2F00|SCAddr,SCVal);
+ 190   3              }
+ 191   2              else
+ 192   2                  msSWDBWriteByte(0x2F00|SCAddr,SCVal);
+ 193   2          }
+ 194   1          else
+ 195   1          {     
+ 196   2              SWDBModeChg = msSWDBNewModeBufChk(wReg);
+ 197   2              index  = SWDBCtrl.ucSWDB_Counter;           
+ 198   2              
+ 199   2              switch(SWDBCtrl.ucSWDB_Mode)
+ 200   2              {
+ 201   3                  case eDB_NORMAL_MODE:
+ 202   3                      SWDBCtrl.ucSWDB_Mode_Log = SWDBCtrl.ucSWDB_Mode;
+ 203   3                      SWDBCtrl.ucSWDB_Buffer[index] = (wReg>>8)|eDB_NORMAL_MODE;
+ 204   3                      SWDBCtrl.ucSWDB_Buffer[index+1] = (wReg&0xFF);
+ 205   3                      SWDBCtrl.ucSWDB_Buffer[index+2] = ucValue;
+ 206   3                      SWDBCtrl.ucSWDB_Counter += 3;                      
+ 207   3                      break;
+ 208   3                      
+ 209   3                  case eDB_SUCCESSIVE_MODE:
+ 210   3                      if(SWDBModeChg)
+ 211   3                      {
+ 212   4                          SWDBCtrl.ucSWDB_Mode_Log = SWDBCtrl.ucSWDB_Mode;
+ 213   4                          SWDBCtrl.ucSWDB_Buffer[SWDBCtrl.ucSWDB_Num - 1] = (wReg>>8)|eDB_SUCCESSIVE_MODE;
+ 214   4                          SWDBCtrl.ucSWDB_Buffer[SWDBCtrl.ucSWDB_Num] = 0;
+ 215   4                          SWDBCtrl.ucSWDB_Buffer[index + 2] = (wReg&0xFF);
+ 216   4                          SWDBCtrl.ucSWDB_Buffer[index + 3] = ucValue;
+ 217   4                          SWDBCtrl.ucSWDB_Counter += 4;  
+ 218   4                      }
+ 219   3                      else
+ 220   3                      {
+ 221   4                          SWDBCtrl.ucSWDB_Buffer[SWDBCtrl.ucSWDB_Num - 1] = (wReg>>8)|eDB_SUCCESSIVE_MODE;
+ 222   4                          SWDBCtrl.ucSWDB_Buffer[SWDBCtrl.ucSWDB_Num]++;
+ 223   4                          SWDBCtrl.ucSWDB_Buffer[index ] = (wReg&0xFF);
+ 224   4                          SWDBCtrl.ucSWDB_Buffer[index + 1] = ucValue;
+ 225   4                          SWDBCtrl.ucSWDB_Counter += 2;
+ 226   4                      }                
+ 227   3                      break;
+ 228   3                      
+ 229   3                  case eDB_BURST_MODE:
+ 230   3                      if(SWDBModeChg)
+ 231   3                      {
+ 232   4                          SWDBCtrl.ucSWDB_Mode_Log = SWDBCtrl.ucSWDB_Mode;
+ 233   4                          SWDBCtrl.ucSWDB_Buffer[SWDBCtrl.ucSWDB_Num - 1] = (wReg>>8)|eDB_BURST_MODE;
+ 234   4                          SWDBCtrl.ucSWDB_Buffer[SWDBCtrl.ucSWDB_Num] = 0;
+ 235   4                          SWDBCtrl.ucSWDB_Buffer[SWDBCtrl.ucSWDB_Num + 1] = (wReg&0xFF);
+ 236   4                          SWDBCtrl.ucSWDB_Buffer[index + 3] = ucValue;
+ 237   4                          SWDBCtrl.ucSWDB_Counter += 4;  
+C51 COMPILER V9.01   SWDOUBLEBUFFER                                                        03/09/2023 15:39:11 PAGE 5   
+
+ 238   4                      }
+ 239   3                      else
+ 240   3                      {
+ 241   4                          SWDBCtrl.ucSWDB_Buffer[SWDBCtrl.ucSWDB_Num - 1] = (wReg>>8)|eDB_BURST_MODE;
+ 242   4                          SWDBCtrl.ucSWDB_Buffer[SWDBCtrl.ucSWDB_Num]++;
+ 243   4                          SWDBCtrl.ucSWDB_Buffer[SWDBCtrl.ucSWDB_Num + 1 ] = (wReg&0xFF);
+ 244   4                          SWDBCtrl.ucSWDB_Buffer[index] = ucValue;
+ 245   4                          SWDBCtrl.ucSWDB_Counter += 1;
+ 246   4                      }                    
+ 247   3                      break;                
+ 248   3              }
+ 249   2          }
+ 250   1      }
+ 251          
+ 252          
+ 253          void msSWDBWrite2Byte(WORD wReg,WORD wValue)
+ 254          {
+ 255   1          msSWDBWriteByte(wReg, wValue );
+ 256   1          msSWDBWriteByte(wReg + 1, wValue>>8);
+ 257   1      }
+ 258          
+ 259          void msSWDBWrite3Byte(WORD wReg, DWORD dwValue)
+ 260          {
+ 261   1          msSWDBWrite2Byte( wReg, dwValue&0xFFFF );
+ 262   1          msSWDBWriteByte( wReg + 2, ( BYTE )( dwValue >> 16 ) );
+ 263   1      }
+ 264          
+ 265          void msSWDBWriteByteMask(WORD wReg,BYTE ucVal,BYTE ucMask)
+ 266          {
+ 267   1          msSWDBWriteByte(wReg , (msReadByte( wReg ) & ( ~ucMask ) ) | (ucVal & ucMask) );
+ 268   1      }
+ 269          
+ 270          
+ 271          void msSWDBWrite2ByteMask(WORD wReg,WORD wVal,WORD wMask)
+ 272          {
+ 273   1          msSWDBWriteByteMask(wReg, (BYTE)wVal, (BYTE)wMask);
+ 274   1          msSWDBWriteByteMask(wReg+1, (BYTE)(wVal>>8), (BYTE)(wMask>>8));
+ 275   1      }
+ 276          
+ 277          void msSWDBWriteBit(WORD wReg,BOOL bBit,BYTE ucBitPos)
+ 278          {
+ 279   1          XDATA BYTE u8Value;
+ 280   1          
+ 281   1          u8Value = msReadByte( wReg );
+ 282   1          if( bBit )
+ 283   1          {
+ 284   2              u8Value = u8Value | ucBitPos;
+ 285   2          }
+ 286   1          else
+ 287   1          {
+ 288   2              u8Value = u8Value & ( ~ucBitPos );
+ 289   2          }
+ 290   1          msSWDBWriteByte( wReg, u8Value );
+ 291   1      }
+ 292          #endif
+ 293          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1087    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----       9
+C51 COMPILER V9.01   SWDOUBLEBUFFER                                                        03/09/2023 15:39:11 PAGE 6   
+
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      29
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

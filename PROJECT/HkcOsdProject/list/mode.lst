@@ -1,0 +1,2119 @@
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE MODE
+OBJECT MODULE PLACED IN .\obj\mode.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\KERNEL\SYSTEM\mode.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\DRIVER\INC;.
+                    -.\..\KERNEL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..\..\KERNEL\S
+                    -YSTEM\INC\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\UI\HkcOsd\IN
+                    -C) DEFINE(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\mode.lst) OBJECT(.\obj\mode.obj)
+
+line level    source
+
+   1          
+   2          
+   3          
+   4          
+   5          
+   6          //2006-06-20
+   7          #include "Global.h"
+   8          #include "AutoFunc.h"
+   9          #include "Detect.h"
+  10          #if ENABLE_FREESYNC
+              #include "ComboApp.h"
+              #endif
+  13          
+  14          extern BYTE mStar_GetInputStatus( void );
+  15          #if FindModeByVwidth 
+              extern BYTE GetVSyncWidth(void);
+              #endif
+  18          InputResolutionType code StandardModeResolution[]=
+  19          { { 640,  350},  // Res_640x350,
+  20            { 640,  400},  // Res_640x400,
+  21            { 720,  400},  // Res_720x400,
+  22            { 640,  480},  // Res_640x480,
+  23            //{ 720,  483},  //Res_720x483, // 120424 coding reserved Res_720x483
+  24            {700, 570},//Res_700x570
+  25            { 720,  576},  //Res_720x576,
+  26            { 800,  600},  // Res_800x600,
+  27            { 832,  624},  // Res_832x624,
+  28            { 884,  930},  // Res_884x930,
+  29            {1024,  768},  // Res_1024x768,
+  30            {1280, 1024},  // Res_1280x1024,
+  31            {1600, 1200},  // Res_1600x1200,
+  32            {1152,  864},  // Res_1152x864,
+  33            {1152,  870},  // Res_1152x870,
+  34            {1280,  720},  // Res_1280x720,
+  35            {1280,  960},  // Res_1280x960,
+  36            { 720,  480},  // Res_720x240
+  37            { 800,  1209}, // Res_800x1209
+  38            {1792,  1344}, // Res_1792x1344
+  39            {1400,  1050}, // Res_1400x1050
+  40            {1920,  1080}, // Res_1920x1080
+  41            {1920,  1200}, // Res_1920x1200
+  42            {848,    480}, // Res_848x480
+  43            {1280,   768}, // Res_1280x768
+  44            {1360,   768}, // Res_1360x768
+  45            {1366,        768},//Res_1366x768
+  46            {1440,   900}, // Res1440x900 
+  47            {1680,  1050}, // Res_1680x1050
+  48            {1280,  800}, // Res_1280x800
+  49            {1600,   900}, // Res_1600x900
+  50            {1600,  1024}, // Res_1600x1024
+  51          
+  52            #if  ENABLE_DUAL_LINK
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 2   
+
+                {640, 480}, // Res_640x480_2D
+                {800, 600}, // Res_800x600_2D
+                {1280, 960}, // Res_1280x960_2D
+                {1024, 768}, // Res_1024x768_2D
+                {1440, 900}, // Res_1440x900_2D
+              
+                {1920, 1080}, // Res_1920x1080_2D
+                {2560, 1440},//Res_2560x1440//20130801 nick
+                #endif
+  62          
+  63          #if SHARP_VGA_50Hz_Timing
+  64            {1152, 900}
+  65          #endif
+  66          
+  67          };
+  68          InputModeType code StandardMode[]=
+  69          {
+  70           //===== 2005-07-26 Andy For Wide Timing =====
+  71           // 0. 848X480 60HZ 
+  72          {
+  73                  SyncHpVp, // Flags
+  74                  Res_848x480, // ResIndex
+  75                  310, 600, // HFreq, VFreq
+  76                  1088, 517, // HTotal, VTotal
+  77                  225, 22, // HStart, VStart
+  78              },
+  79              // 1.1280X768 60HZ Reduced Blanking(VESA)
+  80            {     SyncHpVn, // Flags
+  81                  Res_1280x768, // ResIndex
+  82                  474, 599, // HFreq, VFreq
+  83                  1440,790, // HTotal, VTotal
+  84                  112, 11, // HStart, VStart
+  85            },
+  86           // 2.1280X768 60HZ Normal Blanking(VESA)
+  87            {     SyncHnVp, // Flags
+  88                  Res_1280x768, // ResIndex
+  89                  477, 598, // HFreq, VFreq
+  90                  1664,798, // HTotal, VTotal
+  91                 319, 19, // HStart, VStart
+  92            },
+  93           // 3.1280X768 75HZ 
+  94            {     SyncHnVp, // Flags
+  95                  Res_1280x768, // ResIndex
+  96                  603, 748, // HFreq, VFreq
+  97                  1696,805, // HTotal, VTotal
+  98                  336-7, 34-7-1,//336, 34, // HStart, VStart
+  99            },
+ 100           // 4.1280X768 85HZ 
+ 101            {     SyncHnVp, // Flags
+ 102                  Res_1280x768, // ResIndex
+ 103                  686, 848, // HFreq, VFreq
+ 104                  1712,809, // HTotal, VTotal
+ 105                  352-6, 38-7-1,//352, 38, // HStart, VStart
+ 106            },
+ 107             // 5. 1280x960 60Hz (VESA)
+ 108            { 
+ 109              //SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn |bWideMode, // Flags
+ 110                 SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,
+ 111                  Res_1280x960, // ResIndex
+ 112                  600, 600, // HFreq, VFreq
+ 113                  1696,996,//1800, 1000, // HTotal, VTotal 
+ 114                  424, 39, // HStart, VStart
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 3   
+
+ 115            },  
+ 116            
+ 117           // 6. 1280x960 60Hz (VESA)
+ 118            { 
+ 119              //SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn |bWideMode, // Flags
+ 120                 SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,
+ 121                  Res_1280x960, // ResIndex
+ 122                  600, 600, // HFreq, VFreq
+ 123                  1800, 1000, // HTotal, VTotal
+ 124                  423, 35,//424, 39, // HStart, VStart
+ 125            },  
+ 126           // 7. 1280x960 70Hz (VESA)
+ 127            {        SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 128                  Res_1280x960, // ResIndex
+ 129                  700, 700, // HFreq, VFreq
+ 130                  1727, 1000, // HTotal, VTotal 
+ 131                  353, 38, // HStart, VStart
+ 132            },  
+ 133           //8. 1280x960 72Hz (VESA)                      //need check
+ 134            {         SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn , // Flags
+ 135                  Res_1280x960, // ResIndex
+ 136                  723, 722, // HFreq, VFreq
+ 137                  1696, 1002,//1728, 1001, // HTotal, VTotal 
+ 138                  353, 38, // HStart, VStart
+ 139            },
+ 140            //===================================================  
+ 141            //===>Conflict with SXVGA+(1400x900@75Hz HnVP  ) ====
+ 142            //===================================================
+ 143           // 9. 1280x960 75Hz (VESA)
+ 144            { //SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 145                      SyncHpVp | SyncHpVn | SyncHnVn|SyncHnVp, // Flags
+ 146                  Res_1280x960, // ResIndex
+ 147                  750, 750, // HFreq, VFreq
+ 148                  1728, 1005,//1680, 1000, // HTotal, VTotal
+ 149                  383, 35, // HStart, VStart
+ 150            },  
+ 151           // 10. 1280x960 85Hz (VESA)
+ 152            { //SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 153                     SyncHpVp, // Flags
+ 154                  Res_1280x960, // ResIndex
+ 155                  859, 850, // HFreq, VFreq
+ 156                  1728, 1011, // HTotal, VTotal
+ 157                  384-6, 50-3-1,//384, 50, // HStart, VStart
+ 158            }, 
+ 159             // 11. 1360X768 60HZ 
+ 160            {     SyncHpVp, // Flags
+ 161                  Res_1360x768, // ResIndex
+ 162                  477, 600, // HFreq, VFreq
+ 163                  1792,795-1, // HTotal, VTotal
+ 164                 362, 17, // HStart, VStart
+ 165            },
+ 166           //12  //1366x768 60Hz
+ 167            {    SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,
+ 168                  Res_1366x768, // ResIndex
+ 169                  477, 598, // HFreq, VFreq
+ 170                  1790,798+1, // HTotal, VTotal
+ 171                  356-6, 27-3-1,//368, 24, // HStart, VStart
+ 172            },
+ 173           // 13. 1440X900 60HZ Reduce Blanking(VESA)
+ 174           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 175                  Res_1440x900, // ResIndex
+ 176                  554, 599, // HFreq, VFreq
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 4   
+
+ 177                  1600,926, // HTotal, VTotal
+ 178                  112, 23-6-1,//112, 23, // HStart, VStart
+ 179            },
+ 180           // 14. 1440X900 60HZ Normal Blanking(VESA)
+ 181           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 182                  Res_1440x900, // ResIndex
+ 183                  559, 598, // HFreq, VFreq
+ 184                  1904,934, // HTotal, VTotal
+ 185                  383, 31-6-1,//384, 31, // HStart, VStart
+ 186            },
+ 187           // 15. 1440X900 75HZ 
+ 188           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 189                  Res_1440x900, // ResIndex
+ 190                  706, 750, // HFreq, VFreq
+ 191                  1936,942, // HTotal, VTotal
+ 192                  400-6,  39-6-1,//400,  39, // HStart, VStart
+ 193            },
+ 194           // 16. 1440X900 85HZ 
+ 195            {     SyncHnVp, // Flags
+ 196                  Res_1440x900, // ResIndex
+ 197                  804, 848, // HFreq, VFreq
+ 198                  1952,948, // HTotal, VTotal
+ 199                  408-6,  45-6-1,//408,  45, // HStart, VStart
+ 200            },
+ 201           // 17. 1680X1050 60HZ Reduced Blanking(VESA)
+ 202            {     SyncHnVp|SyncHpVn|SyncHpVp|SyncHnVn, // Flags
+ 203                  Res_1680x1050, // ResIndex
+ 204                  646,  598, // HFreq, VFreq
+ 205                  1840,1080, // HTotal, VTotal
+ 206                 112,   20, // HStart, VStart
+ 207            },
+ 208           // 18. 1680X1050 60HZ Normal Blanking(VESA)
+ 209            {     SyncHnVp|SyncHpVn|SyncHpVp|SyncHnVn, // Flags
+ 210                  Res_1680x1050, // ResIndex
+ 211                  652 , 599, // HFreq, VFreq
+ 212                  2240,1089, // HTotal, VTotal
+ 213                  454 ,  29, // HStart, VStart
+ 214            },
+ 215          
+ 216           // 19. 1680X1050 75HZ 
+ 217            {     SyncHnVp, // Flags
+ 218                  Res_1680x1050, // ResIndex
+ 219                  823 , 748, // HFreq, VFreq
+ 220                  2272,1099, // HTotal, VTotal
+ 221                  470 ,  39, // HStart, VStart
+ 222            },
+ 223           //====================================
+ 224           //===== Normal Mode Start ============ 
+ 225           //====================================
+ 226           // 20. 640x350 70Hz (IMB VGA)
+ 227            {   SyncHpVn, // Flags
+ 228                  Res_640x350, // ResIndex
+ 229                  315, 700, // HFreq, VFreq
+ 230                  800, 449, // HTotal, VTotal
+ 231                 90, 62-2-1//144 - 5, 62 - 2 - 1, // HStart, VStart    //PS. spec 144, 61
+ 232            },
+ 233            // 21. 640x350 85Hz (VESA)
+ 234            {        SyncHpVn, // Flags
+ 235                  Res_640x350, // ResIndex
+ 236                  379, 851, // HFreq, VFreq
+ 237                  832, 445, // HTotal, VTotal
+ 238                  80, 63-3-1, // HStart, VStart
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 5   
+
+ 239            },
+ 240            // 22. 720x400 70Hz (VGA)
+ 241            {         SyncHpVp | SyncHnVp | SyncHnVn, // Flags
+ 242                  Res_720x400, // ResIndex
+ 243                  315, 700, // HFreq, VFreq
+ 244                  900, 449, // HTotal, VTotal
+ 245                    162, 34,//160 - 6, 37 - 2 - 1, //160 - 6, 37 - 2 - 1, // HStart, VStart     //PS.spec 153, 29
+ 246            },
+ 247            // 23. 720x400 85Hz (VESA)
+ 248            {        SyncHpVp | SyncHnVp | SyncHnVn, // Flags
+ 249                  Res_720x400, // ResIndex
+ 250                  379, 850, // HFreq, VFreq
+ 251                  936, 446, // HTotal, VTotal
+ 252                  180-5, 45-3-1,//180, 45, // HStart, VStart
+ 253            },
+ 254            // 24. 640x400 85Hz (VESA)
+ 255            {         SyncHpVp | SyncHnVp | SyncHnVn, // Flags
+ 256                  Res_640x400, // ResIndex
+ 257                  379, 851, // HFreq, VFreq
+ 258                  832, 445, // HTotal, VTotal
+ 259                  80, 33 - 8 - 1, // HStart, VStart
+ 260            },
+ 261            //=============================================== 
+ 262            //===>Conflict with WSVGA(848x480@60Hz HpVp) ====
+ 263            //===============================================
+ 264            // 25. 640x480 60Hz (VESA)
+ 265            { //SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 266                      SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 267                  Res_640x480, // ResIndex
+ 268                  315, 599, // HFreq, VFreq
+ 269                  800, 525, // HTotal, VTotal 
+ 270                  144, 32,  //136, 27 - 3, //139, 32, // HStart, VStart           //spec 136, 27   //111111 Rick mod
+             -ified
+ 271            },
+ 272            // 26. 640x480 66Hz (MAC)
+ 273            {        SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 274                  Res_640x480, // ResIndex
+ 275                  350, 667, // HFreq, VFreq
+ 276                  864, 525, // HTotal, VTotal 
+ 277                 160, 38, // HStart, VStart
+ 278            },
+ 279            //27   // 30. 640x480 67Hz    //ATI           //111223 Modify
+ 280            {
+ 281                  SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 282                  Res_640x480, // ResIndex
+ 283                  335, 671, // HFreq, VFreq
+ 284                  816, 499, // HTotal, VTotal
+ 285                  153, 14, // HStart, VStart
+ 286            },
+ 287          
+ 288            // 28. 640x480 72Hz (VESA)
+ 289            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 290                  Res_640x480, // ResIndex
+ 291                  379, 728, // HFreq, VFreq
+ 292                  832, 520, // HTotal, VTotal
+ 293                  168, 27, // HStart, VStart
+ 294            },
+ 295            // 29. 640x480 75Hz (VESA)
+ 296            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 297                  Res_640x480, // ResIndex
+ 298                  375, 750, // HFreq, VFreq
+ 299                  840, 500, // HTotal, VTotal
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 6   
+
+ 300                  184, 15,// HStart, VStart
+ 301            },
+ 302            // 30. 640x480 85Hz (VESA)
+ 303            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 304                  Res_640x480, // ResIndex
+ 305                  433, 850, // HFreq, VFreq
+ 306                  832, 509, // HTotal, VTotal
+ 307                  136-5, 28-3-1,//136, 28, // HStart, VStart
+ 308            },
+ 309            
+ 310            // 31. 800x600 56Hz (VESA)
+ 311            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 312                  Res_800x600, // ResIndex
+ 313                  352, 562, // HFreq, VFreq
+ 314                  1024, 625, // HTotal, VTotal
+ 315                  201, 21, // HStart, VStart
+ 316            },
+ 317            // 32. 800x600 60Hz (VESA)
+ 318            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 319                  Res_800x600, // ResIndex
+ 320                  379, 603, // HFreq, VFreq
+ 321                  1056, 628, // HTotal, VTotal
+ 322                  217, 22, // HStart, VStart
+ 323            },
+ 324            // 33. 800x600 72Hz (VESA)
+ 325            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 326                  Res_800x600, // ResIndex
+ 327                  481, 722, // HFreq, VFreq
+ 328                  1040, 666, // HTotal, VTotal
+ 329                  185, 22, // HStart, VStart
+ 330            },
+ 331            // 34. 800x600 75Hz (VESA)
+ 332            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 333                  Res_800x600, // ResIndex
+ 334                  469, 750, // HFreq, VFreq
+ 335                  1056, 625, // HTotal, VTotal
+ 336                  241, 20, // HStart, VStart
+ 337            },
+ 338            // 35. 800x600 85Hz (VESA)
+ 339            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 340                  Res_800x600, // ResIndex
+ 341                  537, 851, // HFreq, VFreq
+ 342                  1048, 631, // HTotal, VTotal
+ 343                  216-5, 30-3-1,//216, 30, // HStart, VStart
+ 344            },
+ 345            
+ 346            // 36. 832x624 75Hz (MAC)
+ 347            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 348                  Res_832x624, // ResIndex
+ 349                  497, 746, // HFreq, VFreq
+ 350                  1152, 665,//667, // HTotal, VTotal
+ 351                  288, 38, // HStart, VStart
+ 352            },
+ 353            //========================================================  
+ 354            //===>Conflict with WXVGA(1280x768@60Hz HpVp;HnVp) ====
+ 355            //========================================================  
+ 356          
+ 357            // 37. 1024x768 60Hz (VESA)
+ 358            { //SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flagsc
+ 359              SyncHpVn | SyncHnVn, // Flags
+ 360                  Res_1024x768, // ResIndex
+ 361                  484, 600, // HFreq, VFreq
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 7   
+
+ 362                  1344, 806, // HTotal, VTotal
+ 363                  295, 28 // HStart, VStart
+ 364            },
+ 365            // 38. 1024x768 60Hz (VESA)
+ 366            { //SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flagsc
+ 367              SyncHpVn | SyncHnVn, // Flags
+ 368                  Res_1024x768, // ResIndex
+ 369                  484, 600, // HFreq, VFreq
+ 370                  1312, 813, // HTotal, VTotal
+ 371                  290, 39-3, // HStart, VStart
+ 372            },
+ 373            // 39. 1024x768 70Hz (VESA)
+ 374            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 375                  Res_1024x768, // ResIndex
+ 376                  565, 700, // HFreq, VFreq
+ 377                  1328, 806, // HTotal, VTotal
+ 378                  279, 28, // HStart, VStart
+ 379            },
+ 380            
+ 381            //===============================================
+ 382            //===>Conflict with WXVGA(1280x768@75Hz HnVp) ===
+ 383            //===============================================
+ 384            // 40. 1024x768 75Hz (VESA)
+ 385            { //SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 386              SyncHpVp | SyncHpVn | SyncHnVn, // Flags
+ 387                  Res_1024x768, // ResIndex
+ 388                  600, 750, // HFreq, VFreq
+ 389                  1312, 800, // HTotal, VTotal
+ 390                  272, 27, // HStart, VStart
+ 391            },
+ 392            // 41. 1024x768 75Hz (MAC)
+ 393            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 394                  Res_1024x768, // ResIndex
+ 395                  602, 749, // HFreq, VFreq
+ 396                  1326, 804, // HTotal, VTotal
+ 397                  271, 29, // HStart, VStart
+ 398            },
+ 399            //===============================================
+ 400            //===>Conflict with WXVGA(1280x768@85Hz HnVp) ===             
+ 401            //===============================================  
+ 402            // 42. 1024x768 85Hz (VESA)
+ 403            { SyncHpVp | SyncHpVn | SyncHnVn, // Flags
+ 404                  Res_1024x768, // ResIndex
+ 405                  683, 850, // HFreq, VFreq
+ 406                  1376, 808, // HTotal, VTotal
+ 407                  304-5, 39-3-1,//304, 39, // HStart, VStart
+ 408            },
+ 409            // 43. 1152x864 60Hz (VESA)
+ 410            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 411                  Res_1152x864, // ResIndex
+ 412                  536, 600, // HFreq, VFreq
+ 413              1520, 896, // HTotal, VTotal    //2004-09-10
+ 414                  263, 23, // HStart, VStart
+ 415            },
+ 416            // 44. 1152x864 70Hz (VESA)
+ 417            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 418                  Res_1152x864, // ResIndex
+ 419                  642, 702, // HFreq, VFreq
+ 420                  1536, 912,//14, // HTotal, VTotal
+ 421                  295, 43, // HStart, VStart
+ 422            },
+ 423            // 45. 1152x864 70Hz (For ATI Card)
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 8   
+
+ 424            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 425                  Res_1152x864, // ResIndex
+ 426                  662, 702, // HFreq, VFreq
+ 427                  1536, 900,//14, // HTotal, VTotal 
+ 428                  200, 49, // HStart, VStart
+ 429            },
+ 430            // 46. 1152x864 75Hz (VESA)
+ 431            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 432                  Res_1152x864, // ResIndex
+ 433                  675, 750, // HFreq, VFreq
+ 434                  1560,900, //1600, 900, // HTotal, VTotal  --- 2004-09-09
+ 435                  383, 31, // HStart, VStart
+ 436            },
+ 437            // 47. 1152x864 85Hz (VESA)
+ 438            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 439                  Res_1152x864, // ResIndex
+ 440                  771, 850, // HFreq, VFreq
+ 441                  1576, 907, // HTotal, VTotal 
+ 442                 210, 42, // HStart, VStart
+ 443            },
+ 444          #if 1
+ 445            // 48. 1152x870 75Hz (MAC)
+ 446            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 447                  Res_1152x870, // ResIndex
+ 448                  689, 751, // HFreq, VFreq
+ 449                  1456, 915, // HTotal, VTotal
+ 450                   264, 38, // HStart, VStart
+ 451            },
+ 452          #endif
+ 453            // 49. 1280x720 60Hz (VESA)
+ 454            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 455                  Res_1280x720, // ResIndex
+ 456                  447, 600, // HFreq, VFreq
+ 457                  1688, 750, // HTotal, VTotal
+ 458                  319, 19, // HStart, VStart //Larry 20130902 frome FOS chroma 2226.
+ 459            },
+ 460            // 50. 1280x720 60Hz (VESA)
+ 461            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 462                  Res_1280x720, // ResIndex
+ 463                  447, 600, // HFreq, VFreq
+ 464                  1440, 741, // HTotal, VTotal
+ 465                  424, 39, // HStart, VStart
+ 466            },  
+ 467            // 51. 1280x720 70Hz (VESA)
+ 468            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 469                  Res_1280x720, // ResIndex
+ 470                  524, 700, // HFreq, VFreq
+ 471                  1688, 750, // HTotal, VTotal
+ 472                  140, 39, // HStart, VStart
+ 473            },
+ 474            // 52. 1280x720 75Hz (VESA)
+ 475            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 476                  Res_1280x720, // ResIndex
+ 477                  563, 750, // HFreq, VFreq
+ 478                  1688, 750, // HTotal, VTotal
+ 479                  160, 39, // HStart, VStart
+ 480            },  
+ 481            //========================================================  
+ 482            //===>Conflict with SXVGA+(1400x1050@60Hz HpVn,HnVP ) ====
+ 483            //========================================================  
+ 484            //53. 1280x1024 60Hz (VESA)
+ 485            { SyncHpVp | SyncHnVn|SyncHpVn|SyncHnVp, // Flags
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 9   
+
+ 486                  Res_1280x1024, // ResIndex
+ 487                  640, 600, // HFreq, VFreq
+ 488                  1688, 1066, // HTotal, VTotal
+ 489                  359,  37, // HStart, VStart
+ 490            },
+ 491            
+ 492            //54. 1280x1024 75Hz (VESA)
+ 493            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 494                  Res_1280x1024, // ResIndex
+ 495                  800, 750, // HFreq, VFreq
+ 496                  1688, 1066, // HTotal, VTotal
+ 497                  391,37, // HStart, VStart
+ 498            },
+ 499            //55. 1280x1024 85Hz (VESA)
+ 500            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 501                  Res_1280x1024, // ResIndex
+ 502                  911, 850, // HFreq, VFreq
+ 503                  1728, 1072, // HTotal, VTotal
+ 504                  384-7, 47-3-1,//384, 47, // HStart, VStart
+ 505            },
+ 506            
+ 507          #if 1//#ifdef PanelType_1600x900// (PanelWidth==1600 && PanelHeight==900)
+ 508          // 56 // Mode_1600x900_60_R // 66 //Hfreq/Vfreq/Vtotal are the same with 1280x960 60(26)
+ 509            {
+ 510                    SyncHpVp, // Flags
+ 511                    Res_1600x900, // ResIndex
+ 512                    600, 600, // HFreq, VFreq
+ 513                    1800, 1000, // HTotal, VTotal
+ 514                    176-6,99-3-1,//0xab, 0x5f,//(10+12), (3+96), // HStart, VStart
+ 515            },
+ 516          //57  // Mode_1600x900_60,
+ 517            {
+ 518                    SyncHnVp, // Flags
+ 519                    Res_1600x900, // ResIndex
+ 520                    559, 599, // HFreq, VFreq
+ 521                            2112, 934, // HTotal, VTotal
+ 522                            256, 26,//(10+12), (3+96), // HStart, VStart
+ 523            },
+ 524            
+ 525           //58 // Mode_1600x900_75,
+ 526            {
+ 527                    SyncHnVp, // Flags
+ 528                    Res_1600x900, // ResIndex
+ 529                    705, 748, // HFreq, VFreq
+ 530                            2144, 942, // HTotal, VTotal
+ 531                            272, 34,//(10+12), (3+96), // HStart, VStart
+ 532            },      
+ 533          #endif
+ 534          
+ 535            //59. 1600x1200 60Hz (VESA)
+ 536            { SyncHpVp | SyncHnVn, // Flags
+ 537              Res_1600x1200, // ResIndex
+ 538                  750, 600, // HFreq, VFreq
+ 539                  2160, 1250, // HTotal, VTotal
+ 540                  495, 45, // HStart, VStart
+ 541            },
+ 542            //60. 1600x1200 65Hz (VESA)
+ 543            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 544                  Res_1600x1200, // ResIndex
+ 545                  813, 650, // HFreq, VFreq
+ 546                  2160, 1250, // HTotal, VTotal
+ 547                  496-9, 49-24-1,//496, 49, // HStart, VStart
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 10  
+
+ 548            },
+ 549          
+ 550          
+ 551            //61. 1600x1200 70Hz (VESA)
+ 552            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 553                  Res_1600x1200, // ResIndex
+ 554                  875, 700, // HFreq, VFreq
+ 555                  2160, 1250, // HTotal, VTotal
+ 556                  495, 45, // HStart, VStart
+ 557            },
+ 558            //62. 1600x1200 75Hz (VESA)
+ 559            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 560                  Res_1600x1200, // ResIndex
+ 561                  938, 750, // HFreq, VFreq
+ 562                  2160, 1250, // HTotal, VTotal
+ 563                  495, 45, // HStart, VStart
+ 564            },
+ 565          
+ 566          
+ 567          
+ 568            //63. 1400x1050 75Hz (VESA)
+ 569            { SyncHnVp,      // Flags
+ 570              Res_1400x1050, // ResIndex
+ 571              823, 749,      // HFreq, VFreq
+ 572              1896, 1099,    // HTotal, VTotal
+ 573             392-6, 46-4-1,//392, 46,     // HStart, VStart
+ 574            },
+ 575            //64. 1400x1050 85Hz (VESA)
+ 576            { SyncHnVp,      // Flags
+ 577              Res_1400x1050, // ResIndex
+ 578              938,  849,      // HFreq, VFreq
+ 579              1912, 1105,    // HTotal, VTotal
+ 580              408-6,  52-4-1,//408,  52,     // HStart, VStart
+ 581            },
+ 582            //65. 1792x1344 60Hz (VESA)
+ 583            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 584              Res_1792x1344, // ResIndex
+ 585              836, 600, // HFreq, VFreq
+ 586              2448, 1394, // HTotal, VTotal
+ 587              528-6, 49-3-1,//500, 46, // HStart, VStart
+ 588            },
+ 589          
+ 590          
+ 591                  
+ 592            //66. 1920x1080 60Hz   173M
+ 593            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 594              Res_1920x1080, // ResIndex
+ 595              672, 600, // HFreq, VFreq
+ 596              2576, 1120, // HTotal, VTotal
+ 597              456-9, 35-3-1,//528, 37, // HStart, VStart
+ 598            },
+ 599            //67. 1920x1200 60Hz (VESA) Reduce Blanking
+ 600            {SyncHpVn, // Flags
+ 601              Res_1920x1200, // ResIndex
+ 602              740, 600, // HFreq, VFreq
+ 603              2080, 1235, // HTotal, VTotal
+ 604             112-5, 32-6-1,// 112, 32, // HStart, VStart
+ 605            },
+ 606            //68. 1920x1200 60Hz (VESA)
+ 607            {SyncHnVp, // Flags
+ 608              Res_1920x1200, // ResIndex
+ 609              746, 600, // HFreq, VFreq
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 11  
+
+ 610              2592, 1245, // HTotal, VTotal
+ 611              536-6, 42-6-1,//536, 42, // HStart, VStart
+ 612            },
+ 613            //69. 720x480 60Hz (YCbCr)
+ 614            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn | bInterlaceMode, // Flags
+ 615                  Res_720x480, // ResIndex
+ 616                  156, 500, // HFreq, VFreq
+ 617                  900, 525, // HTotal, VTotal
+ 618                  144, 88, // HStart, VStart 
+ 619            },
+ 620            
+ 621            // 70. 800x1209 //TPV
+ 622           {      SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 623                  Res_800x1209, // ResIndex
+ 624                  756, 600, // HFreq, VFreq
+ 625                  1072, 1259, // HTotal, VTotal
+ 626                  152+96, 46-3, // HStart, VStart
+ 627           },
+ 628            // 71. 1024x768 72Hz (VESA)  //2006-07-07 Andy
+ 629            { //SyncHpVp | SyncHpVn | SyncHnVp  // Flags
+ 630                     SyncHpVp|SyncHnVp, // Flags
+ 631                  Res_1024x768, // ResIndex
+ 632                  571, 721, // HFreq, VFreq
+ 633                  1312, 800, // HTotal, VTotal 
+ 634                  279, 28, // HStart, VStart
+ 635            },
+ 636          
+ 637             // 72 1280 X 1024  72 Hz  
+ 638            {SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 639             Res_1280x1024, // ResIndex 
+ 640             770, 720, // HFreq, VFreq
+ 641             1712, 1064, // HTotal, VTotal
+ 642                  359, 51, // HStart, VStart
+ 643            },
+ 644            
+ 645               //73 1280 X 1024 70 Hz    60
+ 646            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+ 647              Res_1280x1024, // ResIndex
+ 648              748, 697, // HFreq, VFreq
+ 649              1722, 1066, // HTotal, VTotal
+ 650              336, 37, // HStart, VStart
+ 651            },  
+ 652            
+ 653           //74 720x480I 60Hz (YPbPr)  --> 78  Start of YPbPr
+ 654            {
+ 655               SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn | bInterlaceMode, // Flags
+ 656               Res_720x480, // resolution index
+ 657               156, 600,    // HFreq, VFreq
+ 658               858, 525,    // HTotal, VTotal
+ 659                  238, 18,       // HStart, VStart
+ 660             },
+ 661           
+ 662             //75 1920x1080i 50Hz (YPbPr)  --> 84
+ 663              {
+ 664               SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn | bInterlaceMode, // Flags    
+ 665               Res_1920x1080, // resolution index
+ 666               281, 500,      // HFreq, VFreq
+ 667               2640, 1125,    // HTotal, VTotal 
+ 668               186, 24,       // HStart, VStart
+ 669              },             
+ 670            //76. NTSC 1080i 
+ 671              {SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn | bInterlaceMode, // Flags    
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 12  
+
+ 672               Res_1920x1080, // resolution index
+ 673               337, 600,      // HFreq, VFreq 
+ 674               2200, 1125,    // HTotal, VTotal
+ 675               232, 27,       // HStart, VStart
+ 676            },    
+ 677              //77  700x570 50Hz (For India TV Box)   
+ 678              { SyncHpVp  , // Flags
+ 679              Res_700x570, // ResIndex
+ 680              313, 500, // HFreq, VFreq
+ 681              884, 625, // HTotal, VTotal
+ 682              179, 43, // HStart, VStart 
+ 683              },
+ 684              //78  1152x870 60Hz (MAC)   
+ 685              { SyncHnVp  , // Flags
+ 686              Res_1152x870, // ResIndex
+ 687              540, 600, // HFreq, VFreq
+ 688              1480, 900, // HTotal, VTotal
+ 689              264, 24, // HStart, VStart 
+ 690              },
+ 691              //79. 576P(YCbCr)
+ 692           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 693              Res_720x576, // ResIndex
+ 694              312, 500, // HFreq, VFreq
+ 695              864, 625, // HTotal, VTotal
+ 696              125, 40, // HStart, VStart 
+ 697           },
+ 698          
+ 699           // 80. 480P 60Hz
+ 700           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 701              Res_720x480, // ResIndex // Res_720x483 120424 coding reserved Res_720x483
+ 702              315, 599, // HFreq, VFreq
+ 703              858, 525, // HTotal, VTotal
+ 704              138, 32,   // HStart, VStart          
+ 705            },
+ 706          
+ 707          
+ 708          //=============================================================================
+ 709                   
+ 710              //81. 720p 60Hz
+ 711           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 712              Res_1280x720, // ResIndex 
+ 713              450, 600, // HFreq, VFreq
+ 714              1650, 750, // HTotal, VTotal
+ 715              260-5, 25-5-1,//296, 20, // HStart, VStart
+ 716            },  
+ 717          
+ 718              //82. PAL 1080p
+ 719           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 720               Res_1920x1080, // ResIndex 
+ 721               562, 500, // HFreq, VFreq 
+ 722               2640, 1125, // HTotal, VTotal
+ 723               112, 28, // HStart, VStart
+ 724            },
+ 725            //83. 1080p 148.35M
+ 726           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 727               Res_1920x1080, // ResIndex 
+ 728               674, 599, // HFreq, VFreq
+ 729               2200, 1125,// HTotal, VTotal
+ 730               192-7, 41-5-1, //232, 34,       // HStart, VStart
+ 731            },
+ 732            // 84. 832x624 75Hz (MAC)
+ 733            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 13  
+
+ 734                  Res_832x624, // ResIndex
+ 735                  497, 746, // HFreq, VFreq
+ 736                  1152, 662, // HTotal, VTotal
+ 737                  288, 42, // HStart, VStart
+ 738            },
+ 739            //85
+ 740           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 741              Res_720x576, // ResIndex
+ 742              455, 750, // HFreq, VFreq
+ 743              944, 602, // HTotal, VTotal
+ 744              169, 20, // HStart, VStart
+ 745           },
+ 746            //86. 576i
+ 747            { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn | bInterlaceMode, // Flags
+ 748                  Res_720x576, // ResIndex
+ 749                  156, 500, // HFreq, VFreq
+ 750                  864, 625, // HTotal, VTotal 
+ 751                  132, 22, // HStart, VStart
+ 752            },
+ 753            //87 1280x800 60Hz
+ 754           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 755               Res_1280x800, // ResIndex 
+ 756               497, 598, // HFreq, VFreq
+ 757               1680, 831,// HTotal, VTotal
+ 758                  335, 20, // HStart, VStart
+ 759            },
+ 760            //88 1280x800 60Hz
+ 761           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 762               Res_1280x800, // ResIndex 
+ 763               497, 598, // HFreq, VFreq
+ 764               1696, 838,// HTotal, VTotal
+ 765                  335, 20, // HStart, VStart
+ 766            },
+ 767            //89 1280x800 60Hz
+ 768           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 769               Res_1280x800, // ResIndex 
+ 770               493, 599, // HFreq, VFreq
+ 771               1440, 823,// HTotal, VTotal
+ 772               336-5, 35-6-1, //334, 35,       // HStart, VStart
+ 773            },
+ 774            //90 1280x800 75Hz
+ 775           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 776               Res_1280x800, // ResIndex 
+ 777               628, 749, // HFreq, VFreq
+ 778               1696, 838,// HTotal, VTotal
+ 779                336-5, 35-6-1,//336, 35,       // HStart, VStart
+ 780            },
+ 781          
+ 782                   
+ 783            //91 1280x800 76Hz
+ 784           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 785               Res_1280x800, // ResIndex 
+ 786               647, 764, // HFreq, VFreq
+ 787               1568, 846,// HTotal, VTotal
+ 788               264, 43,       // HStart, VStart 
+ 789            },
+ 790            //92 1080p 138.5M 
+ 791           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 792               Res_1920x1080, // ResIndex 
+ 793               666, 599, // HFreq, VFreq
+ 794               2080, 1111,// HTotal, VTotal
+ 795                  112 , 23, // HStart, VStart
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 14  
+
+ 796            },
+ 797            //93 1080p 148.5M
+ 798           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 799               Res_1920x1080, // ResIndex 
+ 800               663, 599, // HFreq, VFreq
+ 801               2240, 1107,// HTotal, VTotal
+ 802                256-9, 26-3-1,//256, 26,       // HStart, VStart
+ 803            },
+ 804            //94 1600x1024 60Hz NVIDIA
+ 805           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 806                   Res_1600x1024, // ResIndex 
+ 807                   636, 600, // HFreq, VFreq
+ 808                   2144, 1060,// HTotal, VTotal
+ 809                   442, 31,//256, 26,              // HStart, VStart
+ 810            },
+ 811              //95 1920x1080_50                   //130917 Henry add For MK Chrma K-8256
+ 812           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 813               Res_1920x1080, // ResIndex 
+ 814               556, 499, // HFreq, VFreq 
+ 815               2544, 1114, // HTotal, VTotal
+ 816               508, 25, // HStart, VStart
+ 817            },
+ 818              //96 1920x1080_75                   //130917 Henry add For MK Chrma K-8256
+ 819           { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn,   // Flags
+ 820               Res_1920x1080, // ResIndex 
+ 821               839, 750, // HFreq, VFreq 
+ 822               2080, 1119, // HTotal, VTotal
+ 823               106, 24, // HStart, VStart
+ 824            },     
+ 825            //////////////////////////////////////////
+ 826          #if  ENABLE_DUAL_LINK
+              // 97   // 640X480 100Hz RB
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_640x480_2D, // resolution index
+                      503, 1000,      // HFreq, VFreq
+                      800, 504,    // HTotal, VTotal     
+                      112, 17,       // HStart, VStart
+                 },
+              
+              //98   // 640X480 100Hz 
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_640x480_2D, // resolution index
+                      510, 1000,      // HFreq, VFreq
+                      832, 512,    // HTotal, VTotal     
+                      160, 25,       // HStart, VStart
+                 },
+              
+              //99   // 640X480 120Hz RB
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_640x480_2D, // resolution index
+                      609, 1200,      // HFreq, VFreq
+                      800, 509,    // HTotal, VTotal     
+                      112, 22,       // HStart, VStart
+                 },
+              
+               //100  // 640X480 120Hz 
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_640x480_2D, // resolution index
+                      619, 1200,      // HFreq, VFreq
+                      848, 518,    // HTotal, VTotal     
+                      168, 31,       // HStart, VStart
+                 },
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 15  
+
+              
+               //101  //800X600 100Hz(RB)
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_800x600_2D, // resolution index
+                      627, 1000,      // HFreq, VFreq
+                      960, 629,    // HTotal, VTotal     
+                      112, 22,       // HStart, VStart
+                 },
+              
+               //102  //800X600 100Hz
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_800x600_2D, // resolution index
+                      636, 1000,      // HFreq, VFreq
+                      1056, 639,    // HTotal, VTotal     
+                      208, 32,       // HStart, VStart
+                 },
+              
+              
+               //103  //800X600 120Hz (RB)
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_800x600_2D, // resolution index
+                      763, 1200,      // HFreq, VFreq
+                      960, 636,    // HTotal, VTotal     
+                      112, 29,       // HStart, VStart
+                 },
+              
+                //104 //800X600 120Hz 
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_800x600_2D, // resolution index
+                      774, 1200,      // HFreq, VFreq
+                      1072, 646,    // HTotal, VTotal     
+                      216, 39,       // HStart, VStart
+                 },
+              
+              
+               //105  //1280X960 100Hz (RB)
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_1280x960_2D, // resolution index
+                      1006, 1000,      // HFreq, VFreq
+                      1440, 1007,    // HTotal, VTotal     
+                      112, 40,       // HStart, VStart
+                 },
+              
+               //106  //1280X960 100Hz 
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_1280x960_2D, // resolution index
+                      1017, 1000,      // HFreq, VFreq
+                      1744, 1020,    // HTotal, VTotal     
+                      368, 53,       // HStart, VStart
+                 },
+              
+                //107 //1024X768 100Hz (RB)
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_1024x768_2D, // resolution index
+                      804, 1000,      // HFreq, VFreq
+                      1184, 806,    // HTotal, VTotal     
+                      112, 31,       // HStart, VStart
+                 },
+              
+               //108  //1024X768 100Hz 
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_1024x768_2D, // resolution index
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 16  
+
+                      815, 1000,      // HFreq, VFreq
+                      1376, 816,    // HTotal, VTotal     
+                      280, 41,       // HStart, VStart
+                 },
+              
+              
+                //109 //1024X768 120Hz (RB)
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_1024x768_2D, // resolution index
+                      975, 1200,      // HFreq, VFreq
+                      1184, 813,    // HTotal, VTotal     
+                      112, 38,       // HStart, VStart
+                 },
+              
+                //110 //1024X768 120Hz 
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_1024x768_2D, // resolution index
+                      989, 1200,      // HFreq, VFreq
+                      1392, 826,    // HTotal, VTotal     
+                      288, 51,       // HStart, VStart
+                 },
+              
+              
+                //111 //1440X900 120Hz RB
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_1440x900_2D, // resolution index
+                      1142, 1200,      // HFreq, VFreq
+                      1600, 953,    // HTotal, VTotal     
+                      112, 44,       // HStart, VStart
+                 },
+              
+                 //112//1440X900 120Hz 
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_1440x900_2D, // resolution index
+                      1159, 1200,      // HFreq, VFreq
+                      1968, 967,    // HTotal, VTotal     
+                      416, 58,       // HStart, VStart
+                 },
+              
+              
+                //113 //  1920x1080P 120Hz (2D-CVT-RB) 
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_1920x1080_2D, // resolution index //Mod_1920x1080_120Nv2D,
+                      1372, 1200,      // HFreq, VFreq
+                       2080, 1144,    // HTotal, VTotal     
+                      80, 8,       // HStart, VStart
+                 },
+              
+              
+               //114  //  1920x1080P 120Hz       109
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_1920x1080_2D, // resolution index //Mod_1920x1080_120Nv2D,
+                      1391, 1200,      // HFreq, VFreq
+                      2656, 1160,    // HTotal, VTotal     
+                      80, 8,       // HStart, VStart
+                 },
+              
+              
+              
+                //115 //  1920x1080P 110Hz (2D-CVT-RB)  
+                 {    SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                       Res_1920x1080_2D, // resolution index  //Mod_1920x1080_110Nv2D,
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 17  
+
+                       1251, 1100,      // HFreq, VFreq
+                       2080, 1138,    // HTotal, VTotal     
+                       80, 8,       // HStart, VStart
+                 },
+              
+              
+                //116 //  1920x1080P 110Hz 
+                 {    SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                       Res_1920x1080_2D, // resolution index  //Mod_1920x1080_110Nv2D,
+                       1267, 1100,      // HFreq, VFreq
+                       2640, 1153,    // HTotal, VTotal     
+                       80, 8,       // HStart, VStart
+                 },
+              
+              
+                //117 //  1920x1080P 100Hz (2D-CVT-RB)  
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_1920x1080_2D, // resolution index   // Mod_1920x1080_100Nv2D,
+                      1133, 1000,      // HFreq, VFreq
+                      2080, 1133,    // HTotal, VTotal     
+                      80, 8,       // HStart, VStart
+                 },
+              
+              
+                 //118//  1920x1080P 100Hz 
+                 {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                      Res_1920x1080_2D, // resolution index   // Mod_1920x1080_100Nv2D,
+                      1145, 1000,      // HFreq, VFreq
+                      2640, 1147,    // HTotal, VTotal     
+                      80, 8,       // HStart, VStart
+                 },
+              
+              
+              //119//  1920x1080P 144Hz (2D-CVT-RB)  
+              {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                   Res_1920x1080_2D,
+                   1581, 1440,      // HFreq, VFreq
+                   2056, 1098,    // HTotal, VTotal     
+                   80, 8,       // HStart, VStart
+              },
+              
+              //120//2560x1440 60Hz //20130801 nick from  VASE CVT timing
+              {   SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                   Res_2560x1440,
+                   888, 600,      // HFreq, VFreq
+                   2720, 1481,    // HTotal, VTotal     
+                   109, 32,       // HStart, VStart
+              },
+              
+              #endif
+1032          
+1033          #if IIYAMASeries
+              
+                      // 640x400 56Hz
+                      { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                        Res_640x400, // ResIndex
+                        248, 564, // HFreq, VFreq
+                        848, 440, // HTotal, VTotal
+                        145, 24,// HStart, VStart
+                      },
+                      
+                      // 848x480 75Hz CVT
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 18  
+
+                      { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                        Res_848x480, // ResIndex
+                        376, 747, // HFreq, VFreq
+                        1088, 504, // HTotal, VTotal
+                        200, 15,// HStart, VStart
+                      },
+                      
+                      // 1152x864 70Hz
+                      { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                        Res_1152x864, // ResIndex
+                        638, 700, // HFreq, VFreq
+                        1480, 912, // HTotal, VTotal
+                        296, 43,// HStart, VStart
+                      },
+                      
+                      // 1280x1024 70Hz
+                      { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+                        Res_1280x1024, // ResIndex
+                        748, 698, // HFreq, VFreq
+                        1696, 1072, // HTotal, VTotal
+                        384, 41,// HStart, VStart
+                      },
+              #endif
+1067          
+1068          //Mode_1400_1050_60_RB
+1069          {
+1070                  SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // 62
+1071                  Res_1400x1050, // ResIndex
+1072                  647, 599, // HFreq, VFreq
+1073                  1560, 1080, // HTotal, VTotal
+1074                  85, 21, // HStart, VStart
+1075          },
+1076          
+1077          //Mode_1400_1050_60
+1078          {
+1079                  SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // 62
+1080                  Res_1400x1050, // ResIndex
+1081                  653, 599, // HFreq, VFreq
+1082                  1864, 1089, // HTotal, VTotal
+1083                  232, 36, // HStart, VStart
+1084          },
+1085          
+1086          #if SHARP_VGA_50Hz_Timing
+1087                  // MODE_640x400_56
+1088                  { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+1089                    Res_640x400, // ResIndex
+1090                    248, 564, // HFreq, VFreq
+1091                    848, 440, // HTotal, VTotal
+1092                    145, 24,// HStart, VStart
+1093                  },
+1094          
+1095                  // MODE_640x400_70
+1096                  { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+1097                    Res_640x400, // ResIndex
+1098                    314, 700, // HFreq, VFreq
+1099                    800, 449, // HTotal, VTotal
+1100                    145, 24,// HStart, VStart
+1101                  },
+1102          
+1103                  // MODE_720x400_50
+1104                  { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+1105                    Res_720x400, // ResIndex
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 19  
+
+1106                    314, 500, // HFreq, VFreq
+1107                    900, 629, // HTotal, VTotal
+1108                    162, 120,// HStart, VStart
+1109                  },
+1110          
+1111                  //MODE_1024x768_50
+1112                  { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+1113                    Res_1024x768, // ResIndex
+1114                    396, 499, // HFreq, VFreq
+1115                    1312, 793, // HTotal, VTotal
+1116                    253, 24,// HStart, VStart
+1117                  },
+1118          
+1119          
+1120                  //MODE_1152x900_66
+1121                  { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+1122                    Res_1152x900, // ResIndex
+1123                    617, 659, // HFreq, VFreq
+1124                    1504, 937, // HTotal, VTotal
+1125                    300, 24,// HStart, VStart
+1126                  },
+1127          
+1128                  // MODE_1152x900_66_SOG
+1129                  { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+1130                    Res_1152x900, // ResIndex
+1131                    618, 660, // HFreq, VFreq
+1132                    1530, 937, // HTotal, VTotal
+1133                    136, 24,// HStart, VStart
+1134                  },
+1135          
+1136                  // MODE_1280x768_50
+1137                  { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+1138                    Res_1280x768, // ResIndex
+1139                    395, 499, // HFreq, VFreq
+1140                    1648, 793, // HTotal, VTotal
+1141                    145, 24,// HStart, VStart
+1142                  },
+1143          
+1144                  // MODE_1280x960_50
+1145                  { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+1146                    Res_1280x960, // ResIndex
+1147                    494, 498, // HFreq, VFreq
+1148                    1680, 991, // HTotal, VTotal
+1149                    201, 25,// HStart, VStart
+1150                  },
+1151          
+1152                  // MODE_1400x1050_50
+1153                  { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+1154                    Res_1400x1050, // ResIndex
+1155                    541, 499, // HFreq, VFreq
+1156                    1848, 1083, // HTotal, VTotal
+1157                    328, 24,// HStart, VStart
+1158                  },
+1159          
+1160                  // MODE_1600x1200_50
+1161                  { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+1162                    Res_1600x1200, // ResIndex
+1163                    617, 499, // HFreq, VFreq
+1164                    2128, 1238, // HTotal, VTotal
+1165                    430, 90,// HStart, VStart
+1166                  },
+1167          
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 20  
+
+1168                  // MODE_1680x1050_50
+1169                  { SyncHpVp | SyncHpVn | SyncHnVp | SyncHnVn, // Flags
+1170                    Res_1680x1050, // ResIndex
+1171                    541, 499, // HFreq, VFreq
+1172                    2208, 1083, // HTotal, VTotal
+1173                    314, 24,// HStart, VStart
+1174                  },
+1175                  
+1176          #endif
+1177          
+1178            //////////////////////////////////////////   
+1179            //=====IMPORTANT      DON'T DELETE IT, OR IT WILL CAUSE LOOP INIFINITE
+1180            { 0, // Flags
+1181                  0, // ResIndex
+1182                  0, 0, // HFreq, VFreq
+1183                  0, 0, // HTotal, VTotal
+1184                  0, 0, // HStart, VStart
+1185            }
+1186          };
+1187          
+1188          WORD GetStandardModeWidth(void)
+1189          {
+1190   1          return StandardModeResolution[StandardModeGroup].DispWidth;
+1191   1      }
+1192          
+1193          WORD GetStandardModeHeight(void)
+1194          {
+1195   1          return StandardModeResolution[StandardModeGroup].DispHeight;
+1196   1      }
+1197          
+1198          WORD GetStandardModeGroup(void)
+1199          {
+1200   1              return StandardMode[SrcModeIndex].ResIndex;
+1201   1      }
+1202          
+1203          WORD GetStandardModeHTotal(void)
+1204          {
+1205   1              return StandardMode[SrcModeIndex].HTotal;
+1206   1      }
+1207          #if (CHIP_ID==CHIP_TSUMU) || (CHIP_ID==CHIP_TSUM2) ||(CHIP_ID==CHIP_TSUMC)||(CHIP_ID==CHIP_TSUMD)
+1208          WORD GetStandardModeVTotal(void)
+1209          {
+1210   1          return StandardMode[SrcModeIndex].VTotal;
+1211   1      }
+1212          #endif
+1213          //WORD GetStandardModeHFreq(void)
+1214          //{
+1215          //    return StandardMode[SrcModeIndex].HFreq;
+1216          //}
+1217          WORD GetStandardModeVFreq(void)
+1218          {
+1219   1              return StandardMode[SrcModeIndex].VFreq;
+1220   1      }
+1221          
+1222          WORD GetStandardModeHStart(void)
+1223          {
+1224   1          return StandardMode[SrcModeIndex].HStart;
+1225   1      }
+1226          
+1227          WORD GetStandardModeVStart(void)
+1228          {
+1229   1          return StandardMode[SrcModeIndex].VStart;
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 21  
+
+1230   1      }
+1231          //120601 Modify
+1232          #define PHASE_MAX          (0x80)
+1233          #define PHASE_STEP         (0x07)
+1234          #define PHASE_CENTER    0x40
+1235          
+1236          #define CHECK_MODE_WIDTH   1
+1237          #define SIMILAR_TIMING_BUFFER_MAX   10
+1238          BYTE xdata ucSimilarTimingNums; 
+1239          BYTE xdata ucSimilarTimingBuffer[SIMILAR_TIMING_BUFFER_MAX]; // record similar timing buffer
+1240          
+1241          void appCheckSimilarTiming(void)
+1242          {
+1243   1      #if CHECK_MODE_WIDTH
+1244   1          WORD xdata wWidth;
+1245   1      #endif    
+1246   1          BYTE vsyncTime, i, ucIndex, uccount;
+1247   1          DWORD maxcksum, cksum, maxcksum1;
+1248   1          BYTE adjPhase;
+1249   1      
+1250   1          if(ucSimilarTimingNums <= 1 || (SrcFlags&bUnsupportMode))
+1251   1              return;
+1252   1      
+1253   1          vsyncTime = GetVSyncTime();
+1254   1          i = 0;
+1255   1          maxcksum = maxcksum1 = 0;
+1256   1              
+1257   1          ucIndex = SrcModeIndex=ucSimilarTimingBuffer[0];    //131210 jb
+1258   1              
+1259   1          uccount = (ucSimilarTimingNums>=SIMILAR_TIMING_BUFFER_MAX)?(SIMILAR_TIMING_BUFFER_MAX):(ucSimilarTimin
+             -gNums);
+1260   1          
+1261   1                  //printData(" ucSimilarTimingNums:%d", ucSimilarTimingNums);
+1262   1      
+1263   1          while(uccount--)
+1264   1          {
+1265   2              //111027 Rick add for reload ADC table while check similar timing - B39609
+1266   2              wWidth = HFreq( SrcHPeriod );//(( DWORD )MST_CLOCK_MHZ * 10 + SrcHPeriod / 2 ) / SrcHPeriod; //cal
+             -culate hfreq: round 5
+1267   2              wWidth = (( DWORD )wWidth * StandardModeHTotal + 5000 ) / 10000; //dclk= hfreq * htotal
+1268   2              drvADC_SetModewithPLLProtection(g_bInputSOGFlag ? ADC_INPUTSOURCE_YPBPR : ADC_INPUTSOURCE_RGB, wWi
+             -dth, StandardModeHTotal);
+1269   2      
+1270   2              drvADC_AdjustHTotal(StandardModeHTotal);
+1271   2      
+1272   2      #if CHECK_MODE_WIDTH
+1273   2              wWidth = SearchMaxWidth(vsyncTime);
+1274   2              
+1275   2              //printData(" width:%d", wWidth);
+1276   2                  
+1277   2              if(abs(wWidth - StandardModeWidth) < 2)     //111223 Modify
+1278   2              {
+1279   3                  //printData(" similar width:%d", wWidth);
+1280   3                  
+1281   3                  return;
+1282   3              }
+1283   2      #endif
+1284   2      
+1285   2              SC0_SET_IMAGE_WIDTH(StandardModeWidth);//msWrite2Byte( SC0_0B, StandardModeWidth);
+1286   2              SC0_SET_IMAGE_HEIGHT(StandardModeHeight);//msWrite2Byte( SC0_09, StandardModeHeight );
+1287   2      
+1288   2              for( adjPhase = 0; adjPhase < PHASE_MAX; adjPhase += PHASE_STEP)
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 22  
+
+1289   2              {
+1290   3                  drvADC_SetPhaseCode( adjPhase );
+1291   3                  Delay1ms( vsyncTime + 3 );
+1292   3                  AUTO_PHASE_RESULT_READY();//WaitAutoStatusReady(SC0_8B, BIT1);
+1293   3                  //cksum = msRead2Byte(SC0_8E);
+1294   3                  //cksum = ( cksum << 16 ) | msRead2Byte(SC0_8C);
+1295   3                  cksum = AUTO_PHASE_READ_VALUE();
+1296   3                  if( cksum > maxcksum )
+1297   3                  {
+1298   4                      maxcksum = cksum;
+1299   4                  }
+1300   3              }
+1301   2      
+1302   2              if(maxcksum > maxcksum1)
+1303   2              {
+1304   3                  maxcksum1 = maxcksum;
+1305   3                              
+1306   3                  ucIndex = SrcModeIndex;
+1307   3                 #if DEBUG_PRINTDATA
+                          printData(" 11111111111SrcModeIndex_MaxCksm:%d", SrcModeIndex);
+                         #endif
+1310   3              }
+1311   2              
+1312   2              SrcModeIndex = ucSimilarTimingBuffer[++i];
+1313   2              
+1314   2          }
+1315   1      
+1316   1          SrcModeIndex = ucIndex;
+1317   1                  #if DEBUG_PRINTDATA
+                          printData(" 22222222222SrcModeIndexFinal:%d", SrcModeIndex);
+                         #endif
+1320   1      }
+1321          
+1322          
+1323          #define DIGITAL_TOLERANCE               3
+1324          #define RECHECK_INPUT_COUNT             50 // unit: 20ms
+1325          #define RECHECK_INTERLACE_COUNT    25 // unit: 20ms             //120703 Modify
+1326          
+1327          extern BYTE GetVSyncWidth(void);
+1328          
+1329          Bool mStar_FindMode(void)
+1330          #if 1
+1331          {
+1332   1          WORD hFreq, vFreq=0;
+1333   1          BYTE htol, vtol;
+1334   1          WORD tempHeight, tempWidth;
+1335   1          bit bDigitalInput = 0;
+1336   1          
+1337   1      #if ENABLE_HDMI && ENABLE_HDMI_1_4
+                  bit bHDMI3DTimingFlag = 0;
+              #endif    
+1340   1      
+1341   1      #define fStatus  hFreq
+1342   1      
+1343   1          fStatus = mStar_GetInputStatus();
+1344   1          if( SyncPolarity( SrcFlags ) != SyncPolarity( fStatus ) )        // Sync polarity changed
+1345   1          {
+1346   2              return FALSE;
+1347   2          }
+1348   1      
+1349   1              
+1350   1      #if ENABLE_FREESYNC
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 23  
+
+                  SrcFlags &= 0x1F;
+              #else
+1353   1          SrcFlags &= 0x0F;
+1354   1      #endif
+1355   1              
+1356   1      #undef fStaus
+1357   1      #if ENABLE_FREESYNC
+                  if (!IS_DP_FREESYNC())
+              #endif
+1360   1          {
+1361   2          hFreq = SC0_READ_HPEROID();//msRead2Byte(SC0_E4) & 0x1FFF;
+1362   2          if( abs( hFreq - SrcHPeriod ) > HPeriod_Torlance )        // HPeriod changed
+1363   2          {
+1364   3              return FALSE;
+1365   3          }
+1366   2          }
+1367   1      #if ENABLE_FREESYNC
+                  if (!IS_HDMI_FREESYNC())
+              #endif
+1370   1          {
+1371   2            vFreq = SC0_READ_VTOTAL();//msRead2Byte(SC0_E2) & 0xFFF;
+1372   2            if( abs( vFreq - SrcVTotal ) > VTotal_Torlance )        // vtotal changed
+1373   2            {
+1374   3                return FALSE;
+1375   3            }
+1376   2          }
+1377   1      #if DEBUG_PRINTDATA
+                      printData( " SrcHPeriod00000           :%d", SrcHPeriod );
+                    printData( " vFreq00000           :%d", vFreq );
+              #endif  
+1381   1              //111223 Modify 
+1382   1          if( SrcHPeriod > 511 )        // prevent counter overflow when input frequency is very low
+1383   1          {
+1384   2              hFreq = SrcHPeriod * 16;
+1385   2          }
+1386   1          else
+1387   1          {
+1388   2              tempHeight = GetVSyncTime() * 12; ///3  //120112 Modify
+1389   2              SC0_HPEROID_DETECT_MODE(TRUE);//msWriteByte(SC0_E5, BIT7); // enable 16 line line to calculate hsy
+             -nc period.        //120105 Modify
+1390   2              Delay1ms( tempHeight );
+1391   2              hFreq = SC0_READ_HPEROID();                                                     //120105 Modify
+1392   2              SC0_HPEROID_DETECT_MODE(FALSE);//msWriteByte(SC0_E5, 0);        //120105 Modify
+1393   2              Delay1ms( tempHeight );
+1394   2              if( abs( hFreq - SrcHPeriod * 16 ) > 80 )
+1395   2                  // prevent from getting the wrong hperiod to generate unknown panel clock
+1396   2              {
+1397   3                  hFreq = SrcHPeriod * 16;
+1398   3              }
+1399   2          }
+1400   1              
+1401   1              hFreq=(hFreq+8)/16;
+1402   1              
+1403   1              /////////////////////////////////////////////////////////
+1404   1              SrcHPeriod = hFreq;
+1405   1          SrcVTotal = vFreq;
+1406   1      
+1407   1      #if DEBUG_PRINTDATA
+                      printData( " c SrcHPeriod00000           :%d", SrcHPeriod );
+                    printData( " c SrcVTotal           :%d", SrcVTotal );
+              #endif
+1411   1              
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 24  
+
+1412   1      #if ENABLE_FREESYNC
+                  if(IS_DP_FREESYNC())
+                  {
+                      WORD u16PixClk, u16Htt;
+              
+                      u16PixClk = msAPI_combo_IPGetPixelClk();
+                      u16Htt = msAPI_combo_IPGetGetHTotal();
+                      if((u16Htt!=0)&&(SrcVTotal!=0))
+                      {
+              #if 0
+                              hFreq = ((DWORD)u16PixClk * 100 + u16Htt/2)/u16Htt;
+                              vFreq = ((DWORD)hFreq * 1000 + SrcVTotal/2)/SrcVTotal;
+              #else
+                              hFreq = ((DWORD)u16PixClk *10 + u16Htt/2)/(u16Htt);
+                              hFreq = ((DWORD)hFreq * 1000 + SrcVTotal/2)*10/(SrcVTotal*PANEL_H_DIV);
+               #endif
+              
+                      }
+                  }
+                  else
+              #endif
+1433   1          {
+1434   2      
+1435   2      #if DEBUG_PRINTDATA
+                      printData( " SrcHPeriod1111           :%d", SrcHPeriod );
+              #endif
+1438   2              
+1439   2              hFreq = HFreq( SrcHPeriod );
+1440   2              vFreq = VFreq( hFreq, SrcVTotal );
+1441   2          }
+1442   1      #if DEBUG_PRINTDATA
+                      printData( " hFreq           :%d", hFreq );
+                    printData( " vFreq           :%d", vFreq );
+              #endif  
+1446   1      
+1447   1              //======== for interlace mode
+1448   1      #if ENABLE_FREESYNC
+                if(SrcFlags&bInterlaceMode)
+                {
+                          vFreq *= 2;
+                }
+              #else
+1454   1              if( (SC0_READ_SYNC_STATUS()&INTM_B) //msReadByte( SC0_E1 ) &INTM_B
+1455   1      #if ENABLE_DP_INPUT
+                      ||(CURRENT_INPUT_IS_DISPLAYPORT() && DP_INTERLACED_VIDEO_STREAM() )  //130909 nick add
+              #endif
+1458   1              )
+1459   1              {
+1460   2                      if(1)//(CURRENT_INPUT_IS_VGA())         //120703 Modify
+1461   2                      {
+1462   3                              BYTE count;
+1463   3                              for( count=0; count<RECHECK_INTERLACE_COUNT; count++ )
+1464   3                              {
+1465   4                                  if(!(CURRENT_INPUT_IS_DISPLAYPORT()))
+1466   4                                      {
+1467   5                                      if(!(SC0_READ_SYNC_STATUS()&INTM_B))
+1468   5                                              break;
+1469   5                                      }
+1470   4                                      if(CURRENT_INPUT_IS_DISPLAYPORT())
+1471   4                                      {
+1472   5                                        if(!DP_INTERLACED_VIDEO_STREAM())
+1473   5                                              break;
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 25  
+
+1474   5                                      }
+1475   4                                      
+1476   4                                      Delay1ms(20);
+1477   4                              }
+1478   3                              if(count>=RECHECK_INTERLACE_COUNT)
+1479   3                              {
+1480   4                                  SrcFlags |= bInterlaceMode;
+1481   4                                  vFreq *= 2;
+1482   4                              }
+1483   3                      }
+1484   2                      else
+1485   2                      {
+1486   3                              SrcFlags |= bInterlaceMode;
+1487   3                              vFreq *= 2;
+1488   3                      }
+1489   2              }
+1490   1      #endif
+1491   1      
+1492   1      
+1493   1          SrcVFreq = vFreq;  //130909 nick add
+1494   1      #if FindModeByVwidth    
+                      SrcVsyncwidth=GetVSyncWidth();
+              #endif
+1497   1      #if DEBUG_PRINTDATA
+                      printData( " FindMode_hFreq:%d", hFreq );
+                      printData( " FindMode_vFreq:%d", vFreq );
+                      printData( " SrcHPeriod:%d", SrcHPeriod );
+                      printData( " SrcVTotal:%d", SrcVTotal );        
+                      //printData("SrcVsyncwidth= %d", SrcVsyncwidth );
+              #endif
+1504   1      #if ENABLE_HDMI && ENABLE_HDMI_1_4
+              
+              #if 0//DEBUG_PRINTDATA
+                  if( mstar_HDMITmdsGetType() == TMDS_HDMI )
+                  {
+                      printData( " E_HDMI_3D_FORMAT:%x", (msReadByte(REG_0568) & 0xE0) );
+                      printData( " E_HDMI_3D_TYPE:%x", msHDMI_Get_3D_Structure() );
+                      printData( " HDMI_STATUS:%x", msRead2Byte( REG_0502 ) );
+                  }
+              #endif
+              
+                  if((msHDMI_Check_Additional_Format() == E_HDMI_3D_FORMAT) && (gScInfo.InputPacketStatus&BIT7))
+                  {
+                      bHDMI3DTimingFlag = 1;
+              #if DEBUG_PRINTDATA
+                      printData( "bHDMI3DTimingFlag:%x", bHDMI3DTimingFlag);
+              #endif
+                  }
+              #endif
+1523   1      
+1524   1      
+1525   1              //====================================
+1526   1      #if ENABLE_FREESYNC
+                  if(!IS_HDMI_FREESYNC() && !IS_DP_FREESYNC())
+              #endif
+1529   1          {
+1530   2          #if !ENABLE_DUAL_LINK
+1531   2         
+1532   2              // check if input timing is out of range
+1533   2              if( hFreq > MaxInputHFreq || hFreq < MinInputHFreq || vFreq > MaxInputVFreq || vFreq < MinInputVFreq )
+1534   2              {
+1535   3              #if (ModelName==MODEL_HS245HFB)||(ModelName==MODEL_HS225HFB)
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 26  
+
+                      if(vFreq < 400)
+                      {
+              
+                      }
+                      else
+                      #endif
+1542   3              {
+1543   4              #if ENABLE_FREESYNC
+                      #else
+1545   4                  SrcFlags |= bUnsupportMode;
+1546   4                  #if DEBUG_MSG
+                              printData("hFreq %d", hFreq);
+                              printData("vFreq %d", vFreq);
+                             printMsg( "Input over freq--> not support" );
+                          #endif
+1551   4                  return TRUE;
+1552   4              #endif
+1553   4              }
+1554   3      
+1555   3              }               
+1556   2             #endif
+1557   2          }
+1558   1              htol = HFreq_Torlance; //0527 add for getting more accurate mode
+1559   1              vtol = VFreq_Torlance;
+1560   1      
+1561   1              ucSimilarTimingNums = 0;
+1562   1              SrcModeIndex = 0xFF;
+1563   1      
+1564   1          if(!CURRENT_INPUT_IS_VGA())//(SrcInputType >= Input_Digital)
+1565   1          {
+1566   2              bDigitalInput = 1;
+1567   2      #if ENABLE_DP_INPUT     //111027 Rick modified - B39435
+                      if(CURRENT_INPUT_IS_DISPLAYPORT())//(SrcInputType == Input_Displayport)
+                      {
+                          tempWidth = (SC0_READ_AUTO_WIDTH()*2);
+                          tempHeight = (SC0_READ_AUTO_HEIGHT());
+                      }
+                      else
+              #endif
+1575   2              {
+1576   3                  tempWidth = SC0_READ_AUTO_WIDTH();//msRead2Byte(SC0_84)-msRead2Byte(SC0_80)+1; // get DE width
+1577   3                  tempHeight = SC0_READ_AUTO_HEIGHT();//msRead2Byte(SC0_82)-msRead2Byte(SC0_7E)+1; // get DE Hei
+             -ght
+1578   3      
+1579   3      #if ENABLE_HDMI // 120530 coding test
+1580   3                  // 130627 nick
+1581   3                  //if(CURRENT_SOURCE_IS_INTERLACE_MODE())
+1582   3                  {
+1583   4                      BYTE count;
+1584   4                      WORD wWidth =PIXEL_H_DE_COUNT();// msRead2Byte(REG_14DC); msRead2Byte(REG_05CA);
+1585   4                      BYTE Width_Range;
+1586   4                      Width_Range=(PIXEL_H_DE_COUNT() - SC0_READ_AUTO_WIDTH());
+1587   4                      
+1588   4                      for(count=0; count<RECHECK_INPUT_COUNT; count++)
+1589   4                      {
+1590   5                          if(wWidth == 1440 && (CURRENT_SOURCE_IS_INTERLACE_MODE())) // for 480i/576i
+1591   5                          {
+1592   6                              if(abs((wWidth/2)-tempWidth) < DIGITAL_TOLERANCE)
+1593   6                                  break;
+1594   6                          }
+1595   5                          else if(abs(wWidth-tempWidth) < DIGITAL_TOLERANCE)
+1596   5                              {
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 27  
+
+1597   6                               #if DEBUG_PRINTDATA
+                                          printData( "Width_Range:%d", Width_Range);
+                                          #endif
+1600   6                              break;
+1601   6                              }
+1602   5      
+1603   5                          hFreq = SC0_READ_HPEROID();
+1604   5                          if( abs( hFreq - SrcHPeriod ) > HPeriod_Torlance*2 )        // HPeriod changed
+1605   5                          {
+1606   6                              hFreq = SC0_READ_HPEROID();
+1607   6                              if( abs( hFreq - SrcHPeriod ) > HPeriod_Torlance*2 )        // HPeriod changed 130
+             -701 nick
+1608   6                              {
+1609   7                                                              #if DEBUG_PRINTDATA
+                                                                      printData( "OverSrcHPeriod:%d", abs( hFreq - SrcHPeriod ));
+                                                                      #endif
+1612   7                                                              return FALSE;
+1613   7                              }
+1614   6                          }
+1615   5                          
+1616   5                          Delay1ms(20);
+1617   5                          
+1618   5                          wWidth =PIXEL_H_DE_COUNT();// msRead2Byte(REG_14DC); msRead2Byte(REG_05CA);
+1619   5                          
+1620   5                          tempWidth = SC0_READ_AUTO_WIDTH();
+1621   5                          tempHeight = SC0_READ_AUTO_HEIGHT();
+1622   5                      }
+1623   4      
+1624   4      #if DEBUG_PRINTDATA
+                      printData( " count:%d", count );
+              #endif
+1627   4      
+1628   4                      if(count >= RECHECK_INPUT_COUNT)
+1629   4                          Delay1ms( GetVSyncTime() * 8 );
+1630   4                      
+1631   4                  }
+1632   3      #if DEBUG_PRINTDATA
+                      printData( " SC0_READ_AUTO_WIDTH:%d", SC0_READ_AUTO_WIDTH() );
+                      printData( " SC0_READ_AUTO_HEIGHT:%d", SC0_READ_AUTO_HEIGHT() );
+              #endif
+1636   3      #endif        
+1637   3              }
+1638   2          }
+1639   1      
+1640   1      
+1641   1          // search input mode index
+1642   1          {
+1643   2              Bool found = FALSE;
+1644   2              BYTE ucModeIndex;
+1645   2              BYTE ucHVtolerance_min = HFreq_Torlance+VFreq_Torlance;
+1646   2              BYTE ucHVtolerance = HFreq_Torlance+VFreq_Torlance;
+1647   2              BYTE ucVtotal_min = VTotal_Torlance;
+1648   2              BYTE ucVtotal = VTotal_Torlance;
+1649   2              InputModeType *modePtr = StandardMode;
+1650   2              BYTE ucSimilarindex=0;
+1651   2              BYTE ucStartIndex = 0;
+1652   2      
+1653   2      #if ENABLE_HDMI && ENABLE_HDMI_1_4
+                      if(bHDMI3DTimingFlag)
+                      {
+                          ucStartIndex = HDMI_3D_TIMING_START_INDEX;
+                          modePtr += HDMI_3D_TIMING_START_INDEX;
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 28  
+
+                      }
+              #endif
+1660   2      
+1661   2              // get standard mode index
+1662   2              for(ucModeIndex = ucStartIndex; modePtr->HFreq > 0; modePtr++, ucModeIndex++)
+1663   2              {
+1664   3                      if(bDigitalInput)
+1665   3                      {
+1666   4                              if((abs(tempWidth - StandardModeResolution[modePtr->ResIndex].DispWidth) > DIGITAL_TOLERANCE) ||
+1667   4                              (abs(tempHeight - StandardModeResolution[modePtr->ResIndex].DispHeight) > DIGITAL_
+             -TOLERANCE))
+1668   4                                      continue;
+1669   4                      }
+1670   3              
+1671   3                  if((CURRENT_SOURCE_IS_INTERLACE_MODE()) != (modePtr->Flags & bInterlaceMode))
+1672   3                      continue;
+1673   3      
+1674   3                  if(SrcVTotal < StandardModeResolution[modePtr->ResIndex].DispHeight)
+1675   3                      continue;
+1676   3      
+1677   3                  if((abs(hFreq - modePtr->HFreq) < HFreq_Torlance) && 
+1678   3                      (abs(vFreq - modePtr->VFreq) < VFreq_Torlance) && 
+1679   3                      (abs(SrcVTotal - modePtr->VTotal) < VTotal_Torlance)&&
+1680   3                      (GetSyncPolarity( SrcFlags )&modePtr->Flags))
+1681   3                  {
+1682   4                      ucHVtolerance = abs(hFreq - modePtr->HFreq) + abs(vFreq - modePtr->VFreq);
+1683   4                      ucVtotal = abs(SrcVTotal - modePtr->VTotal);
+1684   4      
+1685   4                      if((ucHVtolerance_min >= ucHVtolerance) && (ucVtotal_min >= ucVtotal))
+1686   4                      {
+1687   5                          found = TRUE;
+1688   5                          ucHVtolerance_min = ucHVtolerance;
+1689   5                          ucVtotal_min = ucVtotal;
+1690   5                          SrcModeIndex = ucModeIndex;                    
+1691   5                          ucSimilarTimingBuffer[ucSimilarindex] = ucModeIndex;
+1692   5                          ucSimilarTimingNums ++;
+1693   5                          ucSimilarindex = (ucSimilarindex+1)%SIMILAR_TIMING_BUFFER_MAX;
+1694   5                      }
+1695   4                  }
+1696   3              }
+1697   2      
+1698   2      
+1699   2                  #if DEBUG_PRINTDATA
+                          printData(" 8888888 SrcModeIndexFinal:%d", SrcModeIndex);
+                         #endif
+1702   2      
+1703   2      
+1704   2              if( !found )
+1705   2              {
+1706   3                  modePtr = StandardMode;
+1707   3                  ucHVtolerance_min = HFREQ_TOLERANCE_ENLARGE + VFREQ_TOLERANCE_ENLARGE;
+1708   3                  ucVtotal_min = VTotal_Delta;
+1709   3                  
+1710   3      #if ENABLE_HDMI && ENABLE_HDMI_1_4
+                          if(bHDMI3DTimingFlag)
+                          {
+                              modePtr += HDMI_3D_TIMING_START_INDEX;
+                          }
+              #endif
+1716   3      
+1717   3                  for(ucModeIndex = ucStartIndex; modePtr->HFreq > 0; modePtr++, ucModeIndex++)
+1718   3                  {
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 29  
+
+1719   4                      if(bDigitalInput)
+1720   4                      {
+1721   5                          if((abs(tempWidth - StandardModeResolution[modePtr->ResIndex].DispWidth) > DIGITAL_TOL
+             -ERANCE) ||
+1722   5                              (abs(tempHeight - StandardModeResolution[modePtr->ResIndex].DispHeight) > DIGITAL_
+             -TOLERANCE))
+1723   5                              continue;
+1724   5                      }
+1725   4                  
+1726   4                      if((CURRENT_SOURCE_IS_INTERLACE_MODE()) != (modePtr->Flags & bInterlaceMode))
+1727   4                          continue;
+1728   4      
+1729   4                      if(SrcVTotal < StandardModeResolution[modePtr->ResIndex].DispHeight)
+1730   4                          continue;
+1731   4      
+1732   4                      if((abs(hFreq - modePtr->HFreq) < HFREQ_TOLERANCE_ENLARGE) && 
+1733   4                          (abs(vFreq - modePtr->VFreq) < VFREQ_TOLERANCE_ENLARGE) && 
+1734   4                          (abs(SrcVTotal - modePtr->VTotal) < VTotal_Delta))
+1735   4                      {
+1736   5                          ucHVtolerance = abs(hFreq - modePtr->HFreq) + abs(vFreq - modePtr->VFreq);
+1737   5                          ucVtotal = abs(SrcVTotal - modePtr->VTotal);
+1738   5      
+1739   5                          if((ucHVtolerance_min >= ucHVtolerance) && (ucVtotal_min >= ucVtotal))
+1740   5                          {
+1741   6                              found = TRUE;
+1742   6                              ucHVtolerance_min = ucHVtolerance;
+1743   6                              ucVtotal_min = ucVtotal;
+1744   6                              SrcModeIndex = ucModeIndex;                    
+1745   6                              ucSimilarTimingBuffer[ucSimilarindex] = ucModeIndex;
+1746   6                              ucSimilarTimingNums ++;
+1747   6                              ucSimilarindex = (ucSimilarindex+1)%SIMILAR_TIMING_BUFFER_MAX;
+1748   6                          }
+1749   5                      }
+1750   4                  }      
+1751   3              }
+1752   2      
+1753   2                  #if DEBUG_PRINTDATA
+                          printData(" 9999999  SrcModeIndexFinal:%d", SrcModeIndex);
+                         #endif
+1756   2      
+1757   2      
+1758   2              if( !found )            // out of standard input range
+1759   2              {
+1760   3                  modePtr = StandardMode;
+1761   3                  ucVtotal_min = VTotal_Delta;
+1762   3      
+1763   3      #if ENABLE_HDMI && ENABLE_HDMI_1_4
+                          if(bHDMI3DTimingFlag)
+                          {
+                              modePtr += HDMI_3D_TIMING_START_INDEX;
+                          }
+              #endif
+1769   3      
+1770   3                  for(ucModeIndex = ucStartIndex; modePtr->HFreq > 0; modePtr++, ucModeIndex++)
+1771   3                  {
+1772   4                      if((CURRENT_SOURCE_IS_INTERLACE_MODE()) != (modePtr->Flags & bInterlaceMode))
+1773   4                          continue;
+1774   4      
+1775   4                      if(SrcVTotal < StandardModeResolution[modePtr->ResIndex].DispHeight)
+1776   4                          continue;
+1777   4      
+1778   4                      if(abs(SrcVTotal - modePtr->VTotal) < VTotal_Delta)
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 30  
+
+1779   4                      {
+1780   5                          ucVtotal = abs(SrcVTotal - modePtr->VTotal);
+1781   5      
+1782   5                          if(ucVtotal_min > ucVtotal)
+1783   5                          {
+1784   6                              found = TRUE;
+1785   6                              SrcFlags |= bUserMode;
+1786   6                              ucVtotal_min = ucVtotal;
+1787   6                              SrcModeIndex = ucModeIndex;
+1788   6                              ucSimilarTimingBuffer[ucSimilarindex] = ucModeIndex;
+1789   6                              ucSimilarTimingNums ++;
+1790   6                              ucSimilarindex = (ucSimilarindex+1)%SIMILAR_TIMING_BUFFER_MAX;
+1791   6                          }
+1792   5                      }
+1793   4                  }                   
+1794   3              } // out of standard input range
+1795   2      
+1796   2                  #if DEBUG_PRINTDATA
+                          printData(" 7777  SrcModeIndexFinal:%d", SrcModeIndex);
+                         #endif
+1799   2      
+1800   2      
+1801   2                      if(CURRENT_INPUT_IS_VGA())      //120420 Modify
+1802   2                              appCheckSimilarTiming();
+1803   2                      #if DEBUG_PRINTDATA
+                                      printData( " 555555-----------666", 0 );
+                              #endif
+1806   2      //petit from anni.guan  20131017
+1807   2      #ifndef  A_1400x1050_1680x1050
+1808   2      #define A_1400x1050_1680x1050    1
+1809   2      #endif
+1810   2      
+1811   2      
+1812   2           #if A_1400x1050_1680x1050
+1813   2                       if (SrcModeIndex==MODE_1440x900_60_VESA||SrcModeIndex==MODE_1600x900_60_VESA  )
+1814   2                       {
+1815   3      
+1816   3                      if (SrcVTotal>980)
+1817   3                      SrcModeIndex=MODE_1600x900_60_VESA;   
+1818   3                      else
+1819   3                      SrcModeIndex=MODE_1440x900_60_VESA;
+1820   3                      }
+1821   2                      else if(SrcModeIndex==MODE_1440x900_60_VESA_RB ||SrcModeIndex==MODE_1600x900_60_VESA_RB)
+1822   2                      {
+1823   3                              //printData("%d", GetVSyncWidth());
+1824   3                              if(GetVSyncWidth()>5)
+1825   3                              {
+1826   4                              SrcModeIndex = MODE_1440x900_60_VESA_RB  ;
+1827   4                              }
+1828   3                              else
+1829   3                              {
+1830   4                              SrcModeIndex = MODE_1600x900_60_VESA_RB;
+1831   4                              }
+1832   3                      }       
+1833   2              #endif
+1834   2         #if 0
+              if(SrcModeIndex==MODE_1600x900_60_VESA_RB||SrcModeIndex==MODE_1280x960_72Hz_VESA)
+                      {
+                              if(SrcVTotal<1001)
+                                      SrcModeIndex=MODE_1600x900_60_VESA_RB;
+                              else
+                                      SrcModeIndex=MODE_1280x960_72Hz_VESA;
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 31  
+
+              }
+              #endif
+1843   2      
+1844   2      
+1845   2              #if 1
+1846   2                      if (SrcModeIndex==MODE_1600x900_60_VESA_RB||SrcModeIndex==MODE_1280x960_60Hz_VESA1
+1847   2      #if A_1400x1050_1680x1050
+1848   2              ||SrcModeIndex==MODE_1680x1050_60_VESA||SrcModeIndex==Mode_1400_1050_60_VESA
+1849   2              ||SrcModeIndex==MODE_1680x1050_60_VESA_RB||SrcModeIndex==Mode_1400_1050_60_VESA_RB
+1850   2              ||SrcModeIndex==MODE_1680x1050_75_VESA||SrcModeIndex==MODE_1400x1050_75_VESA
+1851   2      #endif
+1852   2      #if SHARP_VGA_50Hz_Timing
+1853   2                      ||SrcModeIndex==MODE_1680x1050_50||SrcModeIndex==MODE_1400x1050_50
+1854   2      #endif
+1855   2                      )   // 2017/2/7
+1856   2                      {
+1857   3                       BYTE i;
+1858   3               
+1859   3                       WORD wVS,wVE;
+1860   3                       WORD SHS,SHE;
+1861   3      
+1862   3      #if     A_1400x1050_1680x1050   
+1863   3                      if(SrcModeIndex==MODE_1680x1050_60_VESA||SrcModeIndex==Mode_1400_1050_60_VESA)
+1864   3                      {
+1865   4                              //printData("%d", GetVSyncWidth());
+1866   4                              if(GetVSyncWidth()>5)
+1867   4                              {
+1868   5                              SrcModeIndex = MODE_1680x1050_60_VESA  ;
+1869   5                              }
+1870   4                              else
+1871   4                              {
+1872   5                              SrcModeIndex = Mode_1400_1050_60_VESA;
+1873   5                              }
+1874   4                      }
+1875   3                      else if(SrcModeIndex==MODE_1680x1050_60_VESA_RB||SrcModeIndex==Mode_1400_1050_60_VESA_RB)
+1876   3                      {
+1877   4                              //printData("%d", GetVSyncWidth());
+1878   4                              if(GetVSyncWidth()>5)
+1879   4                              {
+1880   5                              SrcModeIndex = MODE_1680x1050_60_VESA_RB  ;
+1881   5                              }
+1882   4                              else
+1883   4                              {
+1884   5                              SrcModeIndex = Mode_1400_1050_60_VESA_RB;
+1885   5                              }
+1886   4                      }               
+1887   3                      else if(SrcModeIndex==MODE_1680x1050_75_VESA||SrcModeIndex==MODE_1400x1050_75_VESA)
+1888   3                      {
+1889   4                              //printData("%d", GetVSyncWidth());
+1890   4                              if(GetVSyncWidth()>5)
+1891   4                              {
+1892   5                              SrcModeIndex = MODE_1680x1050_75_VESA  ;
+1893   5                              }
+1894   4                              else
+1895   4                              {
+1896   5                              SrcModeIndex = MODE_1400x1050_75_VESA;
+1897   5                              }
+1898   4                      }
+1899   3                      
+1900   3                      else
+1901   3      #endif
+1902   3      #if SHARP_VGA_50Hz_Timing
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 32  
+
+1903   3                      if(SrcModeIndex==MODE_1680x1050_50||SrcModeIndex==MODE_1400x1050_50)
+1904   3                      {
+1905   4                              //printData("%d", GetVSyncWidth());
+1906   4                              if(GetVSyncWidth()>5)
+1907   4                              {
+1908   5                              SrcModeIndex = MODE_1680x1050_50  ;
+1909   5                              }
+1910   4                              else
+1911   4                              {
+1912   5                              SrcModeIndex = MODE_1400x1050_50;
+1913   5                              }
+1914   4                      }
+1915   3      
+1916   3                      else
+1917   3      #endif
+1918   3                      if(SrcModeIndex==MODE_1600x900_60_VESA_RB||SrcModeIndex==MODE_1280x960_60Hz_VESA1)
+1919   3                       for(i=0;i<10;i++)
+1920   3                              {
+1921   4                              Delay1ms(100);
+1922   4                              wVS = SC0_READ_AUTO_START_V();
+1923   4                              wVE = SC0_READ_AUTO_END_V();
+1924   4                                              
+1925   4                              //Delay1ms(100);
+1926   4                              SHS = SC0_READ_AUTO_START_H();
+1927   4                              SHE = SC0_READ_AUTO_END_H();
+1928   4      
+1929   4                              //HStarFram=
+1930   4      
+1931   4      
+1932   4                              if((wVS > wVE)||(SHS > SHE))
+1933   4                              continue;
+1934   4                              Delay1ms(50);
+1935   4                              if(abs(wVS - SC0_READ_AUTO_START_V())>2 || abs(wVE - SC0_READ_AUTO_END_V())>2)
+1936   4                              continue;
+1937   4                              if(abs(SHS - SC0_READ_AUTO_START_H())>2 || abs(SHE - SC0_READ_AUTO_END_H())>2)
+1938   4                              continue;
+1939   4      
+1940   4                              if(((wVE - wVS) > 920)&&((SHE - SHS) < 1366))
+1941   4                              {
+1942   5                              SrcModeIndex = MODE_1280x960_60Hz_VESA1;
+1943   5                              break;
+1944   5                              }
+1945   4                              //#else
+1946   4                              if(((wVE - wVS) > 890)&&((wVE - wVS) < 910))  //899
+1947   4                              {
+1948   5                              SrcModeIndex = MODE_1600x900_60_VESA_RB;
+1949   5                              break;
+1950   5                              }
+1951   4                              else
+1952   4                              {
+1953   5                              //SrcModeIndex = PRESET_1280x960_60Hz_VESA;
+1954   5                              break;
+1955   5                              }
+1956   4                              }
+1957   3                      }
+1958   2      
+1959   2      #endif
+1960   2      
+1961   2                      #if  SHARP_VGA_50Hz_Timing
+1962   2                       if(SrcModeIndex==MODE_1280x768_50||SrcModeIndex==MODE_1024x768_50)
+1963   2                      {
+1964   3      
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 33  
+
+1965   3                              //printData("%d", GetVSyncWidth());
+1966   3                              if(GetVSyncWidth()>5)
+1967   3                              {
+1968   4                              SrcModeIndex = MODE_1280x768_50 ;
+1969   4                              }
+1970   3                              else
+1971   3                              {
+1972   4                              SrcModeIndex = MODE_1024x768_50;
+1973   4                              }
+1974   3                      }
+1975   2                      #endif
+1976   2      
+1977   2      if (SrcModeIndex==MODE_1360x768_60_VGA||SrcModeIndex==MODE_1280X768_60Hz_VESA)
+1978   2      {
+1979   3              if (abs(SrcVTotal-795)<=2)
+1980   3                      SrcModeIndex=MODE_1360x768_60_VGA;
+1981   3              else
+1982   3                      SrcModeIndex=MODE_1280X768_60Hz_VESA;
+1983   3      }
+1984   2      
+1985   2      if(SrcModeIndex==MODE_1280x800_60Hz_VESA||SrcModeIndex==MODE_1280X768_60Hz_VESA_RB)
+1986   2              {
+1987   3                      if(SrcVTotal<812)
+1988   3                              SrcModeIndex=MODE_1280X768_60Hz_VESA_RB;
+1989   3                      else
+1990   3                              SrcModeIndex=MODE_1280x800_60Hz_VESA;
+1991   3              }
+1992   2      
+1993   2      
+1994   2                  if( !found&&(CURRENT_INPUT_IS_VGA()))
+1995   2                  {
+1996   3                      #if DEBUG_MSG
+                              printMsg( "Not Found--> not support" );
+                              #endif
+1999   3                      SrcFlags |= bUnsupportMode;
+2000   3                  }
+2001   2                  else   // found
+2002   2                  {
+2003   3      #if ENABLE_DEBUG
+                      printData("  ucSimilarTimingNums:%d", ucSimilarTimingNums);
+                      printData("  SrcModeIndex:%d", SrcModeIndex);
+                      printData("  SrcVTotal:%d", SrcVTotal);
+                      printData("  StandardModeWidth:%d", StandardModeWidth);
+                      printData("  StandardModeHeight:%d", StandardModeHeight);
+                      printData("  MODE_Max:%d", MODE_Max);
+              #endif
+2011   3                  }
+2012   2      
+2013   2              } // search mode index
+2014   1              return TRUE;
+2015   1      }
+2016          #endif
+2017          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3861    ----
+   CONSTANT SIZE    =   1682    ----
+   XDATA SIZE       =     11       2
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      47
+   IDATA SIZE       =   ----    ----
+C51 COMPILER V9.01   MODE                                                                  03/09/2023 15:39:15 PAGE 34  
+
+   BIT SIZE         =   ----       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

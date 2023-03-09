@@ -1,0 +1,70 @@
+BankArea(0x2C00,0xFFFF) 
+PRINT(".\List\TSUM.m51") RAMSIZE(256) 
+BANK0(
+
+  		 ?CO?MSOSD(0x2C00)
+		,?CO?MENUSTR
+	    ,?CO?MENU
+		//,?CO?2D3DSTRING
+		
+	 )
+
+BANK1(
+		?CO?MENUFUNC(0x2C00)
+		,?CO?DRVMSTAR
+         //,?CO?MSHDMI
+		,?CO?DRVMCU
+		//,?CO?MS_PM
+		//,?CO?MSHDCP
+		,?CO?MSACE
+		,?CO?MSSCALER
+		//,?CO?DRVGPIO
+	)
+BANK2(
+	
+		?CO?PROPFONT(0x2C00)
+	)
+BANK3(
+
+	  ?CO?DDC2Bi(0x2C00)
+	  ,?CO?DRVDDC2BI			//checked
+		,?CO?font1 
+		,?CO?DRVADC
+		,?CO?DRVGAMMA
+		,?CO?MODE
+	  //,?CO?USERDATASPACE(0xA000)
+
+	)
+BANK4(
+	  ?CO?font2(0x2C00)	
+	 ,?CO?DRVMSOVD	
+	 //,?CO?MHAL_MHL  //checked,enabled by DRVMHL
+	 //,?CO?MAPI_MHL  //checked,enabled by DRVMHL
+	 //,?CO?MDRV_MHL  //checked,enabled by DRVMHL
+	 ,?CO?DRVMHL
+	 ,?CO?ONEKEYMENU
+	)
+
+	
+BANK6(
+	  
+	   ?CO?MSFB(0x2C00)
+	  ,?CO?TOUCHKEY
+	  //,?CO?MSDPS_SETTING
+	  //,?CO?MSDPS_HANDLER
+	  ,?CO?SUPERRESOLUTION   
+	  ,?CO?FACTORYSTRING
+	  //,?CO?DEBUG
+      //     ,?CO?DRVDPRXAPP	
+        ,?CO?DRVDPTXAPP
+	)
+
+BANK7(
+
+	  //?CO?DDC2Bi(0x2980)
+	  ?CO?USERDATASPACE(0xA000)
+
+	)
+
+
+XDATA( 0X4000-0X53FF)

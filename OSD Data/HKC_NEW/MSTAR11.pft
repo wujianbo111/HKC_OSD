@@ -1,0 +1,17 @@
+2c 10 0 22 42 1 11 1
+11 01 NoSignal 'No\x001Signal' x2cx
+11 02 NoSignal 'Pas\x001Sign' x2cx
+11 03 NoSignal 'Sin\x001Senal' x2cx
+11 04 NoSignal 'Sem\x001Sinal\x001de\x001Entrada' x2cx
+11 05 NoSignal 'Kein\x001Signal' x2cx
+11 06 NoSignal 'Nessun\x001Segnale' x2cx
+11 07 NoSignal 'Geen\x001Sign' x2cx
+11 08 NoSignal 'Sign' x2cx
+11 09 NoSignal 'Ei\x001Signaalia\x001\x001' x2cx
+11 10 NoSignal 'Brak\x001Sygnalu' x2cx
+11 11 NoSignal 'Z\x0F7dn\x109\x001Sign\x0F7l' x2cx
+11 12 NoSignal 'He\x1F1\x001c\x1F0\x1F2\x1F3a\x1F4a' x2cx
+11 13 NoSignal '\x1DB\x1DC\x1DD\x1CE' x2cx
+11 14 NoSignal '\x0E2\x0B3\x0E3' x2cx
+11 15 NoSignal '\x0B2\x0B3\x0B4' x2cx
+11 16 NoSignal '\x110\x111\x112\x113\x114\x115\x116\x117\x118\x119' x2cx

@@ -1,0 +1,1215 @@
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE MSOSD
+OBJECT MODULE PLACED IN .\obj\msOSD.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\UI\HkcOsd\msOSD.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\DRIVER\INC;..\.
+                    -.\KERNEL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..\..\KERNEL\SYST
+                    -EM\INC\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\UI\HkcOsd\INC) 
+                    -DEFINE(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\msOSD.lst) OBJECT(.\obj\msOSD.obj)
+
+line level    source
+
+   1          #include <stdlib.h>
+   2          #include "types.h"
+   3          #include "ms_reg.h"
+   4          #include "panel.h"
+   5          #include "Board.h"
+   6          #include "debug.h"
+   7          #include "ms_rwreg.h"
+   8          #include "mstar.h"
+   9          #include "misc.h"
+  10          #include "global.h"
+  11          #include "menudef.h"
+  12          #include "drvosd.h"
+  13          #include "msOSD.h"
+  14          #include "msOSDFunction.h"
+  15          #include "font.h"
+  16          #include "extlib.h"
+  17          #include "MsID_V1.h"
+  18          #include "CommonLoadCPnCompressFont.h"
+  19          
+  20          
+  21          
+  22          
+  23          #if CHIP_ID>=CHIP_TSUM2
+  24          BYTE xdata g_u8OsdWndNo=OSD_MAIN_WND;
+  25          BYTE xdata g_u8FontAddrHiBits=0;
+  26          BYTE xdata g_u8OsdFontDataHighByte=0;
+  27          #elif CHIP_ID==CHIP_TSUMV
+              BYTE xdata g_u8OsdWndNo=OSD_MAIN_WND;
+              BYTE xdata g_u8FontAddrHiBits=0;
+              #else
+              BYTE xdata g_u8FontAddrHiBits=0;
+              #endif
+  33          
+  34          
+  35          
+  36          
+  37          #if DoubleXSize
+              #define DOUBLE_RATIO_X  2
+              #else
+  40          #define DOUBLE_RATIO_X  1
+  41          #endif
+  42          #if DoubleYSize
+              #define DOUBLE_RATIO_Y  2
+              #else
+  45          #define DOUBLE_RATIO_Y  1
+  46          #endif
+  47          #define Color8FontRAMStart   0xA2 //0xA2//0x7d // 100
+  48          //==================================================================================
+  49          // Local function declaration
+  50          //
+  51          //void Osd_SetWindowSize(BYTE width, BYTE height);
+  52          //void Osd_SetPosition(BYTE xPos, BYTE yPos);
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 2   
+
+  53          //void Osd_DrawChar(BYTE xPos, BYTE yPos, BYTE ch);
+  54          //#if CHIP_ID>=CHIP_TSUMV
+  55          //void Load256ColorPalette(BYTE u8Group, BYTE u8Addr, ColorPaletteType *colorPtr, WORD u16Num);
+  56          //#else
+  57          //void Load256ColorPalette(BYTE u8Group, BYTE u8Addr, ColorPaletteType *colorPtr, WORD u16Num);
+  58          //#endif
+  59          void LoadCommonFont(void);
+  60          //void Osd_LoadLogoFontCP(void);
+  61          extern void mStar_WaitForDataBlanking(void);
+  62          extern void LoadLanguageStatusPropfont( void );
+  63          
+  64          void msOSDuncall(void);
+  65          
+  66          //==================================================================================
+  67          // variable declaration
+  68          //
+  69          BYTE OsdWindowWidth = 10;
+  70          BYTE OsdWindowHeight = 10;
+  71          xdata BYTE OsdFontColor = 0x01;
+  72          extern  BYTE  xdata MenuPageIndex;
+  73          extern  BYTE  xdata MenuItemIndex;
+  74          extern  BYTE  xdata PrevPage;
+  75          
+  76          BYTE xdata OsdEngStatus=0;
+  77          //==================================================================================
+  78          
+  79          void Osd_InitOSD(void)
+  80          {
+  81   1          BYTE u8Retry=10;
+  82   1          if(!u8Retry)
+  83   1          {
+  84   2              drvOSD_uncall();
+  85   2              msOSDuncall();
+  86   2          }
+  87   1      #if CHIP_ID>=CHIP_TSUMV
+  88   1      
+  89   1              msWriteByte(OSD1_00, 0x00); //Set to OSD1 BK0
+  90   1      
+  91   1              while (u8Retry--)
+  92   1              {
+  93   2                      msWriteByteMask(OSD1_65, BIT1, BIT1);           //clear cafsram
+  94   2                      ForceDelay1ms(3);
+  95   2                      if (!(msReadByte(OSD1_65)&BIT1))
+  96   2                              break;
+  97   2              }
+  98   1                msWriteByteMask(OSD1_03, BIT2, BIT2);           //OSD wr priority is over display for both cafsram/psram
+  99   1      
+ 100   1              msWrite2Byte(OSD1_04, PANEL_WIDTH);             //set osd h range size
+ 101   1              msWrite2Byte(OSD1_06, PANEL_HEIGHT);            //set osd v range size
+ 102   1              
+ 103   1              msWriteByteMask(OSD1_02,BIT1,BIT1);               //force blending
+ 104   1              
+ 105   1              //Init cafsram
+ 106   1              msWrite2Byte(OSD1_08, OSD_FONT_START_ENTRY);                       //set font data entry base,
+ 107   1              msWriteByteMask(OSD1_0B, (OSD_FONT_UNIT_SIZE-1)<<4, BIT4|BIT5);  //Set unit size to 3 entries, [5:4] valu
+             -e+1 entries
+ 108   1      
+ 109   1              drvOSD_SetWndCABaseAddr(OSD_WIN0,0x0000);
+ 110   1              drvOSD_SetWndShiftPixel(OSD_WIN0, 0, 0);        //avoid compiler warning
+ 111   1              drvOSD_SetWndFixColor(OSD_WIN0, 0, 0, 0);       //avoid compiler warning
+ 112   1      
+ 113   1              //init OSD_MAIN_WND
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 3   
+
+ 114   1              drvOSD_SetWndCtrl(OSD_MAIN_WND, OSD_WND_CTRL0,
+ 115   1                                                (OWC0_FP_MODE|
+ 116   1                                                 OWC0_GROUP_SEL0|
+ 117   1                                                 OWC0_LV1_ALPHA_SRC(OSD_A_FIX)|
+ 118   1                                                 OWC0_LV2_ALPHA_SRC(OSD_A_FIX)|
+ 119   1                                                 OWC0_OUT_ALPHA_SRC(OSD_A_FIX)),
+ 120   1                                                 OWC0MASK_ALL);
+ 121   1              drvOSD_SetWndCtrl(OSD_MAIN_WND, OSD_WND_CTRL1,
+ 122   1                                               (OWC1_1BP_44MODE_EN|
+ 123   1                                                OWC1_44MODE_TRS_EN|
+ 124   1                                                OWC1_FONT_HEIGHT(18)),
+ 125   1                                                OWC1MASK_ALL);
+ 126   1              drvOSD_SetWndCtrl(OSD_MAIN_WND, OSD_WND_CTRL2,
+ 127   1                                               (OWC2_GD_COLOR_R(OSD_GD_EG4)|
+ 128   1                                                OWC2_GD_COLOR_G(OSD_GD_EG4)|
+ 129   1                                                OWC2_GD_COLOR_B(OSD_GD_EG4)),
+ 130   1                                                OWC2MASK_ALL);
+ 131   1              drvOSD_SetWndCtrl(OSD_MAIN_WND, OSD_WND_CTRL3,
+ 132   1                            (OWC3_1BPP_ATTR_BIT1/*|OWC3_LV1_KM_SWITCH|OWC3MASK_CKEY_INV*/),
+ 133   1                                                OWC3MASK_ALL);
+ 134   1      
+ 135   1              drvOSD_SetWndFixAlpha(OSD_MAIN_WND,OSD_ALPHA_LV2,0x00); //PG   //(1-a)*low_lvl+a*top_lvl
+ 136   1              drvOSD_SetWndFixAlpha(OSD_MAIN_WND,OSD_ALPHA_LV1,0x10); //FG
+ 137   1              drvOSD_SetWndFixAlpha(OSD_MAIN_WND,OSD_ALPHA_OUT,0x3F); //OSD
+ 138   1              drvOSD_SetWndCABaseAddr(OSD_MAIN_WND,OSD_MAIN_WND_CA_BASE);
+ 139   1      
+ 140   1              //init OSD_BUTTON_WND
+ 141   1              drvOSD_SetWndCtrl(OSD_BUTTON_WND, OSD_WND_CTRL0,
+ 142   1                                               (OWC0_FP_MODE|
+ 143   1                                                OWC0_GROUP_SEL0|
+ 144   1                                                OWC0_LV1_ALPHA_SRC(OSD_A_FIX)|
+ 145   1                                                OWC0_LV2_ALPHA_SRC(OSD_A_FIX)|
+ 146   1                                                OWC0_OUT_ALPHA_SRC(OSD_A_FIX)),
+ 147   1                                                OWC0MASK_ALL);
+ 148   1              drvOSD_SetWndCtrl(OSD_BUTTON_WND, OSD_WND_CTRL1,
+ 149   1                                               (OWC1_1BP_44MODE_EN|
+ 150   1                                                OWC1_44MODE_TRS_EN|
+ 151   1                                                OWC1_FONT_HEIGHT(18)),
+ 152   1                                                OWC1MASK_ALL);
+ 153   1              drvOSD_SetWndCtrl(OSD_BUTTON_WND, OSD_WND_CTRL2,
+ 154   1                                               (OWC2_GD_COLOR_R(OSD_COLOR_FIX)|
+ 155   1                                                OWC2_GD_COLOR_G(OSD_COLOR_FIX)|
+ 156   1                                                OWC2_GD_COLOR_B(OSD_COLOR_FIX)),
+ 157   1                                                OWC2MASK_ALL);
+ 158   1              drvOSD_SetWndCtrl(OSD_BUTTON_WND, OSD_WND_CTRL3,
+ 159   1                                               (OWC3_LV1_KM_SWITCH|OWC3MASK_CKEY_INV),
+ 160   1                                                OWC3MASK_ALL);
+ 161   1              drvOSD_SetWndFixAlpha(OSD_BUTTON_WND,OSD_ALPHA_LV2,0x00); //PG   //(1-a)*low_lvl+a*top_lvl
+ 162   1              drvOSD_SetWndFixAlpha(OSD_BUTTON_WND,OSD_ALPHA_LV1,0x3F); //FG
+ 163   1              drvOSD_SetWndFixAlpha(OSD_BUTTON_WND,OSD_ALPHA_OUT,0x3F); //OSD
+ 164   1              drvOSD_SetWndCABaseAddr(OSD_BUTTON_WND,OSD_BUTTON_WND_CA_BASE);
+ 165   1      
+ 166   1              //init OSD_CURSOR_WND
+ 167   1          drvOSD_SetWndCtrl(OSD_CURSOR_WND, OSD_WND_CTRL0,
+ 168   1                           (OWC0_FP_MODE|
+ 169   1                            OWC0_GROUP_SEL0|
+ 170   1                            //OWC0_GROUP_SEL1|
+ 171   1                            OWC0_LV1_ALPHA_SRC(OSD_A_FIX)|
+ 172   1                            OWC0_LV2_ALPHA_SRC(OSD_A_FIX)|
+ 173   1                            OWC0_OUT_ALPHA_SRC(OSD_A_FIX)),
+ 174   1                            OWC0MASK_ALL);
+ 175   1          drvOSD_SetWndCtrl(OSD_CURSOR_WND, OSD_WND_CTRL1,
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 4   
+
+ 176   1                           (OWC1_1BP_44MODE_EN|
+ 177   1                            OWC1_44MODE_TRS_EN|
+ 178   1                            OWC1_FONT_HEIGHT(18)),
+ 179   1                            OWC1MASK_ALL);
+ 180   1          drvOSD_SetWndCtrl(OSD_CURSOR_WND, OSD_WND_CTRL2,
+ 181   1                           (OWC2_GD_COLOR_R(OSD_GD_EG3)|
+ 182   1                            OWC2_GD_COLOR_G(OSD_GD_EG3)|
+ 183   1                            OWC2_GD_COLOR_B(OSD_GD_EG3)),
+ 184   1                            OWC2MASK_ALL);
+ 185   1          drvOSD_SetWndCtrl(OSD_CURSOR_WND, OSD_WND_CTRL3,
+ 186   1                            (OWC3_1BPP_ATTR_BIT1|OWC3_LV1_KM_SWITCH|OWC3MASK_CKEY_INV),
+ 187   1                            OWC3MASK_ALL);
+ 188   1      
+ 189   1          drvOSD_SetWndFixAlpha(OSD_CURSOR_WND,OSD_ALPHA_LV2,0x00); //PG   //(1-a)*low_lvl+a*top_lvl
+ 190   1          drvOSD_SetWndFixAlpha(OSD_CURSOR_WND,OSD_ALPHA_LV1,0x10); //PG
+ 191   1          drvOSD_SetWndFixAlpha(OSD_CURSOR_WND,OSD_ALPHA_OUT,0x3F); //OSD
+ 192   1          drvOSD_SetWndCABaseAddr(OSD_CURSOR_WND,OSD_CURSOR_WND_CA_BASE);
+ 193   1          
+ 194   1              #if CHIP_ID >= CHIP_TSUM2
+ 195   1              drvOSD_SetGDEngineEnableWnd();
+ 196   1              #elif CHIP_ID == CHIP_TSUMV
+                  drvOSD_SetGDEngineEnableWnd(OSD_GD_EG3,OSD_CURSOR_WIN_BIT,OSD_CURSOR_WIN_BIT);
+                  drvOSD_SetGDEngineEnableWnd(OSD_GD_EG4,OSD_MAIN_WIN_BIT,OSD_MAIN_WIN_BIT);
+                  #endif
+ 200   1          
+ 201   1              OSD_SET_WND(OSD_MAIN_WND);
+ 202   1      #else
+                      {
+                              BYTE retry = 10;
+                                      while( retry-- )
+                                      {
+                                              msWriteByte( OSD2_A0, BIT6 );
+                                              Delay1ms( 3 );
+                                              if( !( msReadByte( OSD2_A0 )&BIT6 ) )
+                                                      break;
+                                      }
+                      }
+                      //msWriteByte( BLENDC, 0 ); //111102 Rick modified cal pipedelay condition - B39842
+                      //msWriteByte( BLENDL, 0 ); 
+                      #if CHIP_ID==CHIP_TSUMB
+                     msWriteByte( OSD2_4B, 0x83 );//color key mode
+                       #else
+                     msWriteByte( OSD2_4B, 0x07 );//color key mode
+                       #endif
+                     mStar_WriteOSDByte( OSD1_3D, 0x00 );//color key
+                     mStar_WriteOSDByte( OSD1_3E, 0x08 );//color key
+                     mStar_WriteOSDByte( OSD1_3F, 0x80 );//color key
+              
+                      msWriteByte( OSD1_10, 0x80 );
+                      msWriteByte( OSDDBC, 0x5 ); // enable double
+                      msWriteByte( OCBUFO, 0x00 ); // disable OSD code buffer Base/Offset address
+                      msWriteByte( IOSDC3, 0x00 ); //0x0F); // shadow function control
+                      msWriteByte( OSDHC, 0x11 ); // shadow width control
+                      Osd_SetWindowSize( 20, 10 ); // set osd window
+                      msWriteByte( IOSDC2, 0x00 ); // color bit setting
+                      msWriteByte( OSD1_70, BIT4 | BIT2 ); // [4]: set osd move step by 1 pixel; [2] add 9 pixels
+                      
+                     Osd_SetPosition(0, 100); // set osd position
+              #endif    
+ 235   1      
+ 236   1          LoadCommonFont(); //eshin
+ 237   1          //Osd_SetPosition(50, 50); // set osd position
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 5   
+
+ 238   1      }
+ 239          
+ 240          void Osd_Load8ColorFont(BYTE u8Addr, BYTE *pu8Font, WORD u16Num)
+ 241              {
+ 242   1          #if CHIP_ID>=CHIP_TSUMV
+ 243   1              DWORD xdata u32Data;
+ 244   1              BYTE xdata u8FontData0,u8FontData1,u8FontData2;
+ 245   1              BYTE xdata u8PixelBit;
+ 246   1              BYTE xdata i;
+ 247   1          
+ 248   1      #if CHIP_ID==CHIP_TSUMC||CHIP_ID==CHIP_TSUMD||CHIP_ID == CHIP_TSUM9 ||CHIP_ID == CHIP_TSUMF
+ 249   1              msWriteByteMask(OSD1_6D, BIT6,BIT7|BIT6);   //00: for 1/2Bpp; 01: for 3Bpp; 10:for 4Bpp;
+ 250   1      #elif  CHIP_ID==CHIP_TSUM2||CHIP_ID==CHIP_TSUMV
+                      msWriteByteMask(OSD1_6D, 0x00,BIT7);  //0: for 1/2/3Bpp; 1: for 4Bpp;
+              #endif
+ 253   1      
+ 254   1              WRITE_CAFSRAM_ADDR(); 
+ 255   1              msWrite2Byte(PORT_FONT_ADDR, GET_FONT_RAM_ADDR(u8Addr));
+ 256   1              WRITE_FONT();
+ 257   1              // handle 2 lines, 8 pixels each time, 2 lines x 12 pixels = 8 pixels x 3 times
+ 258   1              while(u16Num)
+ 259   1              {
+ 260   2                  for (i=0;i<3;i++)
+ 261   2                  {
+ 262   3                  //    0        1        2        3        4        5        6        7        8
+ 263   3                  //11110000 00000000 11111111 00002222 22222222 00000000 22221111 11111111 22222222 //line 0/1
+ 264   3                      if (i==0)
+ 265   3                      {
+ 266   4                          u8FontData0=((*(pu8Font))<<4)+((*(pu8Font+1))>>4);
+ 267   4                          u8FontData1=((*(pu8Font))&0xF0)+((*(pu8Font+2))>>4);
+ 268   4                          u8FontData2=((*(pu8Font+3))<<4)+((*(pu8Font+4))>>4);
+ 269   4                      }
+ 270   3                      else if (i==1)
+ 271   3                      {
+ 272   4                          u8FontData0=((*(pu8Font+1))<<4)+((*(pu8Font+3))>>4);
+ 273   4                          u8FontData1=((*(pu8Font+2))<<4)+((*(pu8Font+6))&0x0F);
+ 274   4                          u8FontData2=((*(pu8Font+4))<<4)+((*(pu8Font+6))>>4);
+ 275   4                      }
+ 276   3                      else
+ 277   3                      {
+ 278   4                          u8FontData0=(*(pu8Font+5));
+ 279   4                          u8FontData1=(*(pu8Font+7));
+ 280   4                          u8FontData2=(*(pu8Font+8));
+ 281   4                      }
+ 282   3                      u8PixelBit=BIT7;
+ 283   3                      u32Data=0;
+ 284   3                      while(u8PixelBit)
+ 285   3                      {
+ 286   4                          u32Data<<=3;
+ 287   4                          if (u8FontData0&u8PixelBit) //color bit0
+ 288   4                              u32Data|=BIT0;
+ 289   4                          if (u8FontData1&u8PixelBit) //color bit1
+ 290   4                              u32Data|=BIT1;
+ 291   4                          if (u8FontData2&u8PixelBit) //color bit2
+ 292   4                              u32Data|=BIT2;
+ 293   4                          u8PixelBit>>=1;
+ 294   4                      }
+ 295   3                      msWriteByte(PORT_FONT_DATA, u32Data>>16);
+ 296   3                      msWriteByte(PORT_FONT_DATA, u32Data>>8);
+ 297   3                      msWriteByte(PORT_FONT_DATA, u32Data);
+ 298   3                  }
+ 299   2                  if (u16Num>=9)
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 6   
+
+ 300   2                  {
+ 301   3                      u16Num-=9;
+ 302   3                      pu8Font+=9;
+ 303   3                  }
+ 304   2                  else
+ 305   2                      u16Num=0;
+ 306   2              }
+ 307   1      
+ 308   1          #if CHIP_ID==CHIP_TSUMC||CHIP_ID==CHIP_TSUMD||CHIP_ID == CHIP_TSUM9 ||CHIP_ID == CHIP_TSUMF
+ 309   1                      msWriteByteMask(OSD1_6D, 0x00,BIT7|BIT6);    //00: for 1/2Bpp; 01: for 3Bpp; 10:for 4Bpp;
+ 310   1          #elif  CHIP_ID==CHIP_TSUM2||CHIP_ID==CHIP_TSUMV
+                      msWriteByteMask(OSD1_6D, 0x00,BIT7);              //0: for 1/2/3Bpp; 1: for 4Bpp;
+                  #endif
+ 313   1          
+ 314   1          #else
+                          msWriteByte(OSD2_A3, u8Addr);
+                          while (u16Num--)
+                              msWriteByte(OSD2_A4, *(pu8Font++));
+                  #endif
+ 319   1          }
+ 320          
+ 321          #if 0
+              void Osd_SetTextMonoColor(BYTE foreColor, BYTE backColor)
+              {
+                  OsdFontColor = (foreColor &0xF) << 4 | (backColor &0xF);
+              }
+              void Osd_SetTextColor(BYTE foreColor, BYTE backColor)
+              {
+                  // OsdFontColor=(foreColor&0xF)<<4|(backColor&0xF);
+                  OsdFontColor = (foreColor &0x0) | (backColor &0xFF);
+              }
+              void Osd_Set256TextColor(BYTE foreColor, BYTE backColor)
+              {
+                 if(backColor==Color_2)
+                    OsdFontColor=foreColor;
+                 else if(backColor==Color_2G)
+                  {
+              #if CHIP_ID>=CHIP_TSUMV
+                    OsdFontColor=(foreColor&0xF0)|0x01;
+              #else
+                    OsdFontColor=foreColor;
+              #endif
+                  }
+                 else if(backColor==Color_4)
+                    OsdFontColor=foreColor<<2;
+                 else if(backColor==Color_8)
+                    OsdFontColor=foreColor<<3;
+                 else if(backColor==Color_8G)
+                    OsdFontColor=(foreColor<<3)|BIT1;
+                 else if(backColor==Color_2T)
+                    OsdFontColor=foreColor|0x00;
+                 else if(backColor==Color_4T)
+                    OsdFontColor=foreColor<<2|0x01;
+                 else// (backColor==Color_8T)
+                    OsdFontColor=foreColor<<3|0x01;
+              }
+              #endif
+ 357          
+ 358          void DrawNum(BYTE xPos, BYTE yPos, char len, int value) //int value)
+ 359          {
+ 360   1          char _minus = 0;
+ 361   1          BYTE ZeroStart;
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 7   
+
+ 362   1      
+ 363   1          if( MenuPageIndex == FactoryMenu )
+ 364   1          {
+ 365   2              ZeroStart = 0x30;
+ 366   2          }
+ 367   1          else
+ 368   1          {
+ 369   2              ZeroStart = MonoNumberStart;
+ 370   2          }
+ 371   1      
+ 372   1          if( value < 0 )
+ 373   1          {
+ 374   2              value = 0 - value;
+ 375   2              _minus = 1;
+ 376   2          }
+ 377   1      
+ 378   1          if( value == 0 )
+ 379   1          {
+ 380   2              Osd_DrawCharDirect( xPos + ( len-- ), yPos, ( BYTE )( value + ZeroStart ) );
+ 381   2          }
+ 382   1          else
+ 383   1          {
+ 384   2              while( value && len )            // translate integer to string
+ 385   2              {
+ 386   3                  Osd_DrawCharDirect( xPos + ( len-- ), yPos, ( BYTE )(( value % 10 ) + ZeroStart ) );
+ 387   3                  value /= 10;
+ 388   3              }
+ 389   2          }
+ 390   1      
+ 391   1          if( _minus && len >= 0 )            // add sign
+ 392   1          {
+ 393   2              Osd_DrawCharDirect( xPos + ( len-- ), yPos, ( BYTE )'-' );
+ 394   2          }
+ 395   1      
+ 396   1          _minus = ( _minus ) ? ( 0 ) : ( 1 );
+ 397   1          for( ; _minus <= len; _minus++ )
+ 398   1          {
+ 399   2              Osd_DrawCharDirect( xPos + _minus, yPos, ( BYTE )MonoSpace );
+ 400   2          }
+ 401   1      }
+ 402          
+ 403          void Osd_DrawNum(BYTE xPos, BYTE yPos, int value)
+ 404          {
+ 405   1          DrawNum(xPos, yPos, 3, value);
+ 406   1      }
+ 407          
+ 408          #if DDCCI_ENABLE_DEBUG  //130806 henry
+              void Osd_Draw4Num(BYTE xPos, BYTE yPos, int value)
+              {
+                  DrawNum(xPos, yPos, 5, value);
+              }
+              #endif
+ 414          //===================================================================================
+ 415          #define GuageFontStart_Normal   (MonoGuageFontStar+0x00)
+ 416          #define GuageFontEnd_Normal             (MonoGuageFontStar+0x12)
+ 417          
+ 418          #define GuageFont0_6    (MonoGuageFontStar+0x06)
+ 419          #define GuageFont1_6    (MonoGuageFontStar+0x07)
+ 420          #define GuageFont2_6    (MonoGuageFontStar+0x08)
+ 421          #define GuageFont3_6    (MonoGuageFontStar+0x09)
+ 422          #define GuageFont4_6    (MonoGuageFontStar+0x0A)
+ 423          #define GuageFont5_6    (MonoGuageFontStar+0x0B)
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 8   
+
+ 424          #define GuageFont6_6    (MonoGuageFontStar+0x0C)
+ 425          #define GuageFont6_full (MonoGuageFontStar+0x0C)
+ 426          
+ 427          #define GuageLevel              6
+ 428          void Osd_DrawGuage(BYTE xPos, BYTE yPos, BYTE length, BYTE value)
+ 429          {
+ 430   1      
+ 431   1              BYTE pLead;
+ 432   1              BYTE ucLoop;
+ 433   1      
+ 434   1              if (value>100)
+ 435   1                      value=100;
+ 436   1      
+ 437   1          OSD_TEXT_HI_ADDR_SET_BIT8(); //enable bit 8
+ 438   1              if (value>=95)
+ 439   1              {
+ 440   2                  if (value==100)
+ 441   2                              Osd_DrawCharDirect(xPos+length-1, yPos, (GuageFontEnd_Normal-5));
+ 442   2                  else if (value==99)
+ 443   2                              Osd_DrawCharDirect(xPos+length-1, yPos, (GuageFontEnd_Normal-4));
+ 444   2                  else if (value==98)
+ 445   2                              Osd_DrawCharDirect(xPos+length-1, yPos, (GuageFontEnd_Normal-3));
+ 446   2                  else if (value==97)
+ 447   2                              Osd_DrawCharDirect(xPos+length-1, yPos, (GuageFontEnd_Normal-2));
+ 448   2                  else if (value==96)
+ 449   2                              Osd_DrawCharDirect(xPos+length-1, yPos, (GuageFontEnd_Normal-1));
+ 450   2                      else
+ 451   2                              Osd_DrawCharDirect(xPos+length-1, yPos, (GuageFontEnd_Normal-0));
+ 452   2                      value=100;
+ 453   2              }
+ 454   1              else
+ 455   1                      Osd_DrawCharDirect(xPos+length-1, yPos, (GuageFontEnd_Normal-0));
+ 456   1      
+ 457   1          if (value<=5)
+ 458   1              {
+ 459   2                  if (value==0)
+ 460   2                              Osd_DrawCharDirect(xPos, yPos, (GuageFontStart_Normal+0));
+ 461   2                  else if (value==1)
+ 462   2                              Osd_DrawCharDirect(xPos, yPos, (GuageFontStart_Normal+1));
+ 463   2                  else if (value==2)
+ 464   2                              Osd_DrawCharDirect(xPos, yPos, (GuageFontStart_Normal+2));
+ 465   2                  else if (value==3)
+ 466   2                              Osd_DrawCharDirect(xPos, yPos, (GuageFontStart_Normal+3));
+ 467   2                  else if (value==4)
+ 468   2                              Osd_DrawCharDirect(xPos, yPos, (GuageFontStart_Normal+4));
+ 469   2                      else
+ 470   2                              Osd_DrawCharDirect(xPos, yPos, (GuageFontStart_Normal+5));
+ 471   2                      value=0;
+ 472   2              }
+ 473   1              else
+ 474   1              {       Osd_DrawCharDirect(xPos, yPos, (GuageFontStart_Normal+5));
+ 475   2                      //value=value-6;
+ 476   2              }
+ 477   1        
+ 478   1      
+ 479   1              length -= 2;
+ 480   1      
+ 481   1              // bar length should small than 42 ( ucLength < 43 )
+ 482   1              pLead = ( (WORD) value * length * GuageLevel ) / 100;   // resver 0.1 // fill bar ucLength 10 times
+ 483   1              if( value != 0 && pLead == 0 )
+ 484   1                      pLead++;
+ 485   1      
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 9   
+
+ 486   1              for(ucLoop=1; ucLoop<=(pLead/GuageLevel); ucLoop++)
+ 487   1              {
+ 488   2                  Osd_DrawCharDirect(xPos+ucLoop, yPos, GuageFont6_6);
+ 489   2          }
+ 490   1      
+ 491   1              if(pLead < length*GuageLevel)
+ 492   1              {
+ 493   2                  Osd_DrawCharDirect(xPos+ucLoop, yPos, GuageFont0_6+(pLead%GuageLevel));
+ 494   2          }
+ 495   1      
+ 496   1              for(ucLoop=(pLead/GuageLevel+2); ucLoop<=length; ucLoop++)
+ 497   1              {
+ 498   2                  Osd_DrawCharDirect(xPos + ucLoop, yPos, GuageFont0_6);
+ 499   2          }
+ 500   1                
+ 501   1          OSD_TEXT_HI_ADDR_CLR_TO_0();
+ 502   1              
+ 503   1      }
+ 504          
+ 505          // ============================
+ 506          // Draw Hex for Debug
+ 507          BYTE Hex2ASCII(WORD Num)
+ 508          {
+ 509   1          return ( Num < 10 ) ? ( Num + 0x30 ) : ( Num - 10 + 0x41 );
+ 510   1      }
+ 511          void DrawHex(BYTE xPos, BYTE yPos, WORD value)
+ 512          {
+ 513   1          char len=3;
+ 514   1          while( value && len >= 0 )
+ 515   1          {
+ 516   2              Osd_DrawCharDirect( xPos + ( len-- ), yPos, ( BYTE )Hex2ASCII( value % 0x10 ) );
+ 517   2              value /= 0x10;
+ 518   2          }
+ 519   1          if( len >= 0 )
+ 520   1          {
+ 521   2              for( value = 0; value <= len; value++ )
+ 522   2              {
+ 523   3                  Osd_DrawCharDirect( xPos + value, yPos, ( BYTE )0x30 );
+ 524   3              }
+ 525   2          }
+ 526   1      }
+ 527          void Osd_DrawHex(BYTE xPos, BYTE yPos, WORD value)
+ 528          {
+ 529   1          DrawHex(xPos, yPos, value);
+ 530   1      }
+ 531          
+ 532          
+ 533          #if CHIP_ID>=CHIP_TSUMV
+ 534          void LoadCommonFont(void)
+ 535          {
+ 536   1      
+ 537   1          msWrite2ByteMask(OSD1_0A,0x0200+_4ColorFontStart,0x03FF); // 4 color start
+ 538   1          msWrite2ByteMask(OSD1_0C,0x0200+_8ColorFontStart,0x03FF); // 8 color start
+ 539   1          msWrite2ByteMask(OSD1_0E,0x03FF,0x03FF);    // 16 color start
+ 540   1      
+ 541   1          LoadCompressColorFont(0,0,0);//xxxx
+ 542   1      #if CHIP_ID>=CHIP_TSUM2
+ 543   1          mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(MonoFontStart), tColor2FixFont, 0 ); 
+ 544   1          mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(MonoNumberStart), tOSDNumberFont, 0 );   
+ 545   1          mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(FfontStart), &tFontF, 0 );
+ 546   1      #else
+                  mStar_LoadCompressedFont( MonoFontStart, tColor2FixFont, 0 ); 
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 10  
+
+                  mStar_LoadCompressedFont( MonoNumberStart, tOSDNumberFont, 0 ); 
+                  mStar_LoadCompressedFont( (FfontStart), &tFontF, 0 );       
+              #endif
+ 551   1      
+ 552   1      #if OsdHelpKeyType == OsdHelpKey_Under  
+                  mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(0x11), &HelpKeyIcon, 0 );
+              #elif   OsdHelpKeyType == OsdHelpKey_Right
+                      OSD_FONT_HI_ADDR_SET_BIT8();//0x100~0x1FF
+                      mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(0x11), &HelpKeyIcon, 0 );
+                      OSD_FONT_HI_ADDR_CLR_TO_0();
+              #endif  
+ 559   1      
+ 560   1      
+ 561   1          LoadLanguageStatusPropfont();
+ 562   1          
+ 563   1          OSD_FONT_HI_ADDR_SET_BIT8();//0x100~0x1FF
+ 564   1          OSD_WRITE_FONT_ADDRESS(MonoGuageFontStar);
+ 565   1      #if CHIP_ID>=CHIP_TSUM2
+ 566   1          mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(MonoGuageFontStar), tMonoGauge, 0 );
+ 567   1      #else
+                  mStar_LoadCompressedFont( MonoGuageFontStar, tMonoGauge, 0 );
+              
+              #endif
+ 571   1      
+ 572   1          OSD_FONT_HI_ADDR_CLR_TO_0();
+ 573   1      
+ 574   1          OSD_FONT_HI_ADDR_SET_BIT9();//0x200~0x2FF
+ 575   1          
+ 576   1          OSD_WRITE_FONT_ADDRESS(_4ColorMainIconStart);
+ 577   1          LoadCompressColorFont(&tMainMenuIcon4ColorFont, NULL,18); // load osd fonts
+ 578   1      
+ 579   1          OSD_WRITE_FONT_ADDRESS(_8ColorMainIconStart);
+ 580   1          Osd_Load8ColorFont( _8ColorMainIconStart, &tMainMenuIcon8ColorFont, sizeof( tMainMenuIcon8ColorFont ) 
+             -);
+ 581   1      
+ 582   1          OSD_FONT_HI_ADDR_CLR_TO_0();
+ 583   1         
+ 584   1              Load256ColorPalette(0, 0, &tOSDColorPalette256, sizeof( tOSDColorPalette256 ) /sizeof(ColorPaletteType) )
+             -;
+ 585   1      }
+ 586          
+ 587          #else
+              void LoadCommonFont(void)
+                  {
+                  
+                  mStar_LoadCompressedFont(0,0,0);//xxxx
+                  //Load 2 COLOR Font
+              #if CHIP_ID==CHIP_TSUMU
+                  msWriteByte( OCFF, 0xC0 );
+              #else
+               msWriteByte( OCFF, 0xC6 );
+               #endif   
+                  msWriteByte( IOSDC2, 0x83); // color bit setting
+                  mStar_LoadCompressedFont( MonoFontStart, tColor2FixFont, 0 ); 
+                  mStar_LoadCompressedFont( MonoNumberStart, tOSDNumberFont, 0 ); 
+                  mStar_LoadCompressedFont( FfontStart, &tFontF, 0 );         
+                  LoadLanguageStatusPropfont();
+              
+               
+              
+                  
+                  msWriteByte( OSD2_AE, BIT7 );
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 11  
+
+                  mStar_LoadCompressedFont( MonoGuageFontStar, tMonoGauge, 0 ); 
+                  msWriteByte( OSD2_AE, 0 );
+                      
+                 msWriteByte( OSDCFHA, msReadByte(OSDCFHA)|BIT6|BIT3);
+              
+                  
+                              //Load 4 COLOR Font
+                  msWriteByte( IOSDC2, 0x83 ); //0x83); // color bit setting   
+                  msWriteByte( OSDCFHA, (msReadByte(OSDCFHA)&~(BIT3|BIT2))|BIT3);
+                  msWriteByte( OSDCFA, FONT_4COLOR_ICON_START+0xFF ); // color font start address    
+                  
+                   msWriteByte( OSDCFHA, (msReadByte(OSDCFHA)&~(BIT7|BIT6))|BIT6);
+                  msWriteByte( OSD8CFFA, FONT_8COLOR_ICON_START ); 
+              
+                  msWriteByte( OSD2_AE, BIT6 );
+                      
+                  OSD_WRITE_FONT_ADDRESS(_4ColorMainIconStart);
+                  LoadCompressColorFont(&tMainMenuIcon4ColorFont, NULL,18); // load osd fonts 
+                  OSD_WRITE_FONT_ADDRESS(_8ColorMainIconStart);       
+                  Osd_Load8ColorFont( _8ColorMainIconStart, &tMainMenuIcon8ColorFont, sizeof( tMainMenuIcon8ColorFont ) 
+             -); 
+                  
+                  msWriteByte( OSD2_AE, 0 );
+              
+                  Load256ColorPalette(0, 0, &tOSDColorPalette256, sizeof( tOSDColorPalette256 ) /sizeof(ColorPaletteType
+             -) );
+                  //drvOsdLoad256ColorPalette( 0x00, &tOSDColorPalette256, sizeof( tOSDColorPalette256 ), TRUE ); // loa
+             -d osd color
+              
+              }
+              
+              #endif
+ 637          
+ 638          
+ 639          #if OsdHelpKeyType ==    OsdHelpKey_Under || OsdHelpKeyType ==   OsdHelpKey_Right
+              void UpdataHelyKeyShowInMenu(void)
+              {
+              OSD_FONT_HI_ADDR_SET_BIT8();//0x100~0x1FF
+                              if(MenuPageIndex>RootMenu&&MenuPageIndex<ExitMenu)
+                              {
+                  mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(0x80), &HelpKeyIcon, 0 );       
+                              }
+                              else if(MenuPageIndex>ExitMenu&&MenuPageIndex<HotKeyECOMenu)
+                              {
+                  mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(0x80), &HelpKeyIcon2, 0 );                      
+                              }       
+                  OSD_FONT_HI_ADDR_CLR_TO_0();
+              }
+              #endif
+ 654          
+ 655          
+ 656          //==============================================================================
+ 657          //==============================================================================
+ 658          #if 0
+              extern xdata BYTE OsdFontColor  ;
+              extern BYTE  xdata MenuPageIndex ;
+              
+              
+              #define WAIT_V_OUTPUT_BLANKING_START()   { if(!SyncLossState()&&PanelOnFlag){TimeOutCounter=30;while((msRe
+             -adByte(SC0_E0)&BIT0)==0);\
+                                                      TimeOutCounter=30;while((msReadByte(SC0_E0)&BIT0)!=0);}}//20130227
+             - modify for DC OFF issue
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 12  
+
+              
+              #define OSD_WINDOW_ADDR(OsdWND,Addr)    ((OsdWND<<5)+Addr)
+              void SetOSDWindosw(BYTE ucSubWin,BYTE u8HStart,BYTE u8HEnd ,BYTE u8VStart, BYTE u8VEnd,BYTE u8Color)
+              {
+              #if CHIP_ID>=CHIP_TSUMV
+                 // WAIT_V_OUTPUT_BLANKING_START(); //Jison wait 1 frame to avoid the last text garbage
+                  //drvOSD_SetWndOn(ucSubWin, FALSE);
+                  {
+                      WORD xdata u16MainHStart=drvOSD_GetWndInfo(OSD_MAIN_WND,OSD_WND_INFO_H_START);
+                      WORD xdata u16MainVStart=drvOSD_GetWndInfo(OSD_MAIN_WND,OSD_WND_INFO_V_START);
+                      if (bMoveCURSORFlag)
+                      {
+                      #if 1//20120817-1 Eson
+                              drvOSD_SetWndCABaseAddr(ucSubWin, 0x046);//clear
+                      #else
+                              if( MenuPageIndex == HotInputSelectMenu
+                            )         //120428 Modify
+                              drvOSD_SetWndCABaseAddr(ucSubWin, 0x046);//clear
+                          else
+                                          drvOSD_SetWndCABaseAddr(ucSubWin, 0x200);//clear
+                      #endif    
+                          WAIT_V_OUTPUT_BLANKING_START();
+                      }
+                      else
+                      drvOSD_SetWndCABaseAddr(ucSubWin, drvOSD_GetWndInfo(OSD_MAIN_WND,OSD_WND_INFO_CABASE)+
+                          (WORD)u8VStart*drvOSD_GetWndInfo(OSD_MAIN_WND,OSD_WND_INFO_LINE_OFFSET)+u8HStart);
+                              #if ENABLE_MENULOAD     //111223 Modify
+                                      msML_WriteByte(ML_MODE_NORMAL ,OSD_WINDOW_ADDR(ucSubWin,OSD2_04), (u16MainHStart+(WORD)u8HStart*
+             -12));
+                                      msML_WriteByte(ML_MODE_NORMAL ,OSD_WINDOW_ADDR(ucSubWin,OSD2_05), (u16MainHStart+(WORD)u8HStart*
+             -12)>>8);
+                                      msML_WriteByte(ML_MODE_NORMAL ,OSD_WINDOW_ADDR(ucSubWin,OSD2_08), (u16MainHStart+((WORD)u8HEnd+1
+             -)*12));
+                                      msML_WriteByte(ML_MODE_NORMAL ,OSD_WINDOW_ADDR(ucSubWin,OSD2_09), (u16MainHStart+((WORD)u8HEnd+1
+             -)*12)>>8);
+                                      msML_WriteByte(ML_MODE_NORMAL ,OSD_WINDOW_ADDR(ucSubWin,OSD2_06), (u16MainVStart+(WORD)u8VStart*
+             -18));
+                                      msML_WriteByte(ML_MODE_NORMAL ,OSD_WINDOW_ADDR(ucSubWin,OSD2_07), (u16MainVStart+(WORD)u8VStart*
+             -18)>>8);
+                                      msML_WriteByte(ML_MODE_NORMAL ,OSD_WINDOW_ADDR(ucSubWin,OSD2_0A), (u16MainVStart+((WORD)u8VEnd+1
+             -)*18));
+                                      msML_WriteByte(ML_MODE_NORMAL ,OSD_WINDOW_ADDR(ucSubWin,OSD2_0B), (u16MainVStart+((WORD)u8VEnd+1
+             -)*18)>>8);
+                                      msML_Trigger(ML_TRIG_SW);// Vde-end-OP  
+                              
+                              #elif ENABLE_SW_DOUBLE_BUFFER
+                                //msSWDBWaitForRdy();
+                                   DB_Mode(ML_MODE_NORMAL);
+                                      DB_WB(OSD_WINDOW_ADDR(ucSubWin,OSD2_04), (u16MainHStart+(WORD)u8HStart*12));
+                                      DB_WB(OSD_WINDOW_ADDR(ucSubWin,OSD2_05), (u16MainHStart+(WORD)u8HStart*12)>>8);
+                                      DB_WB(OSD_WINDOW_ADDR(ucSubWin,OSD2_08), (u16MainHStart+((WORD)u8HEnd+1)*12));
+                                      DB_WB(OSD_WINDOW_ADDR(ucSubWin,OSD2_09), (u16MainHStart+((WORD)u8HEnd+1)*12)>>8);
+                                      DB_WB(OSD_WINDOW_ADDR(ucSubWin,OSD2_06), (u16MainVStart+(WORD)u8VStart*18));
+                                      DB_WB(OSD_WINDOW_ADDR(ucSubWin,OSD2_07), (u16MainVStart+(WORD)u8VStart*18)>>8);
+                                      DB_WB(OSD_WINDOW_ADDR(ucSubWin,OSD2_0A), (u16MainVStart+((WORD)u8VEnd+1)*18));
+                                      DB_WB(OSD_WINDOW_ADDR(ucSubWin,OSD2_0B), (u16MainVStart+((WORD)u8VEnd+1)*18)>>8);
+                                   msSWDBWriteToRegister();
+                                   msSWDBWaitForRdy();
+                              #else
+                                  drvOSD_SetWndHPosition(ucSubWin, u16MainHStart+(WORD)u8HStart*12, u16MainHStart+((WORD
+             -)u8HEnd+1)*12);
+                                  drvOSD_SetWndVPosition(ucSubWin, u16MainVStart+(WORD)u8VStart*18, u16MainVStart+((WORD
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 13  
+
+             -)u8VEnd+1)*18);
+                              #endif
+                  }
+                  drvOSD_SetWndFixAttr(ucSubWin,_ENABLE,u8Color);
+                  //WAIT_V_OUTPUT_BLANKING_START(); //Jison wait 1 frame to avoid the last text garbage
+                      drvOSD_SetWndOn(ucSubWin, TRUE);
+                
+              #else    // Wind as 0 ~3
+                  if (OSD_CURSOR_WND == ucSubWin)
+                      ucSubWin = SUB_WIN_00;
+              
+                  ucSubWin=SUBW0C+ucSubWin*6;
+              
+                  mStar_WriteOSDByte(ucSubWin+1, u8HStart);
+                  mStar_WriteOSDByte(ucSubWin+2, u8HEnd);
+                  mStar_WriteOSDByte(ucSubWin+3, u8VStart);
+                  mStar_WriteOSDByte(ucSubWin+4, u8VEnd);
+                  mStar_WriteOSDByte(ucSubWin+5, u8Color);
+              
+                  if ((ucSubWin|BKMASKOSD1) == SUBW1C)
+                      mStar_WriteOSDByte(ucSubWin+0, 0x03);
+                  else
+                      mStar_WriteOSDByte(ucSubWin+0, 0x01);
+              #endif
+              }
+              
+              void ClrOSDWindosw(BYTE ucSubWin)
+              {
+              #if CHIP_ID>=CHIP_TSUMV
+                  drvOSD_SetWndOn(ucSubWin, FALSE);
+              #else
+                  // Wind as 0 ~3
+                  if (OSD_CURSOR_WND == ucSubWin)
+                      ucSubWin = SUB_WIN_00;
+                  
+                  ucSubWin=SUBW0C+ucSubWin*6;
+                  mStar_WriteOSDByte(ucSubWin+0, 0x00);
+                  mStar_WriteOSDByte(ucSubWin+1, 0x00);
+                  mStar_WriteOSDByte(ucSubWin+2, 0x00);
+                  mStar_WriteOSDByte(ucSubWin+3, 0x00);
+                  mStar_WriteOSDByte(ucSubWin+4, 0x00);
+                  mStar_WriteOSDByte(ucSubWin+5, 0x00);
+              #endif
+              }
+              
+              #if CHIP_ID<CHIP_TSUMV
+              
+              void SetOsdGraduallyBackGround( BYTE Win_Num, BYTE GDRValue, BYTE GDGValue, BYTE GDBValue, BYTE GDDelta , 
+             -BYTE GDDERange, BYTE GDControl, BYTE GDRInit , BYTE GDGInit, BYTE GDBInit)
+              {
+                  if (Win_Num>4) return;
+                  switch (Win_Num)
+                  {
+                    case SUB_WIN_00:
+                         Win_Num = OSD_GD00;
+                         break;
+                    case SUB_WIN_01:
+                         Win_Num = OSD_GD01;
+                         break;
+                    case SUB_WIN_02:
+                         Win_Num = OSD_GD02;
+                         break;
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 14  
+
+                    case SUB_WIN_03:
+                         Win_Num = OSD_GD03;
+                         break;
+                  }
+                  mStar_WriteOSDByte( Win_Num + 0, GDRValue);
+                  mStar_WriteOSDByte( Win_Num + 1, GDGValue );
+                  mStar_WriteOSDByte( Win_Num + 2, GDBValue );
+              
+                  mStar_WriteOSDByte( Win_Num + 3, GDDelta );
+                  mStar_WriteOSDByte( Win_Num + 4, GDDelta );
+              
+                  mStar_WriteOSDByte( Win_Num + 5, GDDERange );
+                  mStar_WriteOSDByte( Win_Num + 6, GDDERange );
+                  mStar_WriteOSDByte( Win_Num + 7, GDDERange );
+                  mStar_WriteOSDByte( Win_Num + 8, GDDERange );
+              
+                  mStar_WriteOSDByte( Win_Num + 9, GDControl );
+              
+                  mStar_WriteOSDByte( Win_Num + 10, GDRInit );
+                  mStar_WriteOSDByte( Win_Num + 11, GDGInit );
+                  mStar_WriteOSDByte( Win_Num + 12, GDBInit );
+              }
+              #endif
+              
+              BYTE Osd_DoubleBuffer(Bool u8Enable)
+              {
+                #if CHIP_ID>=CHIP_TSUMV
+                  u8Enable=0;
+                  return u8Enable;
+                #else
+                  BYTE u8Org=msReadByte(OSD1_01);
+                  msWriteByte(OSD1_01,(u8Enable?0x05:0));
+                  return (u8Org);
+                #endif
+              }
+              
+              void Osd_Set256TextColor(BYTE foreColor, BYTE backColor)
+              {
+                 if(backColor==Color_2)
+                    OsdFontColor=foreColor;
+                 else if(backColor==Color_2G)
+                  {
+              #if CHIP_ID>=CHIP_TSUMV
+                    OsdFontColor=(foreColor&0xF0)|0x01;
+              #else
+                    OsdFontColor=foreColor;
+              #endif
+                  }
+                 else if(backColor==Color_4)
+                    OsdFontColor=foreColor<<2;
+                 else if(backColor==Color_8)
+                    OsdFontColor=foreColor<<3;
+                 else if(backColor==Color_8G)
+                    OsdFontColor=(foreColor<<3)|BIT1;
+                 else if(backColor==Color_2T)
+                    OsdFontColor=foreColor|0x00;
+                 else if(backColor==Color_4T)
+                    OsdFontColor=foreColor<<2|0x01;
+                 else// (backColor==Color_8T)
+                    OsdFontColor=foreColor<<3|0x01;
+              }
+              
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 15  
+
+              #endif
+ 841          
+ 842          
+ 843          //Character Direct Write DisplayCode
+ 844          void Osd_DrawCharDirect(BYTE xPos, BYTE yPos, BYTE ch)
+ 845          {
+ 846   1      #if CHIP_ID>=CHIP_TSUMV
+ 847   1          //drvOSD_DrawRealChar(g_u8OsdWndNo, xPos, yPos, ch);
+ 848   1      
+ 849   1          WORD u16TempValue;
+ 850   1          BYTE u8DrawCode = (!(yPos & BIT7));
+ 851   1      
+ 852   1          yPos &= 0x7F;
+ 853   1      
+ 854   1          //u8Wnd<<=5;
+ 855   1          //u16TempValue=msRead2Byte((u8Wnd)+OSD2_10)+(WORD)u8YPos*msReadByte((u8Wnd)+OSD2_12)+u8XPos; // get re
+             -al address
+ 856   1          u16TempValue=GET_TXT_CASTART(g_u8OsdWndNo,xPos,yPos); // get real address
+ 857   1          WRITE_CAFSRAM_ADDR();   
+ 858   1          msWrite2Byte(PORT_ATTR_ADDR, u16TempValue); // display font attribute
+ 859   1          WRITE_ATTRIBUTE(); 
+ 860   1          msWriteByte(PORT_ATTR_DATA, OsdFontColor);
+ 861   1          if (u8DrawCode)
+ 862   1          {
+ 863   2               WRITE_CAFSRAM_ADDR();
+ 864   2              msWrite2Byte(PORT_CODE_ADDR, u16TempValue); // dispaly font code
+ 865   2              WRITE_CODE();   
+ 866   2              msWriteByte(PORT_CODE_DATA, ch);
+ 867   2          }
+ 868   1      
+ 869   1      
+ 870   1      #else
+                      WORD u16TempValue;
+                      BYTE u8DrawCode = (!(yPos & BIT7));
+              
+                      yPos &= 0x7F;
+              
+                      u16TempValue=(WORD)yPos*OsdWindowWidth+xPos; // get real address
+                      msWrite2Byte(OSD2_A8, u16TempValue); // display font attribute
+                      msWriteByte(OSD2_AA, OsdFontColor);
+                      if (u8DrawCode)
+                      {
+                              msWrite2Byte(OSD2_A5, u16TempValue); // dispaly font code
+                              msWriteByte(OSD2_A7, ch);
+                      }
+              #endif
+ 885   1      }
+ 886          
+ 887          void Osd_DrawContinuesChar(BYTE xPos, BYTE yPos, BYTE ch, BYTE ucNum)
+ 888          {
+ 889   1      #if CHIP_ID>=CHIP_TSUMV
+ 890   1          //drvOSD_DrawContinuousChar(g_u8OsdWndNo,xPos,yPos,ch,ucNum);
+ 891   1      
+ 892   1          WORD u16TempValue;
+ 893   1          BYTE i;
+ 894   1          BYTE    u8DrawCode = (!(yPos & BIT7));
+ 895   1      
+ 896   1          yPos &= 0x7F;
+ 897   1      
+ 898   1          //u8Wnd<<=5;
+ 899   1          //u16TempValue=msRead2Byte((u8Wnd)+OSD2_10)+(WORD)u8YPos*msReadByte((u8Wnd)+OSD2_12)+u8XPos; // get re
+             -al address
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 16  
+
+ 900   1          u16TempValue=GET_TXT_CASTART(g_u8OsdWndNo,xPos,yPos); // get real address
+ 901   1          WRITE_CAFSRAM_ADDR();    
+ 902   1          msWrite2Byte(PORT_ATTR_ADDR, u16TempValue);
+ 903   1              WRITE_ATTRIBUTE();   
+ 904   1          for(i=0;i<ucNum;i++)
+ 905   1          {
+ 906   2              msWriteByte(PORT_ATTR_DATA, OsdFontColor);
+ 907   2          }
+ 908   1          if (u8DrawCode)
+ 909   1          {
+ 910   2               WRITE_CAFSRAM_ADDR();    
+ 911   2              msWrite2Byte(PORT_CODE_ADDR, u16TempValue);
+ 912   2              WRITE_CODE();            
+ 913   2              for(i=0;i<ucNum;i++)
+ 914   2              {
+ 915   3                  msWriteByte(PORT_CODE_DATA, ch);
+ 916   3              }
+ 917   2          }
+ 918   1      #else
+                      WORD u16TempValue;
+                      BYTE i;
+                      BYTE    u8DrawCode = (!(yPos & BIT7));
+              
+                      yPos &= 0x7F;
+              
+                      u16TempValue=(WORD)yPos*OsdWindowWidth+xPos; // get real address
+                      msWrite2Byte(OSD2_A8, u16TempValue);
+                      for(i=0;i<ucNum;i++)
+                      {
+                              msWriteByte(OSD2_AA, OsdFontColor);
+                      }
+                      if (u8DrawCode)
+                      {
+                              msWrite2Byte(OSD2_A5, u16TempValue);
+                              for(i=0;i<ucNum;i++)
+                              {
+                                      msWriteByte(OSD2_A7, ch);
+                              }
+                      }
+              #endif
+ 940   1      
+ 941   1      }
+ 942          
+ 943          void Osd_DrawPropStr(BYTE xPos, BYTE yPos, BYTE *str)
+ 944          {
+ 945   1      #if CHIP_ID>=CHIP_TSUMV
+ 946   1      
+ 947   1              WORD  xdata  u16TempValue;
+ 948   1              Bool  xdata  IsDrawCode = TRUE;
+ 949   1      
+ 950   1              if (str==NULL || (*(str + 1))==0) //Jison
+ 951   1                      return;
+ 952   1              if (yPos & BIT7)
+ 953   1                      IsDrawCode = FALSE;
+ 954   1      
+ 955   1      #if 0
+                      if( yPos == 2 || xPos == 0 )
+                      {
+                              xPos=( OsdWindowWidth - (*(str + 1)) ) / 2 + 1;
+                      }
+              #endif
+ 961   1      
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 17  
+
+ 962   1              yPos &= 0x7F; //~(BIT7|BIT6);
+ 963   1      #define DISP_CHAR   xPos
+ 964   1      #define DISP_PTR    yPos
+ 965   1       
+ 966   1              //u16TempValue=g_u8OsdWndNo<<5;
+ 967   1              //u16TempValue=msRead2Byte(u16TempValue+OSD2_10)+(WORD)u8YPos*msReadByte(u16TempValue+OSD2_12)+u8XPos; //
+             - get real address
+ 968   1              u16TempValue=GET_TXT_CASTART(g_u8OsdWndNo,xPos,yPos); // get real address
+ 969   1              DISP_PTR = 0;
+ 970   1             WRITE_CAFSRAM_ADDR();
+ 971   1              msWrite2Byte(PORT_ATTR_ADDR, u16TempValue);
+ 972   1             WRITE_ATTRIBUTE();
+ 973   1              while (DISP_PTR++ < *(str + 1))
+ 974   1                      msWriteByte(PORT_ATTR_DATA, OsdFontColor);
+ 975   1      
+ 976   1              if (IsDrawCode == TRUE)
+ 977   1              {
+ 978   2                      DISP_PTR = 0;
+ 979   2                      WRITE_CAFSRAM_ADDR();
+ 980   2                      msWrite2Byte(PORT_CODE_ADDR, u16TempValue);
+ 981   2                      WRITE_CODE();
+ 982   2                      {
+ 983   3                              while (DISP_PTR < *(str + 1))
+ 984   3                              {
+ 985   4                                      msWriteByte(PORT_CODE_DATA, (*str) + DISP_PTR);
+ 986   4                                      DISP_PTR++;
+ 987   4                              }
+ 988   3                      }
+ 989   2              }
+ 990   1      
+ 991   1      #undef DISP_CHAR
+ 992   1      #undef DISP_PTR
+ 993   1      
+ 994   1      #else
+                      WORD tempValue;
+                      BYTE drawCode = TRUE, tempdispPtr;
+              
+                      if (str==NULL || (*(str + 1))==0) //Jison
+                              return;
+                      
+                      if( yPos & BIT7 )
+                      {
+                              drawCode = FALSE;
+                      }
+              
+                      yPos &= 0x7F; //~(BIT7|BIT6);
+              #define dispChar    xPos
+              #define dispPtr     tempdispPtr
+              
+                      tempValue = ( WORD )yPos * OsdWindowWidth + xPos;// get real address
+              
+              
+                      
+                      dispPtr = 0;
+                      msWrite2Byte( OSD2_A8, tempValue );
+                      while( dispPtr++ < *( str + 1 ) )
+                      {
+                              msWriteByte( OSD2_AA, OsdFontColor );
+                      }
+              
+              
+              
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 18  
+
+                      if( drawCode == TRUE )
+                      {
+                              dispPtr = 0;
+                              msWrite2Byte( OSD2_A5, tempValue );
+                                      while( dispPtr < *( str + 1 ) )
+                                      {
+                                              msWriteByte( OSD2_A7, ( *str) + dispPtr );
+                                              dispPtr++;
+                      
+                                      }
+                      }
+                      
+              #undef dispChar
+              #undef dispPtr
+              #endif
+1038   1      }
+1039          
+1040          void Osd_DrawRealStr(BYTE xPos, BYTE yPos, BYTE *str)
+1041          {
+1042   1      #if CHIP_ID>=CHIP_TSUMV
+1043   1              WORD u16TempValue;
+1044   1              BYTE u8DrawCode = (!(yPos & BIT7));
+1045   1      
+1046   1              yPos &= 0x7F;
+1047   1      
+1048   1              //u8Wnd<<=5;
+1049   1              //u16TempValue=msRead2Byte((u8Wnd)+OSD2_10)+(WORD)u8YPos*msReadByte((u8Wnd)+OSD2_12)+u8XPos; // get real 
+             -address
+1050   1              u16TempValue=GET_TXT_CASTART(g_u8OsdWndNo,xPos,yPos); // get real address
+1051   1              
+1052   1      #define dispChar    xPos
+1053   1      #define dispPtr     yPos
+1054   1              dispPtr = 0;
+1055   1              WRITE_CAFSRAM_ADDR();
+1056   1              msWrite2Byte(PORT_ATTR_ADDR, u16TempValue); // display font attribute
+1057   1              WRITE_ATTRIBUTE();
+1058   1              while( *( str + dispPtr ) )        // display string font index
+1059   1              {
+1060   2                      msWriteByte(PORT_ATTR_DATA, OsdFontColor);
+1061   2                      dispPtr++;
+1062   2              }
+1063   1              if( u8DrawCode )
+1064   1              {
+1065   2                      dispPtr = 0;
+1066   2                    WRITE_CAFSRAM_ADDR();
+1067   2                      msWrite2Byte(PORT_CODE_ADDR, u16TempValue); // dispaly font code
+1068   2                    WRITE_CODE();
+1069   2                      while( dispChar = *( str + dispPtr ) )                    // display string font index
+1070   2                      {
+1071   3                              msWriteByte(PORT_CODE_DATA, dispChar);
+1072   3                              dispPtr++;
+1073   3                      }
+1074   2              }
+1075   1      #undef dispChar
+1076   1      #undef dispPtr
+1077   1      #else
+              #if 1 // 110819 wait for coding
+                      WORD tempValue;
+                      BYTE drawCode = TRUE;
+                      BYTE y;
+                      if( yPos & BIT7 )
+                      {
+C51 COMPILER V9.01   MSOSD                                                                 03/09/2023 15:39:02 PAGE 19  
+
+                              drawCode = FALSE;
+                      }
+                      yPos &= 0x3F; //~(BIT7|BIT6);
+                      y = yPos;
+              #define dispChar    xPos
+              #define dispPtr     yPos
+                      tempValue = ( WORD )yPos * OsdWindowWidth + xPos; // get real address
+                      dispPtr = 0;
+                      msWrite2Byte( OSD2_A8, tempValue );
+                      while( *( str + dispPtr ) )        // display string font index
+                      {
+                              msWriteByte( OSD2_AA, OsdFontColor );
+                              dispPtr++;
+                      }
+                      if( drawCode == TRUE )
+                      {
+                              dispPtr = 0;
+                              msWrite2Byte( OSD2_A5, tempValue );
+                              while( dispChar = *( str + dispPtr ) )                    // display string font index
+                              {
+                                      msWriteByte( OSD2_A7, dispChar );
+                                      dispPtr++;
+                      #if DEBUG_OSD
+                                      ForceDelay1ms(20);
+                      #endif                  
+                              }
+                      }
+              #undef dispChar
+              #undef dispPtr
+              #endif
+              #endif
+1115   1      }
+1116          
+1117          void msOSDuncall(void)
+1118          {
+1119   1      #if !ENABLE_MENULOAD//||!ENABLE_SW_DOUBLE_BUFFER
+1120   1              drvOSD_SetWndHPosition(0,0,0);
+1121   1              drvOSD_SetWndVPosition(0,0,0);
+1122   1              #endif
+1123   1      }
+1124          
+1125          
+1126          
+1127          
+1128          
+1129          
+1130          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3197    ----
+   CONSTANT SIZE    =   3438    ----
+   XDATA SIZE       =      5      12
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      2      52
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

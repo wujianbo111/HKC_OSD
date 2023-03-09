@@ -1,0 +1,1979 @@
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE DETECT
+OBJECT MODULE PLACED IN .\obj\detect.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\KERNEL\SCALER\detect.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\DRIVER\INC
+                    -;..\..\KERNEL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..\..\KERNEL
+                    -\SYSTEM\INC\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\UI\HkcOsd\
+                    -INC) DEFINE(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\detect.lst) OBJECT(.\obj\detect.obj)
+
+line level    source
+
+   1          #include <math.h>
+   2          #include "types.h"
+   3          #include "board.h"
+   4          #include "global.h"
+   5          #include "ms_reg.h"
+   6          #include "ms_rwreg.h"
+   7          #include "power.h"
+   8          #include "debug.h"
+   9          #include "misc.h"
+  10          #include "menu.h"
+  11          #include "UserPref.h"
+  12          #include "msOSD.h"
+  13          #include "msosdfunction.h"
+  14          #include "mStar.h"
+  15          #include "Panel.h"
+  16          #include "adjust.h"
+  17          #include "GPIO_DEF.h"
+  18          #include "drvosd.h"
+  19          #include "drvadc.h"
+  20          #include "autofunc.h"
+  21          #include "MenuFunc.h"   //2012.08.14 Stone.yu
+  22          #if ENABLE_HDCP
+  23              #include "MsHDCP.h"
+  24          #endif
+  25          #if MWEFunction
+  26              #include "MsACE.h"
+  27              #include "msdlc.h"
+  28          #endif
+  29          
+  30          #if ENABLE_HDMI
+  31          #include "MsHDMI.h"
+  32          #endif
+  33          
+  34          #ifdef ReduceDDC
+              #include "ddc.h"
+              #endif
+  37          
+  38          #if MS_DAC
+  39          #include "drvDAC.h"
+  40          #endif
+  41          
+  42          
+  43          
+  44          #ifdef TSUMXXT//#if( ChipID == ChipTSUMT )              //110311 Modify
+              #include "msADC.h"
+              #endif
+  47          
+  48          #if MS_PM
+  49          #include "Ms_PM.h"
+  50          #endif
+  51          /////////////////////////////////////
+  52          #include "drvmStar.h"
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 2   
+
+  53          ////////////////////////////////////
+  54          
+  55          ////////////////////////////////////////////////////////////////////////
+  56          #define SyncValidCount_VGA    10
+  57          
+  58          #define SyncLossCount_VGA     20
+  59          
+  60          
+  61          #define SyncValidCount_DVI  20// 80 
+  62          
+  63          #define SyncLossCount_DVI   90//60//  
+  64          #define SyncValidCount_HDMI  60//  100
+  65          
+  66          #define SyncLossCount_HDMI     ((150))// 230// 
+  67          
+  68          #define SyncLossCount_ANDROID   1000//
+  69          
+  70          #if ENABLE_HDMI2ND_INPUT
+              #define SyncValidCount_HDMI2  60//  
+              #define SyncLossCount_HDMI2  ((150))// 230// 
+              #endif
+  74          
+  75          #if ENABLE_DP_INPUT
+              #define SyncValidCount_DP 60// 
+              #define SyncLossCount_DP   230//
+              #endif
+  79          
+  80           #if ENABLE_MHL
+              #define SyncValidCount_MHL  50//25//50//70 // 120718 coding test        //130703 nick
+              #define SyncLossCount_MHL  (350)//250//250                                      //130703 nick
+              //#define MaxLossCount_MHL   (SyncLossCount_MHL*20) // unit: ms
+              #define ExtenCount_MHL   150 // unit: 20mS, 150x20 = 3000
+              #define SyncLossExtenCount_MHL      (SyncLossCount_MHL-ExtenCount_MHL)
+              #endif
+  87          
+  88          
+  89          #if ENABLE_DEBUG&&DEBUG_DETECT
+                  #define DETECT_printData(str, value)   printData(str, value)
+                  #define DETECT_printMsg(str)           printMsg(str)
+              #else
+  93              #define DETECT_printData(str, value)
+  94              #define DETECT_printMsg(str)
+  95          #endif
+  96          
+  97          #if ENABLE_DEBUG&&0
+                  #define NOSYNC_printData(str, value)   printData(str, value)
+                  #define NOSYNC_printMsg(str)           printMsg(str)
+              #else
+ 101              #define NOSYNC_printData(str, value)   
+ 102              #define NOSYNC_printMsg(str)           
+ 103          #endif
+ 104          
+ 105          ////////////////////////////////////////////////////////////////////////
+ 106          // 120425 coding add 1A2H model for sync valid/loss conter
+ 107          #if INPUT_TYPE == INPUT_1A1H || INPUT_TYPE == INPUT_1A2H || INPUT_TYPE == INPUT_2H
+ 108              #if ENABLE_MHL
+                          #define SyncValidCount_Digital  ((GET_MHL_CABLE_PLUGGED())?(SyncValidCount_MHL):(SyncValidCoun
+             -t_HDMI))
+                          #define SyncLossCount_Digital  ((GET_MHL_CABLE_PLUGGED())?(SyncLossCount_MHL):(SyncLossCount_H
+             -DMI))
+                  #else
+ 112                      #define SyncValidCount_Digital  SyncValidCount_HDMI
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 3   
+
+ 113                      #define SyncLossCount_Digital  SyncLossCount_HDMI
+ 114              #endif    
+ 115          #elif INPUT_TYPE == INPUT_1A2D || INPUT_TYPE == INPUT_2A2D||INPUT_TYPE == INPUT_1A1D1H  //131113 fay
+              #if ENABLE_MHL
+              #define SyncValidCount_Digital  ((SrcInputType>Input_Digital)?((GET_MHL_CABLE_PLUGGED())?(SyncValidCount_M
+             -HL):(SyncValidCount_HDMI)):(SyncValidCount_DVI))
+              #define SyncLossCount_Digital  ((SrcInputType>Input_Digital)?((GET_MHL_CABLE_PLUGGED())?(SyncLossCount_MHL
+             -):(SyncLossCount_HDMI)):(SyncLossCount_DVI))
+              #else
+              #define SyncValidCount_Digital  ((SrcInputType>Input_Digital)?(SyncValidCount_HDMI):(SyncValidCount_DVI))
+              #define SyncLossCount_Digital  ((SrcInputType>Input_Digital)?(SyncLossCount_HDMI):(SyncLossCount_DVI))
+              #endif
+              #elif INPUT_TYPE == INPUT_1A1D1H1DP|| INPUT_TYPE == INPUT_1D1H1DP
+              #if ENABLE_MHL
+              #define SyncValidCount_TMDS  ((SrcInputType>Input_Digital)?((GET_MHL_CABLE_PLUGGED())?(SyncValidCount_MHL)
+             -:(SyncValidCount_HDMI)):(SyncValidCount_DVI))
+              #define SyncLossCount_TMDS  ((SrcInputType>Input_Digital)?((GET_MHL_CABLE_PLUGGED())?(SyncLossCount_MHL):(
+             -SyncLossCount_HDMI)):(SyncLossCount_DVI))
+              #else
+              #define SyncValidCount_TMDS  ((SrcInputType>Input_Digital)?(SyncValidCount_HDMI):(SyncValidCount_DVI))
+              #define SyncLossCount_TMDS  ((SrcInputType>Input_Digital)?(SyncLossCount_HDMI):(SyncLossCount_DVI))
+              #endif
+              #define SyncValidCount_Digital  ((CURRENT_INPUT_IS_DISPLAYPORT())?(SyncValidCount_DP):(SyncValidCount_TMDS
+             -))
+              #define SyncLossCount_Digital  ((CURRENT_INPUT_IS_DISPLAYPORT())?(SyncLossCount_DP):(SyncLossCount_TMDS))
+              #elif INPUT_TYPE == INPUT_1A1D1DP       //130924 xiandi
+              #define SyncValidCount_Digital  ((CURRENT_INPUT_IS_DISPLAYPORT())?(SyncValidCount_DP):(SyncValidCount_DVI)
+             -)
+              #define SyncLossCount_Digital  ((CURRENT_INPUT_IS_DISPLAYPORT())?(SyncLossCount_DP):(SyncLossCount_DVI))
+              #elif INPUT_TYPE == INPUT_1A1DP ////20151126 Alpha
+              #define SyncValidCount_Digital  (SyncValidCount_DP)
+              #define SyncLossCount_Digital  (SyncLossCount_DP)
+              #elif INPUT_TYPE == INPUT_1A2H1DP
+              
+              #define SyncValidCount_TMDS  ((SrcInputType>Input_Digital)?(SyncValidCount_HDMI):(SyncValidCount_HDMI2))
+              #define SyncLossCount_TMDS  ((SrcInputType>Input_Digital)?(SyncLossCount_HDMI):(SyncLossCount_HDMI2))
+              
+              #define SyncValidCount_Digital  ((CURRENT_INPUT_IS_DISPLAYPORT())?(SyncValidCount_DP):(SyncValidCount_TMDS
+             -))
+              #define SyncLossCount_Digital  ((CURRENT_INPUT_IS_DISPLAYPORT())?(SyncLossCount_DP):(SyncLossCount_TMDS))
+              
+              #elif INPUT_TYPE == INPUT_1A1H1DP       //131203 xiandi
+              #if ENABLE_MHL
+              #define SyncValidCount_Digital  ((CURRENT_INPUT_IS_DISPLAYPORT())?(SyncValidCount_DP):((GET_MHL_CABLE_PLUG
+             -GED())?(SyncValidCount_MHL):(SyncValidCount_HDMI)))
+              #define SyncLossCount_Digital  ((CURRENT_INPUT_IS_DISPLAYPORT())?(SyncLossCount_DP):((GET_MHL_CABLE_PLUGGE
+             -D())?(SyncLossCount_MHL):(SyncLossCount_HDMI)))
+              #else
+              #define SyncValidCount_Digital  ((CURRENT_INPUT_IS_DISPLAYPORT())?(SyncValidCount_DP):(SyncValidCount_HDMI
+             -))
+              #define SyncLossCount_Digital  ((CURRENT_INPUT_IS_DISPLAYPORT())?(SyncLossCount_DP):(SyncLossCount_HDMI))
+              #endif
+              #else
+              #define SyncValidCount_Digital  SyncValidCount_DVI
+              #define SyncLossCount_Digital  SyncLossCount_DVI
+              #endif
+ 159          
+ 160          #define ValidTimingStableCount  ((CURRENT_INPUT_IS_VGA())?(SyncValidCount_VGA):(SyncValidCount_Digital))
+ 161          #define SyncLossStableCount     ((CURRENT_INPUT_IS_VGA())?(SyncLossCount_VGA):(SyncLossCount_Digital))
+ 162          
+ 163          
+ 164          
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 4   
+
+ 165          extern InputModeType code StandardMode[];
+ 166          #if ENABLE_MHL
+              extern WORD xdata InputTimingStableCounter;
+              #else
+ 169          extern BYTE xdata InputTimingStableCounter;
+ 170          #endif
+ 171          #if ENABLE_FREESYNC
+              Bool xdata bHDMIFreesyncChk = FALSE;
+              #endif
+ 174          
+ 175          Bool mStar_FindMode(void);
+ 176          BYTE mStar_GetInputStatus(void);
+ 177          Bool IsCableNotConnected(void);
+ 178          Bool mStar_SyncLossStateDetect(void);
+ 179          Bool mStar_ValidTimingDetect(void);
+ 180          #if ENABLE_MHL
+              Bool CurrentInputMHLCablePlugged(void);
+              #endif
+ 183          
+ 184          #if ENABLE_MHL || ENABLE_DP_INPUT
+              #if MS_PM
+              extern XDATA ePMStatus ucWakeupStatus;
+              #endif
+              #endif
+ 189          void SpeedupOrExtendSwitchPort(void);   //130625 nick
+ 190          
+ 191          #if ENABLE_HDMI
+ 192          // 120530 coding addition for speed up switch port       
+ 193          #define HDMI_STAY_1S_COUNT      50
+ 194          #define JUST_HDMI_PLUG   0x5D
+ 195          #define JUST_VGA_PLUG   0x35
+ 196          #define BOTH_VGA_HDMI_PLUG   0x26
+ 197          #define NONE_PLUG    0xFF
+ 198          Bool HDMICableNotConnect(void)
+ 199          {
+ 200   1          bit bresult = FALSE;
+ 201   1      #if 0
+                  if(CURRENT_INPUT_IS_HYBRID_MHL_HDMI() && !GET_MHL_CABLE_PLUGGED())
+                  {
+                      if( !HYBRID_MHL_HDMI_CABLE_CONNECT())
+                      {
+                          Delay1ms(2);
+                          if( !HYBRID_MHL_HDMI_CABLE_CONNECT())
+                              bresult = TRUE;
+                      }
+                  }
+                  else if(CURRENT_INPUT_IS_PURE_HDMI())
+                  {
+                      BYTE tempValue = CABLE_DET_SAR;
+                      if(abs(tempValue-JUST_HDMI_PLUG) > 10 && abs(tempValue -BOTH_VGA_HDMI_PLUG) > 10)       //130624 jun
+                      {
+                          bresult = TRUE;
+                      }
+                  }
+              #else
+ 220   1      #message "please coding HDMICableNotConnect for speedup switch port"    
+*** MESSAGE C320 IN LINE 220 OF ..\..\KERNEL\SCALER\detect.c: "please coding HDMICableNotConnect for speedup switch port
+             -" 
+ 221   1      #endif
+ 222   1          return bresult;
+ 223   1      
+ 224   1      }
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 5   
+
+ 225          #define HDMI_SPEEDUP_SWITCH_PORT()    ((InputTimingStableCounter >= HDMI_STAY_1S_COUNT) && DVI_CLOCK_IS_MI
+             -SSING() && HDMICableNotConnect())
+ 226          #endif
+ 227          
+ 228          #if ENABLE_MHL
+              #define MHL_EXTEND_SYNCLOSS_COUNT()   (SyncLossState() \
+                                                                                      && InputTimingStableCounter >= Syn
+             -cLossStableCount \
+                                                                                      && !MHLExtenCountFlag\
+                                                                                      && CURRENT_INPUT_MHL_CABLE_PLUGGED
+             -() \
+                                                                                      && GET_MHL_CBUS_CONNECT())
+              #endif
+ 235          //*******************************************************************
+ 236          // Function Name: mStar_MonitorInputTiming
+ 237          //
+ 238          // Decscription: Detect input timing
+ 239          //
+ 240          // callee: mStar_SyncLossStateDetect(), mStar_ValidTimingDetect(), mStar_AutoDVI() in detect.c
+ 241          //         mStar_SetInputPort(), mStar_SetAnalogInputPort() in mstar.c
+ 242          //
+ 243          // caller: main() in main.c
+ 244          //*******************************************************************
+ 245          void mStar_MonitorInputTiming(void)
+ 246          {
+ 247   1          if (!PowerOnFlag || DisplayLogoFlag)
+ 248   1          {
+ 249   2              return ;
+ 250   2          }
+ 251   1             
+ 252   1          // detect whether input signal is changing
+ 253   1          if (!InputTimingChangeFlag)
+ 254   1          {
+ 255   2              if (SyncLossState())
+ 256   2              {
+ 257   3                  if (!FreeRunModeFlag)
+ 258   3                  {
+ 259   4                      Set_InputTimingChangeFlag();
+ 260   4                  }
+ 261   3                  else if (mStar_SyncLossStateDetect())
+ 262   3                  // detect mode while no Sync/suspend/standby/disconnect
+ 263   3                  {
+ 264   4                      DETECT_printMsg("no sync -> have sync");
+ 265   4                      Set_InputTimingChangeFlag();
+ 266   4                  }
+ 267   3          #if Dual
+ 268   3                  else if((InputTimingStableCounter > 0) && (SwitchPortCntr > Input_Nums) && // 100125 coding
+ 269   3                             (UserPrefInputSelectType == INPUT_PRIORITY_AUTO) 
+ 270   3                              )
+ 271   3                  {
+ 272   4                      //130625 nick
+ 273   4                  SpeedupOrExtendSwitchPort();
+ 274   4                  
+ 275   4                      #if 0//ENABLE_HDMI
+                                  if(HDMI_SPEEDUP_SWITCH_PORT())
+                                  {
+                                      InputTimingStableCounter = SyncLossStableCount;
+                                  #if 0//ENABLE_DEBUG
+                                      printData("PowerSaving Speedup:%d", SrcInputType);
+                                  #endif
+                                  }
+                              #endif
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 6   
+
+ 284   4      
+ 285   4                      #if 0//ENABLE_MHL
+                                  if(MHL_EXTEND_SYNCLOSS_COUNT())
+                                  {
+                                      InputTimingStableCounter = SyncLossExtenCount_MHL;                   
+                                      MHLExtenCountFlag = 1;
+                                  #if DEBUG_PRINTDATA
+                                      printData("PowerSaving MHL ex3S:%d", SrcInputType);
+                                  #endif
+                                  }
+                              #endif
+ 295   4                     
+ 296   4                      if((InputTimingStableCounter % SyncLossStableCount) == 0)
+ 297   4                      {
+ 298   5                          InputTimingStableCounter = 1; // 071224
+ 299   5      
+ 300   5                          SrcInputType = (SrcInputType + 1) % Input_Nums;
+ 301   5      
+ 302   5                              /*if(SrcInputType>Input_HDMI3)
+ 303   5                              {SrcInputType = Input_HDMI3;
+ 304   5                              printData(" PS_SwitchTo:%d", SrcInputType);
+ 305   5                              #message"rember to del it"
+ 306   5                              }
+ 307   5                              else    */                                       
+ 308   5                          mStar_SetupInputPort();
+ 309   5                          //DETECT_printData(" PS_SwitchTo:%d", SrcInputType);
+ 310   5                      }
+ 311   4                  }
+ 312   3          #endif            
+ 313   3              }
+ 314   2              else
+ 315   2              // valid timing
+ 316   2              {
+ 317   3              
+ 318   3                  // check if input timing is changing
+ 319   3                  if (mStar_ValidTimingDetect())
+ 320   3                  {
+ 321   4                      SrcFlags |= SyncLoss;
+ 322   4                      Set_InputTimingChangeFlag();
+ 323   4                      hw_ClrBlacklit(); // 2006/9/7 8:39PM by Emily for changed mode had garbage
+ 324   4                      #if DEBUG_MSG
+                              printMsg("have sync -> no sync");
+                                 printData("InputTimingStableCounter %d", InputTimingStableCounter);
+                                 #endif               
+ 328   4      #if (ENABLE_DP_INPUT&& ((CHIP_ID == CHIP_TSUMC)||(CHIP_ID == CHIP_TSUMD)||(CHIP_ID == CHIP_TSUM9)||(CHIP_I
+             -D == CHIP_TSUMF)))    //130912 nick
+              #if DP_RESETHTT_PATCH
+                                          if(CURRENT_INPUT_IS_DISPLAYPORT())
+                                              DPMSA_Reset();
+              #endif
+              #endif
+ 334   4      //msWriteByteMask( REG_1F15,0,BIT5);    //1 能 解DP FREESYNC 状态保持, 需 待验证,勿使用
+ 335   4                  }
+ 336   3              }
+ 337   2          }
+ 338   1          //=============================================================================
+ 339   1          //=============================================================================
+ 340   1          if (InputTimingChangeFlag)
+ 341   1          // input timing is unstable
+ 342   1          {
+ 343   2      
+ 344   2              #if MWEFunction
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 7   
+
+ 345   2                  if (g_bAccOnOff)
+ 346   2                  {
+ 347   3                      //UserPrefMWE=OFF_W;
+ 348   3                      //msAccSetup(UserPrefMWE);
+ 349   3                      #if (CHIP_ID==CHIP_TSUMU)
+                              msAccSetup( 0, 0, 0, 0 );
+                              #endif
+ 352   3                      msAccOnOff(0);
+ 353   3                  }
+ 354   2              #endif
+ 355   2              // 2006/7/6 0:8AM by Emily for dec. dot clock
+ 356   2              Clr_DecVScaleFlag();
+ 357   2              DecVScaleValue = 0;
+ 358   2                      
+ 359   2              Clr_InputTimingChangeFlag();
+ 360   2              Clr_DoModeSettingFlag();
+ 361   2              Clr_ReadyForChangeFlag();
+ 362   2                  //DETECT_printData(" PrepareForTimingChange:%d", SrcInputType);
+ 363   2      #if ENABLE_FREESYNC
+                                              bHDMIFreesyncChk = TRUE;
+                                              //g_bHDMIFreesyncEnable = FALSE;
+              #endif      
+ 367   2              mStar_PrepareForTimingChange();
+ 368   2          }
+ 369   1          else
+ 370   1          // input timing is stable
+ 371   1          {
+ 372   2              InputTimingStableCounter++; // counter timing stable times
+ 373   2              if(InputTimingStableCounter == 0)
+ 374   2                  InputTimingStableCounter = 1;
+ 375   2              if (!InputTimingStableFlag)
+ 376   2              {
+ 377   3              //130625 nick
+ 378   3          SpeedupOrExtendSwitchPort();
+ 379   3      
+ 380   3          #if 0//ENABLE_HDMI
+                          if(HDMI_SPEEDUP_SWITCH_PORT())
+                          {
+                              InputTimingStableCounter = SyncLossStableCount;
+                          }
+                  #endif
+ 386   3      
+ 387   3          #if 0//ENABLE_MHL
+                          if(MHL_EXTEND_SYNCLOSS_COUNT())
+                          {
+                              InputTimingStableCounter = SyncLossExtenCount_MHL;   
+                              MHLExtenCountFlag = 1;
+                                              #if DEBUG_PRINTDATA
+                                      //DETECT_printData("MHL ex3S:%d", SrcInputType);
+                                              #endif
+                          }
+                  #endif
+ 397   3      
+ 398   3          
+ 399   3                  if((!SyncLossState() && InputTimingStableCounter >= ValidTimingStableCount) ||
+ 400   3                      (SyncLossState() && InputTimingStableCounter >= SyncLossStableCount))
+ 401   3                  {
+ 402   4                      Set_InputTimingStableFlag(); // set flag to search for input mode
+ 403   4                      Set_DoModeSettingFlag();
+ 404   4      
+ 405   4                                      
+ 406   4                    #if ENABLE_MHL
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 8   
+
+                               #if MS_PM
+                                        if(SyncLossState() && PM_WAKEUP_FROM_MHL)
+                                        {
+                                                Set_ForcePowerSavingFlag();
+                                                Clr_DoModeSettingFlag();
+                                                return;
+                                        }
+                               #endif                         
+                            #endif
+ 416   4      
+ 417   4                                
+ 418   4                   #if ENABLE_DP_INPUT
+                              #if MS_PM
+                                        if(SyncLossState() && PM_WAKEUP_FROM_DP)
+                                        {
+                                                Set_ForcePowerSavingFlag();
+                                                Clr_DoModeSettingFlag();
+                                                return;
+                                        }
+                              #endif
+                           #endif
+ 428   4      #if Dual
+ 429   4      #if 0//ENABLE_DEBUG
+                  //if(!SyncLossState())
+                  //    printData("ValidCntr:%d", InputTimingStableCounter);
+                  //else
+                      printData("LossCntr:%d", InputTimingStableCounter);
+                  printData("SrcInputType:%d", SrcInputType);
+              #endif
+ 436   4      
+ 437   4                      InputTimingStableCounter = 1; // 071224
+ 438   4                      if(!SyncLossState())
+ 439   4                      {
+ 440   5                          SwitchPortCntr = 0;
+ 441   5                      #if ENABLE_MHL//130703 nick
+                                      MHLExtenCountFlag = 0;
+                              #endif
+ 444   5                      }
+ 445   4                      
+ 446   4                      if(SyncLossState() && (UserPrefInputSelectType == INPUT_PRIORITY_AUTO) && 
+ 447   4                          (++SwitchPortCntr <= Input_Nums)
+ 448   4                          ) // 100125 coding
+ 449   4                      {
+ 450   5                          Clr_InputTimingStableFlag(); // set flag to search for input mode
+ 451   5                          Clr_DoModeSettingFlag();
+ 452   5                          SrcInputType = (SrcInputType + 1) % Input_Nums;
+ 453   5                                              
+ 454   5                              
+ 455   5                          #if CHIP_ID==CHIP_TSUMD
+                                  //====Test 20130312  for Auto switch TMDS can't display====// 
+                                  //drvADC_PowerCtrl(ADC_POWER_ON);
+                                  //drvDVI_PowerCtrl(DVI_POWER_ON);
+                                  //====Test 20130312 ====//
+                                  #endif
+ 461   5                          mStar_SetupInputPort();
+ 462   5                              DETECT_printData(" 2-PS_SwitchTo:%d", SrcInputType);
+ 463   5          #if 0//ENABLE_DEBUG
+                      printData("SwitchPort:%d", SrcInputType);
+                  #endif
+ 466   5                          
+ 467   5                      }
+ 468   4      
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 9   
+
+ 469   4                      #if (AudioFunc && ENABLE_DP_INPUT)//131031 xiandi               petit  20131107 update
+                              PrevInputType=SrcInputType;
+                              #endif
+ 472   4      #endif                
+ 473   4      
+ 474   4                  }
+ 475   3      
+ 476   3                  }
+ 477   2          }
+ 478   1      }
+ 479          //*******************************************************************
+ 480          // Function Name: mStar_ModeHandler
+ 481          //
+ 482          // Decscription: Programming scaler while input timing is changing
+ 483          //
+ 484          // callee: mStar_SyncLossStateDetect(), mStar_ValidTimingDetect(), mStar_AutoDVI() in detect.c
+ 485          //         mStar_SetInputPort(), mStar_SetAnalogInputPort() in mstar.c
+ 486          //
+ 487          // caller: main() in main.c
+ 488          //*******************************************************************
+ 489          void mStar_ModeHandler(void)
+ 490          {
+ 491   1      
+ 492   1          if (DisplayLogoFlag)
+ 493   1          {
+ 494   2              Menu_InitAction();
+ 495   2          }
+ 496   1              
+ 497   1      #if MS_PM
+ 498   1              #if ENABLE_MHL 
+                      if(SyncLossState() && PM_WAKEUP_FROM_MHL)
+                              return;
+                      #endif
+ 502   1      
+ 503   1          #if ENABLE_DP_INPUT
+                      if(SyncLossState() && PM_WAKEUP_FROM_DP)
+                                      return;
+                  #endif
+ 507   1      #endif
+ 508   1      
+ 509   1      
+ 510   1      
+ 511   1              
+ 512   1          if (!DoModeSettingFlag)
+ 513   1          // while timing change & stable
+ 514   1          {
+ 515   2              return ;
+ 516   2          }
+ 517   1      
+ 518   1      #if MS_DAC
+ 519   1      #if (CHIP_ID==CHIP_TSUMC ||CHIP_ID==CHIP_TSUMD||CHIP_ID == CHIP_TSUM9|| CHIP_ID == CHIP_TSUMF)
+ 520   1          if(!SyncLossState() && w16DAC_DePopStep != INIT_FINISH)
+ 521   1              return;
+ 522   1      #endif    
+ 523   1      #endif
+ 524   1      
+ 525   1          //Clr_DoModeSettingFlag();  //0606 for Diaplay LOGO
+ 526   1          if (!SyncLossState())
+ 527   1          // no sync
+ 528   1          {
+ 529   2      #if ENABLE_MHL_COUNT
+                  if(!SyncLossState() && CURRENT_INPUT_MHL_CABLE_PLUGGED())
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 10  
+
+                  {
+                      //DETECT_printData("ModeHandler:%d", MHLActionCount);
+                      MHLActionCount = 1;
+                  }
+              #endif
+ 536   2      
+ 537   2      
+ 538   2      {
+ 539   3                 BYTE  xdata Retry=0; 
+ 540   3      
+ 541   3                 if (
+ 542   3                     ((CURRENT_INPUT_IS_DISPLAYPORT())&& DP_INTERLACED_VIDEO_STREAM()) 
+ 543   3                     ||(SC0_READ_SYNC_STATUS()&INTM_B))
+ 544   3                 { 
+ 545   4                     SrcFlags |= bInterlaceMode;
+ 546   4                 }
+ 547   3                 else
+ 548   3                     SrcFlags&=~bInterlaceMode;
+ 549   3      
+ 550   3      
+ 551   3              if(SrcFlags&bInterlaceMode)
+ 552   3              {
+ 553   4                 for (Retry=0; Retry<10; Retry++)
+ 554   4                 {
+ 555   5                       Delay1ms(20);
+ 556   5                     if(((CURRENT_INPUT_IS_DISPLAYPORT())&& DP_INTERLACED_VIDEO_STREAM()) ||(SC0_READ_SYNC_STATU
+             -S()&INTM_B))
+ 557   5                    {
+ 558   6                       SrcFlags |= bInterlaceMode;
+ 559   6                         //printMsg("111111111 bInterlaceMode");               
+ 560   6                    }
+ 561   5                    else 
+ 562   5                    {
+ 563   6                       SrcFlags&=~bInterlaceMode;
+ 564   6                         //printMsg("00000000000000");
+ 565   6                         break;                
+ 566   6                    }
+ 567   5                 }
+ 568   4              }
+ 569   3        }
+ 570   2      
+ 571   2              #if 0//ENABLE_FREESYNC//170118 Test 
+                           if(SrcFlags&bInterlaceMode)
+                              {
+                                  scRegs[(SC0_E8)&0xFF]=((scRegs[(SC0_E8)&0xFF])&(~(BIT1|BIT0)));
+                                  bHDMIFreesyncChk = FALSE;
+                              }
+                            else if((IS_HDMI_FREESYNC_ISR()))
+                              {
+                                  scRegs[(SC0_E8)&0xFF]=(((scRegs[(SC0_E8)&0xFF])&(~BIT1))|BIT0);
+                                  bHDMIFreesyncChk = FALSE;
+                                   Delay1ms(30);
+                              }
+                  #endif
+ 584   2      
+ 585   2      
+ 586   2      #if ENABLE_FREESYNC//170118 Test 
+                  
+                  {
+                             BYTE  xdata Retry=0; 
+                  
+                             if (
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 11  
+
+                                 ((CURRENT_INPUT_IS_DISPLAYPORT())&& DP_INTERLACED_VIDEO_STREAM()) 
+                                 ||(SC0_READ_SYNC_STATUS()&INTM_B))
+                             { 
+                                 SrcFlags |= bInterlaceMode;
+                             }
+                         else
+                                 SrcFlags&=~bInterlaceMode;
+                  
+                  
+                          //if((UserprefFreeSyncMode==FreeSyncMenuItems_On)&&CURRENT_INPUT_IS_HDMI())
+                          if(SrcFlags&bInterlaceMode)
+                          {
+                         for (Retry=0; Retry<10; Retry++)
+                         {
+                               Delay1ms(20);
+                                 if(((CURRENT_INPUT_IS_DISPLAYPORT())&& DP_INTERLACED_VIDEO_STREAM()) ||(SC0_READ_SYNC_S
+             -TATUS()&INTM_B))
+                                {
+                                   SrcFlags |= bInterlaceMode;
+                             //printMsg("111111111 bInterlaceMode");       
+                                }
+                                else 
+                                {
+                                   SrcFlags&=~bInterlaceMode;
+                             //printMsg("00000000000000");
+                             break;        
+                                }
+                                //printData("00000000 SRC_FLAGS==%x",SRC_FLAGS);
+                         }
+                          }
+                    }
+                  
+                      
+                           if(SrcFlags&bInterlaceMode)
+                              {
+                                  scRegs[(SC0_E8)&0xFF]=((scRegs[(SC0_E8)&0xFF])&(~(BIT1|BIT0)));
+                                  bHDMIFreesyncChk = FALSE;
+                              }
+                            else if((IS_HDMI_FREESYNC_ISR())||((UserprefFreeSyncMode==FreeSyncMenuItems_On)&&CURRENT_INP
+             -UT_IS_HDMI()))
+                              {
+                              #if DEBUG_MSG
+                              printMsg("try to run");
+                                #endif                
+                                 // if(bHDMIFreesyncChk)
+                                      //MEM_SCWRITE_BYTE(SC0_E8,((scRegs[(SC0_E8)&0xFF])&(~BIT1))|BIT0);    //Enable for
+             -ce P mode
+                                  scRegs[(SC0_E8)&0xFF]=(((scRegs[(SC0_E8)&0xFF])&(~BIT1))|BIT0);
+                                  bHDMIFreesyncChk = FALSE;
+                               Delay1ms(30);
+                              }
+                  
+                  #endif
+ 642   2              
+ 643   2      #if 1    
+ 644   2      #if ENABLE_HDMI
+ 645   2              if(CURRENT_INPUT_IS_TMDS()
+ 646   2                )//( (SrcInputType==Input_Digital||SrcInputType==Input_Digital2))     //121130 Modify
+ 647   2              {
+ 648   3                      if( mstar_HDMITmdsGetType() == TMDS_HDMI )
+ 649   3                      {
+ 650   4                              BYTE ucCount = 200; //25;  2009-10-13
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 12  
+
+ 651   4      
+ 652   4                         //printMsg("====>TMDS_HDMI");
+ 653   4                  
+ 654   4                              while( ucCount-- )
+ 655   4                              {   
+ 656   5                                      gScInfo.InputAVIInfoReceived = 0;
+ 657   5                                      mstar_HDMIGetPktStatus();
+ 658   5                                      if( gScInfo.InputAVIInfoReceived )
+ 659   5                                      {
+ 660   6                                              gScInfo.InputColor = mstar_HDMIPacketColor();
+ 661   6                                                  if(gScInfo.InputColor == INPUT_RGB)
+ 662   6                                                      InputColorFormat = INPUTCOLOR_RGB;
+ 663   6                                                  else
+ 664   6                                                      InputColorFormat = INPUTCOLOR_YUV;
+ 665   6                                              gScInfo.ColorChanged = 1;
+ 666   6                                              mstar_HDMIHandleColor();                        
+ 667   6                                              break;
+ 668   6                                      }
+ 669   5                                      Delay1ms( 20 );
+ 670   5                                      if (mStar_ValidTimingDetect())                  //120526 Modify
+ 671   5                                      {
+ 672   6                                              SrcFlags |= SyncLoss;
+ 673   6                                              Set_InputTimingChangeFlag();
+ 674   6                                              break;
+ 675   6                                      }
+ 676   5                      
+ 677   5                              }
+ 678   4      
+ 679   4                          #if ENABLE_HDMI_1_4
+                                      msHDMI_Check_3D_Mode_Chg(0);
+                                  #endif
+ 682   4      
+ 683   4                              gScInfo.OutputDataState = HDMI_DATA_OUTPUT_ON;
+ 684   4                              mstar_HDMICheckAudio();
+ 685   4                               gScInfo.InputTmdsType = TMDS_HDMI;
+ 686   4      
+ 687   4                      #if 0//DEBUG_PRINTDATA
+                              printData( " TMDS_HDMI Color:%x", msReadByte( REG_0580 ));
+                              #endif
+ 690   4                   
+ 691   4                              //SC0_INPUT_SELECT(ISEL_HDMI_444); //msWriteByteMask(SC0_02, SCALER_ISEL_HDMI, BIT2|BIT1|BIT0);
+ 692   4                      //Delay1ms(100);                        //120526 Modify
+ 693   4                      }
+ 694   3                      else if(mstar_HDMITmdsGetType()==TMDS_DVI)
+ 695   3                      {           
+ 696   4                      #if ENABLE_DEBUG
+                               DETECT_printMsg("===>TMDS_DVI");
+                              #endif
+ 699   4                              gScInfo.InputTmdsType = TMDS_DVI;
+ 700   4                              //SC0_INPUT_SELECT(ISEL_DVI); //msWriteByteMask(SC0_02, SCALER_ISEL_DVI, BIT2|BIT1|BIT0);
+ 701   4                              InputColorFormat = INPUTCOLOR_RGB;
+ 702   4      
+ 703   4      #if 0//DEBUG_PRINTDATA
+                      printData( " TMDS_DVI Color:%x", msReadByte( REG_0580 ));
+              #endif
+ 706   4                  
+ 707   4                      }
+ 708   3              }
+ 709   2      #endif
+ 710   2      
+ 711   2              // 121119 coding addition
+ 712   2              if(InputTimingChangeFlag)
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 13  
+
+ 713   2                  return;
+ 714   2              SettingInputColorimetry();
+ 715   2      #endif
+ 716   2              if (!ReadyForChangeFlag)
+ 717   2              {
+ 718   3                  //if(SrcInputType==Input_Digital || SrcInputType==Input_Digital2)
+ 719   3                  //    CheckADC();
+ 720   3                  if (!mStar_FindMode())
+ 721   3                  // search mode index
+ 722   3                  {
+ 723   4                      Set_InputTimingChangeFlag(); // search mode faile
+ 724   4                      SrcFlags|=SyncLoss;                     //120526 Modify
+ 725   4                      return ;
+ 726   4                  }
+ 727   3              }
+ 728   2                      
+ 729   2              if (!UnsupportedModeFlag)
+ 730   2              //supported mode
+ 731   2              {
+ 732   3                  if (!ReadyForChangeFlag)
+ 733   3                  {
+ 734   4                      ReadModeSetting(); // restore user's settings from NVRAM for each mode
+ 735   4                      Set_ReadyForChangeFlag();
+ 736   4                  }
+ 737   3      #if DisplayPowerOnLogo
+ 738   3                  if (DisplayLogoFlag)
+ 739   3                  {
+ 740   4                      return ;
+ 741   4                  }
+ 742   3      #endif                  
+ 743   3                      #if CHIP_ID ==CHIP_TSUMC ||CHIP_ID == CHIP_TSUM9|| CHIP_ID == CHIP_TSUMF        //130508 Modify
+ 744   3                              if(CURRENT_INPUT_IS_VGA())
+ 745   3                                      drvDVI_PowerCtrl(DVI_POWER_DOWN);
+ 746   3                      #endif
+ 747   3                  if (mStar_SetupMode() == FALSE)
+ 748   3                  // setup scaler
+ 749   3                  {
+ 750   4                      DETECT_printMsg("Setup Mode False!");
+ 751   4                      Set_InputTimingChangeFlag(); // setup mode failed
+ 752   4                      mStar_SetupFreeRunMode(); // setup freerun mode
+ 753   4                      SrcFlags|=SyncLoss;//edit by yz.nie .for DCR ON,change timing quickly have white screen.
+ 754   4                      return ;
+ 755   4                  }
+ 756   3      
+ 757   3      
+ 758   3              }
+ 759   2              else
+ 760   2              {}
+ 761   2                       #if ENABLE_MHL || ENABLE_DP_INPUT
+                              #if MS_PM       //20151022  Alpha, clr ucWakeupStatus to avoid cannot show nosignal OSD after MHL wake up 
+             -(due to ucWakeupStatus = ePMSTS_MHL_ACT)
+                              SET_PM_WAKEUP_NON();
+                              #endif
+                               #endif
+ 766   2          }
+ 767   1              Set_ReadyForChangeFlag();
+ 768   1      #if     DisplayPowerOnLogo      
+ 769   1          if (DisplayLogoFlag)
+ 770   1          {
+ 771   2              return ;
+ 772   2          }
+ 773   1      #endif  
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 14  
+
+ 774   1          if (SyncLossState() || UnsupportedModeFlag)
+ 775   1          {
+ 776   2          
+ 777   2              #if MWEFunction     //110223 Modify for turn on BF and change to the source of nosignal will show 
+             -garbage
+ 778   2              
+ 779   2                  #if (CHIP_ID==CHIP_TSUMU)
+                              msAccSetup( 0, 0, 0, 0 );
+                          #endif
+ 782   2                  msAccOnOff(0);
+ 783   2              #endif
+ 784   2              #if Enable_Rotate180Func
+                      mStar_SetupPath();
+                      #endif          
+ 787   2                      
+ 788   2              mStar_SetupFreeRunMode(); // setup freerun mode
+ 789   2              Power_TurnOnGreenLed();
+ 790   2              // printMsg("Set Free Run 1");
+ 791   2          }
+ 792   1          else
+ 793   1          {
+ 794   2              WORD vfreq, hfreq;
+ 795   2      #if ENABLE_FREESYNC
+                              if(IS_DP_FREESYNC())
+                              {
+                                      WORD u16PixClk, u16Htt;
+                      
+                                      u16PixClk = msAPI_combo_IPGetPixelClk();
+                                      u16Htt = msAPI_combo_IPGetGetHTotal();
+                                      if((u16Htt!=0)&&(SrcVTotal!=0))
+                                      {
+                                              hfreq = ((DWORD)u16PixClk * 100 + u16Htt/2)/u16Htt;
+                                              vfreq = ((DWORD)hfreq * 1000 + SrcVTotal/2)/SrcVTotal;
+                                      }
+                              }
+                              else
+              #endif
+ 810   2              {
+ 811   3              hfreq = HFreq(SrcHPeriod);
+ 812   3              vfreq = VFreq(hfreq, SrcVTotal);
+ 813   3              }
+ 814   2              if(SrcFlags&bInterlaceMode)            
+ 815   2              {
+ 816   3                  vfreq *= 2;
+ 817   3              }
+ 818   2      
+ 819   2              #if DEBUG_MSG
+                      printData("==hfreq===========  %d",hfreq);
+                      printData("==Vfreq===========  %d",vfreq);
+                      #endif
+ 823   2                      
+ 824   2          #if BURST_MODE
+ 825   2          #if ENABLE_FREESYNC
+                      if(IS_HDMI_FREESYNC()||IS_HDMI_FREESYNC())
+                      {
+                          SetPWMFreq(240);//set it to a fix value in SetPWMFreq (240, 27000, ...)
+                      }
+                      else
+                  #endif
+ 832   2              {
+ 833   3                              BYTE i=4;
+ 834   3                              while((vfreq*i)/10<220)//set pwm freq.>=220
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 15  
+
+ 835   3                              {
+ 836   4                                      i++;
+ 837   4                              }
+ 838   3                              SetPWMFreq((vfreq*4)/10);
+ 839   3              }
+ 840   2          #endif
+ 841   2      #if ENABLE_FREESYNC
+                      if(!IS_HDMI_FREESYNC())
+              #endif
+ 844   2              {
+ 845   3              
+ 846   3               #if (FRAME_BFF_SEL != FRAME_BUFFER) //20130909 nick modify
+ 847   3                    #if ENABLE_FREESYNC
+                               if(!IS_DP_FREESYNC())
+                           #endif
+ 850   3                      {
+ 851   4                      if ( hfreq > MaxInputHFreq || vfreq > (PanelMaxVfreq) )// 121101 coding modified ( hfreq > MaxInputHFreq
+             - || vfreq>PanelVsyncFreq*11 )
+ 852   4                      {
+ 853   5                              SrcFlags |= bUnsupportMode;
+ 854   5                              #if DEBUG_MSG
+                                      printMsg("Unsupport  1");
+                                      #endif
+ 857   5                      }
+ 858   4                      else if (hfreq<MinInputHFreq ||vfreq < MinInputVFreq )
+ 859   4                      {
+ 860   5                              if (SrcInputType != Input_VGA )//&& (SrcFlags&bInterlaceMode))   //charles
+ 861   5                                      SrcFlags &= !bUnsupportMode;
+ 862   5                              else
+ 863   5                                      SrcFlags |= bUnsupportMode;
+ 864   5                              #if DEBUG_MSG
+                                      printMsg("Unsupport  2");
+                                      #endif
+ 867   5      
+ 868   5                      }
+ 869   4                      }
+ 870   3               #endif
+ 871   3              }
+ 872   2      
+ 873   2                      if (StandardModeHeight<=400 ||
+ 874   2                              (StandardModeHeight==480 && (StandardModeGroup!=Res_848x480)))//SrcModeIndex!=0))//120911 Modify for TP
+             -V request
+ 875   2              {
+ 876   3                  UserPrefAutoTimes = 1;
+ 877   3              }
+ 878   2      
+ 879   2      
+ 880   2              if (PowerOnFlag)
+ 881   2              // system is on power-off status
+ 882   2              {
+ 883   3                  Power_TurnOnGreenLed(); // turn on green led
+ 884   3              }
+ 885   2                      //Set_ShowInputInfoFlag();//071226
+ 886   2          }
+ 887   1      
+ 888   1              #if BrightFreqByVfreq
+ 889   1              if(!SyncLossState())
+ 890   1              {
+ 891   2                      WORD vfreq, hfreq;
+ 892   2                      hfreq = HFreq( SrcHPeriod );
+ 893   2                      vfreq = VFreq( hfreq, SrcVTotal );
+ 894   2              if(SrcFlags&bInterlaceMode)             //130228 Modify
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 16  
+
+ 895   2              {
+ 896   3                  vfreq *= 2;
+ 897   3              }
+ 898   2      
+ 899   2                      if( abs( vfreq - 500 ) < 10 ) //when Input Vfreq=50Hz,Set Brightness freq to 250Hz
+ 900   2                              SetPWMFreq( 250 );
+ 901   2                      else
+ 902   2                              SetPWMFreq(( vfreq * 4 ) / 10 );
+ 903   2              #if ENABLE_DEBUG
+                              DETECT_printData("  BrightFreqByVfreq:%d", vfreq/10);
+                      #endif
+ 906   2      
+ 907   2              }
+ 908   1              #endif
+ 909   1      
+ 910   1          #if BURST_MODE
+ 911   1              if(FreeRunModeFlag)     //110715 Modify
+ 912   1              {
+ 913   2                      SetPWMFreq(250);                
+ 914   2              }
+ 915   1              else
+ 916   1          {
+ 917   2              WORD vfreq, hfreq;
+ 918   2              hfreq = HFreq(SrcHPeriod);
+ 919   2              vfreq = VFreq(hfreq, SrcVTotal);
+ 920   2              if(SrcFlags&bInterlaceMode)             //130228 Modify
+ 921   2              {
+ 922   3                  vfreq *= 2;
+ 923   3              }
+ 924   2                      if(abs(vfreq-500)<10)//when Input Vfreq=50Hz,Set Brightness freq to 250Hz
+ 925   2                              SetPWMFreq(250);
+ 926   2                      #if 0
+                              if(abs(vfreq-720)<10)
+                                      SetPWMFreq((vfreq*5)/10);
+                              #endif
+ 930   2                      else
+ 931   2                              SetPWMFreq((vfreq*4)/10);
+ 932   2          }
+ 933   1          #endif
+ 934   1      
+ 935   1      #if 0   //20171226
+                  if (!CableNotConnectedFlag || !SyncLossState())
+                  {
+                      if (DoBurninModeFlag)
+                      {
+                              drvOSD_FrameColorEnable(FALSE);//petit 20121122 disable background color function.
+                      }
+                  }
+              #else
+ 944   1         drvOSD_FrameColorEnable(FALSE);
+ 945   1      #endif
+ 946   1      
+ 947   1          Clr_DoModeSettingFlag(); //0606
+ 948   1      
+ 949   1          TermBuffer = StandardModeGroup;
+ 950   1      
+ 951   1      #if ENABLE_HDMI
+ 952   1          if(CURRENT_INPUT_IS_TMDS() && !SyncLossState() && CURRENT_INPUT_IS_HDMI())//( (SrcInputType==Input_Dig
+             -ital||SrcInputType==Input_Digital2))  //121130 Modify
+ 953   1          {
+ 954   2              if(gScInfo.InputTmdsType == TMDS_HDMI)
+ 955   2                  SC0_INPUT_SELECT(ISEL_HDMI_444);
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 17  
+
+ 956   2              else
+ 957   2                  SC0_INPUT_SELECT(ISEL_DVI);
+ 958   2          }
+ 959   1      #endif
+ 960   1      #if 0 // 120525 coding move position to find
+              #if ENABLE_HDMI
+                  if(!SyncLossState() && mstar_HDMITmdsGetType()==TMDS_HDMI && SrcInputType>=Input_Digital)
+                  {
+                      BYTE ucCount=200;
+              
+                      while(ucCount--)
+                      {
+                          gScInfo.InputAVIInfoReceived=0;
+                          mstar_HDMIGetPktStatus();
+                          if(gScInfo.InputAVIInfoReceived)
+                          {
+                              gScInfo.InputColor=mstar_HDMIPacketColor();
+                              gScInfo.ColorChanged=1;
+                              mstar_HDMIHandleColor();
+                              break;
+                          }
+                          Delay1ms(20);
+                      }
+                      gScInfo.OutputDataState=HDMI_DATA_OUTPUT_ON;
+                      mstar_HDMICheckAudio();
+              
+                      if( TermBuffer == Res_1920x1080 || TermBuffer == Res_1280x720)
+                      {
+                              //msSetColorFomat( HDTV  );
+                      }
+                      
+                      else //( TermBuffer == Res_720x576      || TermBuffer == Res_720x483    || TermBuffer == Res_720x480)
+                      {
+                              //msSetColorFomat( SDTV );
+                      }
+                              
+                  }
+                      
+                      #if MS_DAC
+                      if( gScInfo.InputTmdsType == TMDS_HDMI && (CURRENT_INPUT_IS_HDMI()||CURRENT_INPUT_IS_DVI()))// && 
+             -(UserPrefAudioSource == AUDIO_DIGITAL))//SrcInputType >= Input_Digital )
+                      //if (gScInfo.InputTmdsType ==TMDS_HDMI && SrcInputType>=Input_Digital) 
+                      {
+                      msAudioLineout_SourceSel( E_LINEOUT_FROM_DAC );
+                      msAudioDPGA_SetVolume( E_AUDIO_LEFT_RIGHT_CH, 0x00 );
+                      #if !USE_DAC_ADJ
+                      msAudioLineOutGain( Def_DACGain );
+                      #endif
+                      }
+                      else // line in to line out: 550mVrms
+                      {
+                      msAudioLineout_SourceSel( E_LINEOUT_FROM_LINEIN0 );
+                      msAudioDPGA_SetVolume( E_AUDIO_LEFT_RIGHT_CH, 0x00 );
+                      #if !USE_DAC_ADJ
+                      msAudioLineOutGain( 0x27 );
+                      #endif
+                      
+                  }
+                      msAudioEARout_Mute( FALSE );
+                      #else           
+                   //   if( gScInfo.InputTmdsType == TMDS_HDMI && CURRENT_INPUT_IS_HDMI()// && (UserPrefAudioSource == A
+             -UDIO_DIGITAL))//SrcInputType >= Input_Digital )
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 18  
+
+                    //      hw_Audio_HDMI();
+                    //  else
+                    //      hw_Audio_PC();
+                      #endif
+              
+                      #if DEBUG_HDMI
+                      printData("gScInfo.InputTmdsType=%d",gScInfo.InputTmdsType);
+                      #endif
+              
+              #endif
+                      SettingInputColorimetry();
+              #endif  
+1028   1      
+1029   1      #if AudioFunc
+1030   1      #if ((CHIP_ID == CHIP_TSUMC) || (CHIP_ID == CHIP_TSUMD) || (CHIP_ID == CHIP_TSUM9) || (CHIP_ID == CHIP_TSU
+             -MF))   // reset audio FIFO
+1031   1      msWriteByteMask(REG_1427, 0x10, 0x10);
+1032   1      msWriteByteMask(REG_1427, 0x00, 0x10);
+1033   1      #endif
+1034   1      #if MS_DAC
+1035   1         #if DiaghtAudioInput
+1036   1          if((!(SyncLossState()&&CableNotConnectedFlag&&DoBurninModeFlag))
+1037   1              &&(CURRENT_INPUT_IS_DISPLAYPORT()
+1038   1              #if ENABLE_HDMI
+1039   1              ||( gScInfo.InputTmdsType == TMDS_HDMI && CURRENT_INPUT_IS_TMDS())
+1040   1              #endif
+1041   1              ))      //130909 petit //20131022 update
+1042   1          {
+1043   2          #if 1
+1044   2              msAudioLineout_SourceSel( E_LINEOUT_FROM_DAC );
+1045   2      
+1046   2              #if(!USE_DAC_ADJ)       
+1047   2                      msAudioDPGA_SetVolume( E_AUDIO_LEFT_RIGHT_CH, 0x0000 );  //20121004
+1048   2              #endif
+1049   2      
+1050   2                      //2 解声音突变
+1051   2                      #if EarphoneDet_Enable
+1052   2                       if (HarphoneDet_Pin)
+1053   2                       {
+1054   3                        msAudioLineOutGain( 0x38F );
+1055   3                       }
+1056   2                       else
+1057   2                       #endif 
+1058   2                       {
+1059   3                      msAudioLineOutGain( Def_DACGain );
+1060   3                       }
+1061   2                       
+1062   2              #endif
+1063   2          }
+1064   1          else // line in to line out: 550mVrms
+1065   1          #endif
+1066   1          {
+1067   2              #if 1
+1068   2              msAudioLineout_SourceSel( E_LINEOUT_FROM_LINEIN0 );
+1069   2              
+1070   2              #if(!USE_DAC_ADJ)       
+1071   2                 #if 1
+1072   2              msAudioDPGA_SetVolume( E_AUDIO_LEFT_RIGHT_CH, 0x0000 );
+1073   2                  #endif
+1074   2              #endif
+1075   2      
+1076   2                      
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 19  
+
+1077   2      
+1078   2             msAudioLineOutGain( Def_DACGain );
+1079   2      
+1080   2              #endif
+1081   2          }
+1082   1          msAudioEARout_Mute( FALSE );
+1083   1          
+1084   1          msAudioGainForceToggle();  // nick add 20130528 for Audio output delay error
+1085   1      #endif
+1086   1      
+1087   1      #if All_AudioDet
+                        if (HarphoneDet_Pin) 
+                        {
+                          bAudioInputStatus = AudioInput_Ear;
+                              #if SWAP_LR_CHANNL
+                              msWriteByte(REG_2C05, 0x00);
+                              #endif
+                         }
+                        else
+                        {     
+                          bAudioInputStatus = AudioInput_Spk;
+                              #if SWAP_LR_CHANNL
+                              msWriteByte(REG_2C05, 0x10);
+                              #endif
+                              }       
+              #endif
+1103   1      
+1104   1      #endif
+1105   1      
+1106   1      #if ENABLE_MHL_COUNT
+                  if(!SyncLossState() && CURRENT_INPUT_MHL_CABLE_PLUGGED())
+                  {
+                      DETECT_printData("turn on:%d", MHLActionCount);
+                      MHLActionCount = 0;
+                  }
+              #endif
+1113   1      #if ENABLE_FREESYNC
+                     if((UserprefFreeSyncMode==FreeSyncMenuItems_On)&&(CURRENT_INPUT_IS_DISPLAYPORT())&&(!SyncLossState(
+             -)) && (!UnsupportedModeFlag)&&(!FreeRunModeFlag))
+                       DCOffOnCounter=20;
+                     else
+                       DCOffOnCounter=0;
+              #endif
+1119   1      
+1120   1          Power_TurnOnPanel(); // turn on panel
+1121   1          
+1122   1          #if AudioFunc
+1123   1                      if( UnsupportedModeFlag || (SyncLossState()&&CableNotConnectedFlag&&BurninModeFlag))            //120215 M
+             -odify
+1124   1                              {
+1125   2                                    mStar_AdjustVolume(0);     
+1126   2                              }
+1127   1                      else if(!FreeRunModeFlag)
+1128   1                                      mStar_AdjustVolume(UserPrefVolume);   
+1129   1          #endif
+1130   1          
+1131   1          
+1132   1      #if ENABLE_FREESYNC     
+                   if((OSDFreeSyncActionFlag))
+                   {
+                  #if FreeSyncMenu_Enable
+                    if((MenuPageIndex == FreeSyncMenu))//||(MenuPageIndex == SFreesyncMenu))
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 20  
+
+                     Osd_Show();
+                    else
+                    #endif
+                    {
+                     Clr_OSDFreeSyncActionFlag();  
+                     Menu_InitAction();
+                    }
+                   }
+                   else
+               #endif 
+1147   1       
+1148   1      // printData("ModeHandlerAA=========>>>%d", 1);
+1149   1          Menu_InitAction(); // initial menu osd state
+1150   1      }
+1151          void mStar_PrepareForTimingChange(void)
+1152          {
+1153   1      
+1154   1      #if ENABLE_DUAL_LINK
+                if(CURRENT_INPUT_IS_DVI())
+                  msDVIDualLinkMode(DVI_SINGLE_LINK);
+               #endif
+1158   1      
+1159   1       #if ENABLE_HDMI // wait for checking
+1160   1           if( gScInfo.InputTmdsType == TMDS_HDMI )
+1161   1               mstar_HDMIAudioMute( HDMI_AUDIO_OFF );
+1162   1           mstar_HDMIInitialVariable();
+1163   1          //mstar_HDMIResetColorSpace();
+1164   1           mstar_HDMIRst(Reset_HDMIStatus);
+1165   1       #endif
+1166   1       
+1167   1      
+1168   1      #if ENABLE_DP_INPUT     //130603 william        
+              #if AudioFunc 
+                       if(CURRENT_INPUT_IS_DISPLAYPORT())
+                      {
+                              hw_SetMute();
+                      }
+              #endif
+              #endif
+1176   1      
+1177   1      #if AudioFunc
+1178   1              #if  CHIP_ID==CHIP_TSUMU
+                              msAudioEARout_Mute(TRUE);
+                      #else
+1181   1                      msAudioDPGA_Mute();
+1182   1              #endif
+1183   1                  hw_SetMute();
+1184   1      #endif
+1185   1      
+1186   1      
+1187   1      #if 0//def WH_REQUEST
+                    #if WH_REQUEST_DDCCI_POWERSAVING
+                        #if MS_PM
+                                Clr_DDCForcePowerSavingFlag(); 
+                        #endif
+                   #endif
+              #endif
+1194   1      
+1195   1          Clr_ForcePowerSavingFlag();
+1196   1          PowerDownCounter = 0;
+1197   1          InputColorFormat = INPUTCOLOR_RGB;
+1198   1      #if DisplayPowerOnLogo  
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 21  
+
+1199   1          if (!DisplayLogoFlag)
+1200   1      #endif          
+1201   1          {
+1202   2              if (PowerSavingFlag)
+1203   2              {
+1204   3                  Power_PowerOnSystem();
+1205   3                  mStar_SetupFreeRunMode();
+1206   3               }
+1207   2              else
+1208   2              {
+1209   3                  //if (PanelOnFlag)
+1210   3                    mStar_SetupFreeRunMode();
+1211   3                    
+1212   3      #if ENABLE_FREESYNC
+                             if(UserprefFreeSyncMode==FreeSyncMenuItems_On)
+                             {
+                              if(BackLightActiveFlag)
+                               {
+                                 hw_ClrBlacklit();
+                               }
+                             }
+                              else
+               #endif 
+1222   3                      Power_TurnOffPanel();
+1223   3              }
+1224   2                      
+1225   2      
+1226   2              Osd_Hide();
+1227   2      
+1228   2          }
+1229   1              
+1230   1      
+1231   1      #if UseINT
+1232   1              mStar_EnableModeChangeINT(FALSE);
+1233   1      #endif
+1234   1      
+1235   1          // 120601 coding addition
+1236   1          drvADC_PowerCtrl(ADC_POWER_ON);
+1237   1          drvDVI_PowerCtrl(DVI_POWER_ON);
+1238   1      
+1239   1          if (InputTimingStableFlag)
+1240   1          {
+1241   2              SC0_SCALER_RESET(GPR_B);//msWriteByte(SC0_F1, GPR_B);  // Reset Graphic port to re-counter input h
+             -freq & vtotal
+1242   2              ForceDelay1ms(3);
+1243   2              SC0_SCALER_RESET(0);//msWriteByte(SC0_F1, 0);
+1244   2              ForceDelay1ms(10);
+1245   2          }
+1246   1      
+1247   1              Clr_InputTimingStableFlag(); // reset input timing stable and wait for timing stable
+1248   1              InputTimingStableCounter = 0;
+1249   1          SrcFlags &= ~(bUnsupportMode | bUserMode | bNativeMode);
+1250   1              
+1251   1          //msWriteByte(SC0_01, 0x00);        // disable double bufer.
+1252   1          mStar_ScalerDoubleBuffer(FALSE);
+1253   1          //msWriteByte(REGBK, REGBANKADC);
+1254   1          //msWriteByte(SC0_01, 0x00);        // enable ADC's double bufer.
+1255   1          //msWriteByte(REGBK, REGBANKSCALER);
+1256   1          msWriteByteMask(SC0_E8,0,(BIT0|BIT1));
+1257   1          msWriteByteMask(SC0_E9,0,(BIT0|BIT1));
+1258   1      
+1259   1      #if ENABLE_DP_INPUT
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 22  
+
+              if(CURRENT_INPUT_IS_DISPLAYPORT())
+              {    
+              #if DP_RESETHTT_PATCH
+                  msWriteByteMask( REG_3602, BIT5,BIT5);
+                  msWriteByteMask( REG_3602, 0,BIT5);
+              #endif
+              }
+              #endif
+1268   1          
+1269   1              
+1270   1      }
+1271          //==========================================================
+1272          Bool mStar_SyncLossStateDetect(void)
+1273          {
+1274   1          BYTE fStatus;
+1275   1          Bool result = FALSE;
+1276   1                      //DETECT_printMsg("Sync Loss Detect Function 1");
+1277   1              fStatus = mStar_GetInputStatus();
+1278   1          // printData("status %xH", fStatus);//msReadByte(INSTA));
+1279   1          // printData("stable counter %d", InputTimingStableCounter);
+1280   1          if (fStatus &SyncLoss)
+1281   1          {
+1282   2              if(CURRENT_INPUT_IS_VGA())//( SrcInputType < Input_Digital )
+1283   2              {
+1284   3                  if(InputTimingStableCounter%ValidTimingStableCount == 0)
+1285   3                      mStar_SetAnalogInputPort((g_bInputSOGFlag?FALSE:TRUE));
+1286   3                              //DETECT_printMsg("Sync Loss Detect Function 2");
+1287   3      
+1288   3                  fStatus=mStar_GetInputStatus();
+1289   3                  if(!(fStatus&SyncLoss))
+1290   3                      goto SyncActive;
+1291   3              }
+1292   2              if (CableNotConnectedFlag)
+1293   2              // no Cable
+1294   2              {
+1295   3                  if (!IsCableNotConnected())
+1296   3                  {
+1297   4                                      #if ENABLE_CABLESTATUSCHANGE_CAUSESYNCSTATUS
+                              // 091009 coding, add condition for waking up from power saving, comfirmed to Mark
+                              if(PowerSavingFlag)
+                              {
+                                  if(!(fStatus&SyncLoss))
+                                  {
+                                      Clr_CableNotConnectedFlag();
+                                                              {
+                                                                      #if Dual
+                                                                      SwitchPortCntr=0;
+                                                                      #endif
+                                              result = TRUE;
+                                                              }
+                                  }
+                              }
+                              else
+                              {
+                                  Clr_CableNotConnectedFlag();
+                                                      {
+                                                              #if Dual
+                                                              SwitchPortCntr=0;
+                                                              #endif
+                                          result = TRUE;
+                                                      }
+                              }
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 23  
+
+                                              #else
+1323   4                                      Clr_CableNotConnectedFlag();
+1324   4                                      #endif
+1325   4                  }
+1326   3              }
+1327   2              else if (IsCableNotConnected())
+1328   2              // no Sync
+1329   2              {
+1330   3                  Set_CableNotConnectedFlag();
+1331   3                      #if ENABLE_CABLESTATUSCHANGE_CAUSESYNCSTATUS
+              
+                                      hw_SetGreenLed();
+                                      hw_ClrAmberLed();
+              
+              
+                          result = TRUE;
+                          #endif
+1339   3              }
+1340   2              if (PowerSavingFlag)
+1341   2              {
+1342   3                  if(CURRENT_INPUT_IS_TMDS())//( SrcInputType == Input_Digital || SrcInputType == Input_Digital2
+             - )
+1343   3                  {
+1344   4      #if ((CHIP_ID == CHIP_TSUMC) || (CHIP_ID == CHIP_TSUMD) || (CHIP_ID == CHIP_TSUM9) || (CHIP_ID == CHIP_TSU
+             -MF))
+1345   4                      if(DVI_CLK_STABLE())
+1346   4      #else
+                              if(!DVI_CLOCK_IS_MISSING())//(!(msReadByte(SC0_CA) & 0x40)) // coding check stable or exis
+             -t
+              #endif
+1349   4                      {
+1350   5                          //Delay1ms(150);
+1351   5                          Delay1ms(50);
+1352   5                          mStar_PowerUp();
+1353   5                          Delay1ms(50);
+1354   5                                              //DETECT_printMsg("DVI clk exist when PwSv detect");
+1355   5      
+1356   5                          fStatus = mStar_GetInputStatus();
+1357   5                          if (fStatus &SyncLoss)
+1358   5                          {           
+1359   6                                                    mStar_PowerDown();
+1360   6                          }
+1361   5                          else
+1362   5                          {
+1363   6                              result = TRUE;
+1364   6                          }
+1365   5                      }
+1366   4      
+1367   4              #if ENABLE_MHL&& (CHIP_ID == CHIP_TSUM2)        // 120529 coding modified for MHL wakeup //120509 Modify
+                              //if(CURRENT_INPUT_IS_HYBRID_MHL_HDMI())
+                              //if(UserPrefInputSelectType == INPUT_PRIORITY_AUTO || UserPrefInputSelectType == INPUT_PRIORITY_DVI)
+                              if(MHL_CHECK_CONDITION()) // 120614 coding 
+                          if(mapi_mhl_WakeupDetect())
+                          {      
+                              result = TRUE;
+                          }
+                      #endif                
+1376   4                  
+1377   4                  }
+1378   3              }
+1379   2          }
+1380   1          else
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 24  
+
+1381   1          {
+1382   2              SyncActive: result = TRUE;
+1383   2          }
+1384   1          if (result)
+1385   1          {
+1386   2              SrcFlags = (SrcFlags &0xF0) | fStatus;
+1387   2          } // clear others flags, except sync informat (polarity & w/o)
+1388   1          return result;
+1389   1      }
+1390          #if 1//2006-07-07 Andy
+1391              Bool mStar_ValidTimingDetect(void)
+1392              {
+1393   1          BYTE fStatus;
+1394   1              //DETECT_printMsg("Valid timing detect");
+1395   1      
+1396   1          fStatus = mStar_GetInputStatus();
+1397   1          if( fStatus & SyncLoss )        // no sync
+1398   1          {
+1399   2              SrcFlags = ( SrcFlags & 0xF0 ) | fStatus; // clear others flags, except sync informat (polarity & 
+             -w/o)
+1400   2             
+1401   2            DETECT_printMsg( "Valid Timing : Sync Loss" );//20121031
+1402   2        
+1403   2              return TRUE;
+1404   2          }
+1405   1          else
+1406   1          {
+1407   2              if( SyncPolarity( SrcFlags ) != SyncPolarity( fStatus ) )            // Sync polarity changed
+1408   2              {
+1409   3                  SrcFlags = ( SrcFlags & 0xF0 ) | fStatus; // clear others flags, except sync informat (polarit
+             -y & w/o)
+1410   3                 
+1411   3                 DETECT_printMsg( "Valid Timing : Sync polarity changed" );//20121031
+1412   3                if(CURRENT_INPUT_IS_DISPLAYPORT())
+1413   3                    return FALSE;
+1414   3                else
+1415   3                  return TRUE;
+1416   3              }
+1417   2              else
+1418   2              {
+1419   3                  WORD tempPeriod;
+1420   3                  SrcFlags = ( SrcFlags & 0xF0 ) | fStatus; // clear others flags, except sync informat (polarit
+             -y & w/o)
+1421   3      #if ENABLE_FREESYNC
+                          if(!IS_DP_FREESYNC())
+              #endif
+1424   3                  {
+1425   4                     tempPeriod = SC0_READ_HPEROID();//msRead2Byte(SC0_E4) & MASK_13BIT;
+1426   4                     
+1427   4                     #if DEBUG_FINDMODE  //20121031
+                             DETECT_printData("HPeriod1 %d", tempPeriod);
+                             #endif
+1430   4                                 
+1431   4                     if( InputTimingStableCounter == 0 )
+1432   4                     {
+1433   5                        SrcHPeriod = tempPeriod;
+1434   5                     }
+1435   4                                 
+1436   4                     if( abs( tempPeriod - SrcHPeriod ) > HPeriod_Torlance )
+1437   4                     // HPeriod changed
+1438   4                     {
+1439   5                        // 120425 coding addition
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 25  
+
+1440   5                        DETECT_printMsg("SrcHPeriod is out of torlance!");
+1441   5                        tempPeriod = SC0_READ_HPEROID();//msRead2Byte(SC0_E4) & MASK_13BIT;
+1442   5                        if( abs( tempPeriod - SrcHPeriod ) > HPeriod_Torlance )
+1443   5                            return TRUE;
+1444   5                     }
+1445   4                  }
+1446   3       
+1447   3      #if ENABLE_FREESYNC
+              #if ENABLE_DP_INPUT
+                           
+                            if(CURRENT_INPUT_IS_DISPLAYPORT())
+                                {
+                           if(DPRxGetDRRFlag())
+                               {
+                                   static WORD xdata u16PixelClock=0;
+                                   WORD xdata u16temp = DPRxGetPixelClk();
+                                   
+                                           if(abs(u16PixelClock-u16temp)>8) // 5
+                                           {
+                                               u16temp = DPRxGetPixelClk();
+                                               if(abs(u16PixelClock-u16temp)>8) // 5
+                                               {
+                                                   u16PixelClock = u16temp;
+                                                   return TRUE;
+                                               }
+                                           }
+                               }
+                            }
+              #endif
+              #endif
+1470   3      #if ENABLE_FREESYNC
+                          if(!IS_HDMI_FREESYNC())
+              #endif
+1473   3                  {
+1474   4                  tempPeriod = SC0_READ_VTOTAL();//msRead2Byte(SC0_E2) & MASK_11BIT;
+1475   4      
+1476   4                  #if DEBUG_FINDMODE  //20121031
+                              DETECT_printData("  VTotal1 %d", tempPeriod);
+                          #endif
+1479   4                  if( InputTimingStableCounter == 0 )
+1480   4                  {
+1481   5                      // 100902 coding addition
+1482   5                      Delay1ms( 100 );
+1483   5                      tempPeriod = SC0_READ_VTOTAL();//msRead2Byte(SC0_E2) & MASK_11BIT;
+1484   5      
+1485   5                      SrcVTotal = tempPeriod;
+1486   5                  }
+1487   4                  if( abs( tempPeriod - SrcVTotal ) > VTotal_Torlance )
+1488   4                      // vtotal changed
+1489   4                  {
+1490   5                              DETECT_printMsg("SrcVTotal is out of torlance!");
+1491   5      #if ENABLE_HDMI // 100902 coding addition
+1492   5                      Delay1ms( 10 );
+1493   5                      tempPeriod = SC0_READ_VTOTAL();//msRead2Byte(SC0_E2) & MASK_11BIT;
+1494   5                      if( abs( tempPeriod - SrcVTotal ) > VTotal_Torlance ) // vtotal changed
+1495   5      #endif
+1496   5                          return TRUE;
+1497   5                  }
+1498   4      
+1499   4                  }
+1500   3      #if ENABLE_CHECK_TMDS_DE
+1501   3                              if( CURRENT_INPUT_IS_TMDS() )
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 26  
+
+1502   3                              {
+1503   4                                      if(!InputTimingStableFlag && (InputTimingStableCounter >= (ValidTimingStableCount-1)))
+1504   4                                      {
+1505   5                                              SrcTMDSWidth = SC0_READ_AUTO_WIDTH();
+1506   5                                              SrcTMDSHeight = SC0_READ_AUTO_HEIGHT();
+1507   5                                              SrcTMDSHStart = SC0_READ_AUTO_START_H();
+1508   5                                              SrcTMDSVStart = SC0_READ_AUTO_START_V();
+1509   5                                      }
+1510   4                              }
+1511   3      #endif
+1512   3                  if(( CURRENT_INPUT_IS_TMDS() ) && !FreeRunModeFlag )
+1513   3                  {
+1514   4                      tempPeriod = SC0_READ_AUTO_START_H();//msRead2Byte( SC0_80 ) & MASK_12BIT;
+1515   4                      if( abs( tempPeriod - UserPrefHStart ) > HVStartTorlance )
+1516   4                      {
+1517   5                         
+1518   5                          DETECT_printData( "HStart changed%d", tempPeriod );  //20121031
+1519   5                         
+1520   5                          return TRUE;
+1521   5                      }
+1522   4                      tempPeriod = SC0_READ_AUTO_START_V();//msRead2Byte( SC0_7E ) & MASK_11BIT;
+1523   4                      if( abs( tempPeriod - UserPrefVStart ) > 2 )
+1524   4                      {
+1525   5                        
+1526   5                        DETECT_printData( "HStart changed%d", tempPeriod );  //20121031
+1527   5                     
+1528   5                          return TRUE;
+1529   5                  }
+1530   4              }
+1531   3          }
+1532   2          }
+1533   1          return FALSE;
+1534   1      }
+1535          #endif
+1536          #if  (MS_VGA_SOG_EN||FindModeByVwidth || SHARP_VGA_50Hz_Timing)
+1537          BYTE GetVSyncWidth(void)
+1538          {
+1539   1          BYTE u8VSyncWidth;
+1540   1          SC0_VSYNC_WIDTH_REPORT(TRUE);//msWriteByteMask(SC0_FA,BIT0,BIT0);
+1541   1          u8VSyncWidth=SC0_READ_VSYNC_WIDTH();//msReadByte(SC0_E2);
+1542   1          SC0_VSYNC_WIDTH_REPORT(FALSE);//msWriteByteMask(SC0_FA,0,BIT0);
+1543   1          //PRINT_DATA("u8VSyncWidth=%d",u8VSyncWidth);
+1544   1          return u8VSyncWidth;
+1545   1      }
+1546          #endif
+1547          BYTE mStar_GetInputStatus(void)
+1548          {
+1549   1          BYTE fStatus = 0;
+1550   1          WORD inputValue;
+1551   1          BYTE status;
+1552   1      #if ENABLE_FREESYNC
+                  if(!IS_DP_FREESYNC())
+              #endif
+1555   1          {
+1556   2             inputValue = SC0_READ_HPEROID();//msRead2Byte(SC0_E4) & MASK_13BIT;
+1557   2             if( inputValue == 0x1FFF || inputValue < 10 )
+1558   2             {
+1559   3                 NOSYNC_printMsg(" H peroid is Out of range!");
+1560   3                 fStatus |= bHSyncLoss;
+1561   3             }
+1562   2          }
+1563   1      #if ENABLE_FREESYNC
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 27  
+
+                  if(!IS_HDMI_FREESYNC())
+              #endif
+1566   1          {
+1567   2          inputValue = SC0_READ_VTOTAL();//msRead2Byte(SC0_E2) & MASK_11BIT;
+1568   2          if( inputValue == SC_MASK_V || inputValue < 200 ) // 130530 JUN Modify
+1569   2          {
+1570   3              fStatus |= bVSyncLoss;
+1571   3          }
+1572   2          }
+1573   1      //      DETECT_printData(" V total:  %d",inputValue);
+1574   1      #if TMDS_SYNC_RECHECK
+                  if(CURRENT_INPUT_IS_TMDS())
+                  {
+                      if(!(SC0_READ_SYNC_STATUS() & BIT6))
+                      {
+                          if(HsyncDisappearCounter < SYNC_DISAPPEAR_COUNT)
+                              HsyncDisappearCounter ++;
+                          else
+                              fStatus |= bHSyncLoss;
+                      }
+                      else
+                      {
+                          HsyncDisappearCounter = 0;
+                      }
+              
+                      if(!(SC0_READ_SYNC_STATUS() & BIT7))
+                      {
+                          if(VsyncDisappearCounter < SYNC_DISAPPEAR_COUNT)
+                              VsyncDisappearCounter ++;
+                          else
+                              fStatus |= bVSyncLoss;
+                      }
+                      else
+                      {
+                          VsyncDisappearCounter = 0;
+                      }
+              
+                      if(SC0_DE_ONLY_MODE())
+                      {
+                          if(TMDS_INPUT_WITHOUT_HV_SYNC())
+                          {
+                                              //DETECT_printMsg("DE ONLY");
+                              SC0_SET_DE_OLNY_MODE(FALSE);
+                              SC0_GLITCH_REMOVAL_ENABLE(FALSE);  //20130422
+                          }
+                      }
+                  }
+              #endif        
+1612   1      
+1613   1          status = SC0_READ_SYNC_STATUS();//msReadByte(SC0_E1);
+1614   1      
+1615   1          fStatus |= ( status & 0x03 ); // Get input timing polarity
+1616   1      #if ENABLE_FREESYNC
+                      if(IS_DP_FREESYNC())
+                          {
+                          if(!(status&CSP_B))
+                          {
+                              fStatus|=bVSyncLoss;
+                          }
+                      }
+              #endif
+1625   1      
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 28  
+
+1626   1          if(CURRENT_INPUT_IS_TMDS())//( SrcInputType == Input_Digital || SrcInputType == Input_Digital2 )      
+             -  // input timing is valid while current state is no sync
+1627   1          {
+1628   2              if(DVI_DE_STABLE() == FALSE)
+1629   2              {
+1630   3                  if(DVI_DE_STABLE() == FALSE)
+1631   3                  {
+1632   4                      NOSYNC_printMsg("DVI DE unstable!");
+1633   4                      fStatus |= SyncLoss;
+1634   4                  }
+1635   3              }
+1636   2          }
+1637   1          else if( SyncLossState() && !( fStatus & SyncLoss ) )        // input timing is valid while current st
+             -ate is no sync
+1638   1          {
+1639   2              Delay1ms( 20 );
+1640   2              if( InputTimingChangeFlag )
+1641   2              {
+1642   3                  return fStatus;
+1643   3              }
+1644   2              status = status & SC0_READ_SYNC_STATUS();//msReadByte(SC0_E1);
+1645   2              if(( status & 3 ) != ( fStatus & 3 ) )
+1646   2                  // polarity is stable
+1647   2              {
+1648   3                      NOSYNC_printMsg("polarity is unstable!");
+1649   3                  fStatus |= SyncLoss;
+1650   3              }
+1651   2              else if( status & 0x30 )
+1652   2                  // SOG or CSync input
+1653   2              {
+1654   3                  Delay1ms( 20 );
+1655   3                  if( InputTimingChangeFlag )
+1656   3                  {
+1657   4                      return fStatus;
+1658   4                  }
+1659   3                  status = SC0_READ_SYNC_STATUS();//msReadByte(SC0_E1);           // Check if SOG/CSYNC is valid
+1660   3                  if( abs( SC0_READ_VTOTAL() - inputValue ) > 2 )//( abs( (msRead2Byte( SC0_E2 )&MASK_11BIT) - i
+             -nputValue ) > 2 )
+1661   3                  {
+1662   4                      NOSYNC_printMsg("SOG or CSYNC is not valid!");
+1663   4                      fStatus |= SyncLoss;
+1664   4                  }
+1665   3      #if  MS_VGA_SOG_EN
+              
+              else if (status&SOGD_B)
+                          {
+                              #if 0 //Jison 100330, not find mode yet, use STD_MODE_HEIGHT is not reasonable
+                              u16InputValue = msRead2Byte(SC0_E2);
+                              PRINT_DATA("V_Display %d",STD_MODE_HEIGHT);
+                              if ((u16InputValue - STD_MODE_HEIGHT -6)< GetVSyncWidth())
+                              {
+                                PRINT_MSG("SOG Det Err");
+                                u8FlagStatus |= SYNC_LOSS;
+                              }
+                              #else
+                              {
+                                  BYTE u8Tmp0=SC0_READ_POWER_DOWN_STATUS();//msReadByte(SC0_F0);
+                                  BYTE u8Tmp1=SC0_READ_ADC_COAST_ENABLE_VALUE();//msReadByte(SC0_ED);
+                                  BYTE u8Tmp2=SC0_READ_ADC_COAST_START_VALUE();//msReadByte(SC0_EE);
+                                  BYTE u8Tmp3=SC0_READ_ADC_COAST_END_VALUE();//msReadByte(SC0_EF);
+                                  BYTE i;
+                                  //for get stable VSyncWidth
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 29  
+
+                                  SC0_SCALER_POWER_DOWN(0, BIT0|BIT1); //to get vsyncWidth
+                                  SC0_ADC_COAST_ENABLE(0x21);//msWriteByte(SC0_ED, 0x21); //_NEW_SOG_WAKEUP_DET_
+                                  SC0_ADC_COAST_START(0x08);//msWriteByte(SC0_EE, 0x08);
+                                  SC0_ADC_COAST_END(0x05);//msWriteByte(SC0_EF, 0x05);
+                                  Delay1ms(20);
+                                  inputValue=0;
+                                  for (i=0;i<10;i++)
+                                  {
+                                      inputValue=GetVSyncWidth();
+                                      if (inputValue>15)
+                                          break;
+                                      ForceDelay1ms(2);
+                                  }
+                                  if (inputValue>15)
+                                  {
+                                    NOSYNC_printMsg("SOG Det Err!");
+                                    fStatus |= SyncLoss;
+                                  }
+                                  SC0_ADC_COAST_ENABLE(u8Tmp1);//msWriteByte(SC0_ED, u8Tmp1);
+                                  SC0_ADC_COAST_START(u8Tmp2);//msWriteByte(SC0_EE, u8Tmp2);
+                                  SC0_ADC_COAST_END(u8Tmp3);//msWriteByte(SC0_EF, u8Tmp3);
+                                  SC0_SCALER_POWER_DOWN(u8Tmp0, 0xFF);
+                              }
+                              #endif
+                          }
+              
+              #endif
+1712   3              }
+1713   2          }
+1714   1          return fStatus;
+1715   1      }
+1716          
+1717          Bool IsCableNotConnected( void )
+1718          {
+1719   1          // wait for coding
+1720   1          return TRUE;
+1721   1      }
+1722          
+1723          
+1724          #if ENABLE_MHL
+              #if CHIP_ID == CHIP_TSUMC || CHIP_ID == CHIP_TSUMD||CHIP_ID == CHIP_TSUM9 || CHIP_ID == CHIP_TSUMF// demo 
+             -board        // 130717 william For G15 compiling warning
+              Bool CurrentInputMHLCablePlugged(void)//130711 william
+              {
+                  bit bresult = FALSE; // false means MHL cable NC
+              
+              
+              #if ENABLE_MHL_C1
+                  if(CURRENT_INPUT_IS_HDMI0())
+                  {
+                      if(IS_MHL_PORT0_CABLE_CONNECT())
+                      {
+                          bresult = TRUE;
+              #if DEBUG_HDMI_MHL_CABLE_DETECT
+              printData( "MHL0 CableConnect:%x", hwDVI0Cable_Pin );
+              #endif
+                      }
+                      else
+                      {
+              #if DEBUG_HDMI_MHL_CABLE_DETECT
+              printData( "MHL0 CableNotConnect:%x", hwDVI0Cable_Pin );
+              #endif
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 30  
+
+                      }
+                  }
+                  else
+              #endif
+                      {
+              #if ENABLE_MHL_C2
+                  if(CURRENT_INPUT_IS_HDMI1())
+                  {
+                      if(IS_MHL_PORT1_CABLE_CONNECT())
+                      {
+                          bresult = TRUE;
+              #if DEBUG_HDMI_MHL_CABLE_DETECT
+              printData( "MHL1 CableConnect:%x", hwDVI0Cable_Pin );
+              #endif
+                      }
+                      else
+                      {
+              #if DEBUG_HDMI_MHL_CABLE_DETECT
+              printData( "MHL1 CableNotConnect:%x", hwDVI1Cable_Pin );
+              #endif
+                      }
+                  }
+                  else
+              #endif
+                      {
+              #if ENABLE_MHL_C3
+                  if(CURRENT_INPUT_IS_HDMI2())
+                  {
+                      if(IS_MHL_PORT2_CABLE_CONNECT())
+                      {
+              #if DEBUG_HDMI_MHL_CABLE_DETECT
+              printData( "MHL2 CableConnect:%x", hwDVI0Cable_Pin );
+              #endif
+                          bresult = TRUE;
+                      }
+                      else
+                      {
+              #if DEBUG_HDMI_MHL_CABLE_DETECT
+              printData( "MHL2 CableNotConnect:%x", hwDVI2Cable_Pin );
+              #endif
+                      }
+                  }
+              #endif
+                      }
+                      }
+              
+                  return bresult;
+              }
+              
+              #else
+              #message "please coding CurrentInputMHLCablePlugged for MHL port"
+              #endif
+              #endif
+1799          
+1800          
+1801          
+1802          void SpeedupOrExtendSwitchPort(void)    //130625 nick
+1803          {
+1804   1      #if ENABLE_MHL
+                  if(CURRENT_INPUT_MHL_CABLE_PLUGGED())
+                  {
+                      if(MHL_EXTEND_SYNCLOSS_COUNT())
+C51 COMPILER V9.01   DETECT                                                                03/09/2023 15:39:17 PAGE 31  
+
+                      {
+                          InputTimingStableCounter = SyncLossExtenCount_MHL;
+                          MHLExtenCountFlag = 1;
+                      }
+                  }
+                  else
+              #endif
+1815   1      
+1816   1      #if ENABLE_HDMI
+1817   1          if(HDMI_SPEEDUP_SWITCH_PORT())
+1818   1          {
+1819   2              InputTimingStableCounter = SyncLossStableCount;
+1820   2          }
+1821   1      #endif
+1822   1      
+1823   1      #if (ENABLE_DP_INPUT&&(CHIP_ID == CHIP_TSUMC || CHIP_ID == CHIP_TSUMD||CHIP_ID == CHIP_TSUM9||CHIP_ID == C
+             -HIP_TSUMF)) 
+              //============================================================================================
+              //  Please add Cable GND pin detect in  below condition 
+              //  ((SrcInputType  == Input_Displayport)&&(msReadByte(REG_0232)&BIT0)&& (Cable GND pin Detect) )
+              //===================================================================================== =======
+                     if(Input_Displayport_C2 != Input_Nothing)
+                     {
+                            EnablePBSDM();                              // Set SDM Bit as Input
+                           if(DPPB_SPEEDUP_SDM_GND()&&(InputTimingStableCounter >= 50))     //  Check SDM bit Port B  //
+             -130912 nick
+                          {
+                              InputTimingStableCounter = SyncLossStableCount;
+                          }
+                     }    
+                     if(Input_Displayport_C3  != Input_Nothing)
+                     {
+                            EnablePCSDM();                                // Set SDM Bit as Input
+                            if(DPPC_SPEEDUP_SDM_GND()&&(InputTimingStableCounter >= 50))       // Check SDM bit Port C        
+             -//130912 nick
+                           {
+                              InputTimingStableCounter = SyncLossStableCount;
+                           }
+                    }    
+              #endif
+1845   1      
+1846   1      }
+1847          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3121    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----       1
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      14
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

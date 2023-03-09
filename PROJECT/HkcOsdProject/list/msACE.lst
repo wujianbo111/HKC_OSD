@@ -1,0 +1,1203 @@
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE MSACE
+OBJECT MODULE PLACED IN .\obj\msACE.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\LIB\msACE.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\DRIVER\INC;..\..\KERN
+                    -EL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..\..\KERNEL\SYSTEM\INC
+                    -\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\UI\HkcOsd\INC) DEFINE
+                    -(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\msACE.lst) OBJECT(.\obj\msACE.obj)
+
+line level    source
+
+   1          /******************************************************************************
+   2           Copyright (c) 2003 MStar Semiconductor, Inc.
+   3           All rights reserved.
+   4          
+   5           [Module Name]: MsACE.c
+   6           [Date]:        11-Nov-2003
+   7           [Comment]:
+   8             Color Adjust subroutines.
+   9           [Reversion History]:
+  10          *******************************************************************************/
+  11          
+  12          #define _MSACE_C_
+  13          
+  14          #include <math.h>
+  15          // System
+  16          
+  17          #include "types.h"
+  18          //#include "msRegTV.h"
+  19          //#include "board.h"
+  20          //#include "Ms_rwreg.h"
+  21          //#include "DebugMsg.h"
+  22          #include "msACE.h"
+  23          #include "ms_reg.h"
+  24          #include "Adjust.h"
+  25          //#include "MsGmaTbl.h"
+  26          
+  27          //#include "UserPref.h"
+  28          //#include "misc.h"
+  29          
+  30          //#include "myglobal.h"
+  31          #include "global.h"
+  32          //#include "ms_reg.h"
+  33          //#include "MZone.h"
+  34          //#include <intrins.h>
+  35          
+  36          //#ifndef _ACE_MST8556T_
+  37          //#define _ACE_MST8556T_  //define in compiler
+  38          //#else
+  39          // CHIP_TSUML
+  40          //#endif
+  41          
+  42          #if CHIP_ID == CHIP_TSUMV||CHIP_ID == CHIP_TSUM2
+              #define _ACE_TSUMV_
+              #elif CHIP_ID==CHIP_TSUMC||CHIP_ID==CHIP_TSUMD||CHIP_ID == CHIP_TSUM9 ||CHIP_ID == CHIP_TSUMF
+  45          #define _ACE_TSUMC_
+  46          #elif CHIP_ID == CHIP_TSUMU
+               #define _ACE_MST8556T_
+              #else
+              
+              #endif
+  51          //#define _ACE_TSUMV_
+  52          #define                 ACE_LIB_VERSION           0x0001
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 2   
+
+  53          #define Y_MINUS16   1   //120420 Modify
+  54          
+  55          #define SC_REGS        ((unsigned char volatile xdata *) 0x2F00)
+  56          
+  57          #define _scReadByte(u16Addr)                     (SC_REGS[(u16Addr)&0xFF])
+  58          #define _scWriteByte(u16Addr,u8Value)            (SC_REGS[(u16Addr)&0xFF]=(u8Value))
+  59          #define _scWrite2Byte(u16Addr,u16Value)          {(SC_REGS[(u16Addr)&0xFF]=((u16Value)&0xFF));(SC_REGS[((u
+             -16Addr)&0xFF)+1]=((u16Value)>>8));}
+  60          #define _scRead2Byte(u16Addr)                    ((((WORD)SC_REGS[((u16Addr)&0xFF)+1])<<8)+SC_REGS[(u16Add
+             -r)&0xFF])
+  61          #define _scWriteByteMask(u16Addr,u8Value,u8Mask) ( SC_REGS[(u16Addr)&0xFF] = ( (SC_REGS[(u16Addr)&0xFF] & 
+             -(~(u8Mask))) | ((u8Value) & (u8Mask))) )
+  62          
+  63          #define     msDoubleBufferStart()
+  64          #define     msDoubleBufferEnd()
+  65          
+  66          
+  67          #define IS_RGB_RANGE_LIMITED 0//(SOURCE_INPUT_IS_ANDROID())  //130624 nick add Add RGB Limite Range define
+  68          // Internal
+  69          #include "msACE.h"
+  70          //#include "msDLC.h"
+  71          
+  72          #define ENABLE_MAIN_NEW3X3     1
+  73          
+  74          //extern code short tSRGB[3][3] ;
+  75          extern code short tNormalColorCorrectionMatrix[3][3] ;
+  76          
+  77          XDATA BYTE g_bAccOnOff=0;
+  78          XDATA BYTE g_bHDTV  = FALSE;
+  79          
+  80          // matrix used to convert RGB color space to YUV color space for SDTV
+  81          //code short tSDTVRgb2yuv[3][3] =
+  82          //{
+  83          //    {  0x0107,  0x0204,  0x0064 }, // 0.257,  0.504,  0.098
+  84          //    { -0x0098, -0x012A,  0x01C2 }, // -0.148, -0.291, 0.439
+  85          //    {  0x01C2, -0x0179, -0x0049 }  // 0.439,  -0.368, -0.071
+  86          //};
+  87          
+  88          // matrix used to convert YUV color space to RGB color space, used for video input for SDTV
+  89          code short tSDTVYuv2rgb[3][3] =
+  90          {
+  91              {   0x0662, 0x04A8,  0x0000 }, // 1.596,  1.164, 0
+  92              {  -0x0341, 0x04A8, -0x0190 }, // -0.813, 1.164, -0.391
+  93              {   0x0000, 0x04A8,  0x0812 }  // 0,      1.164, 2.018
+  94          };
+  95          
+  96          // matrix used to convert RGB color space to YUV color space for HDTV
+  97          //code short tHDTVRgb2yuv[3][3] =
+  98          //{
+  99          //    {  0x00DA,  0x02DC,  0x004A }, // 0.213,  0.715,  0.072
+ 100          //    { -0x0078, -0x0193,  0x020B }, // -0.117, -0.394, 0.511
+ 101          //    {  0x020B, -0x01DB, -0x0030 }  // 0.511,  -0.464, -0.047
+ 102          //};
+ 103          
+ 104          // matrix used to convert YUV color space to RGB color space, used for video input for HDTV
+ 105          code short tHDTVYuv2rgb[3][3] =
+ 106          {
+ 107              {   0x072C, 0x04A8,  0x0000 }, // 1.793,  1.164, 0
+ 108              {  -0x0223, 0x04A8, -0x00DA }, // -0.534, 1.164, -0.213
+ 109              {   0x0000, 0x04A8,  0x0876 }  // 0,      1.164, 2.115
+ 110          };
+ 111          
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 3   
+
+ 112          // For video
+ 113          XDATA BYTE g_ucVideoRCon;
+ 114          XDATA BYTE g_ucVideoGCon;
+ 115          XDATA BYTE g_ucVideoBCon;
+ 116          XDATA BYTE g_ucVideoContrast;
+ 117          XDATA BYTE g_ucVideoSaturation;
+ 118          XDATA BYTE g_ucVideoHue;
+ 119          
+ 120          XDATA short g_sVideoSatHueMatrix[2][3][3];//XDATA short g_sVideoSatHueMatrix[3][3];
+ 121          XDATA short g_sVideoContrastMatrix[2][3][3];//XDATA short g_sVideoContrastMatrix[3][3];
+ 122          
+ 123          // For PC
+ 124          XDATA BYTE g_ucPCRCon;
+ 125          XDATA BYTE g_ucPCGCon;
+ 126          XDATA BYTE g_ucPCBCon;
+ 127          XDATA BYTE g_ucPCContrast;
+ 128          XDATA short g_sPCConRGBMatrix[2][3][3];
+ 129          
+ 130          // For erase the lost of brightness
+ 131          XDATA BYTE g_ucMainDigiBrightness;
+ 132          XDATA BYTE g_ucSubDigiBrightness;
+ 133          XDATA BYTE g_ucBriteComp;
+ 134          
+ 135          // for tools
+ 136          //XDATA short g_sCommandMatrix[3][3];
+ 137          
+ 138          void msACESetHDTVMode(BYTE isHDTV)
+ 139          {
+ 140   1          if(isHDTV)
+ 141   1              g_bHDTV = TRUE;
+ 142   1          else
+ 143   1              g_bHDTV = FALSE;
+ 144   1      
+ 145   1      }
+ 146          WORD msACE_GetVersion(void)
+ 147          {
+ 148   1          return ACE_LIB_VERSION;
+ 149   1      }
+ 150          
+ 151          void InitACEVar()
+ 152          {
+ 153   1          // For video
+ 154   1          g_ucVideoRCon = 0x80;
+ 155   1          g_ucVideoGCon = 0x80;
+ 156   1          g_ucVideoBCon = 0x80;
+ 157   1          g_ucVideoContrast = 0x80;
+ 158   1          g_ucVideoSaturation = DefSaturationValue;//0x80;
+ 159   1          g_ucVideoHue = 50;
+ 160   1      
+ 161   1          g_sVideoSatHueMatrix[MAIN_WINDOW][0][0] = g_sVideoSatHueMatrix[MAIN_WINDOW][1][1] = g_sVideoSatHueMatr
+             -ix[MAIN_WINDOW][2][2] = 1024;
+ 162   1          g_sVideoSatHueMatrix[MAIN_WINDOW][0][1] = g_sVideoSatHueMatrix[MAIN_WINDOW][1][0] = g_sVideoSatHueMatr
+             -ix[MAIN_WINDOW][2][0] =
+ 163   1          g_sVideoSatHueMatrix[MAIN_WINDOW][0][2] = g_sVideoSatHueMatrix[MAIN_WINDOW][1][2] = g_sVideoSatHueMatr
+             -ix[MAIN_WINDOW][2][1] = 0;
+ 164   1      
+ 165   1          g_sVideoContrastMatrix[MAIN_WINDOW][0][0] = g_sVideoContrastMatrix[MAIN_WINDOW][1][1] = g_sVideoContra
+             -stMatrix[MAIN_WINDOW][2][2] = 1024;
+ 166   1          g_sVideoContrastMatrix[MAIN_WINDOW][0][1] = g_sVideoContrastMatrix[MAIN_WINDOW][1][0] = g_sVideoContra
+             -stMatrix[MAIN_WINDOW][2][0] =
+ 167   1          g_sVideoContrastMatrix[MAIN_WINDOW][0][2] = g_sVideoContrastMatrix[MAIN_WINDOW][1][2] = g_sVideoContra
+             -stMatrix[MAIN_WINDOW][2][1] = 0;
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 4   
+
+ 168   1      
+ 169   1          g_sVideoSatHueMatrix[SUB_WINDOW][0][0] = g_sVideoSatHueMatrix[SUB_WINDOW][1][1] = g_sVideoSatHueMatrix
+             -[SUB_WINDOW][2][2] = 1024;
+ 170   1          g_sVideoSatHueMatrix[SUB_WINDOW][0][1] = g_sVideoSatHueMatrix[SUB_WINDOW][1][0] = g_sVideoSatHueMatrix
+             -[SUB_WINDOW][2][0] =
+ 171   1          g_sVideoSatHueMatrix[SUB_WINDOW][0][2] = g_sVideoSatHueMatrix[SUB_WINDOW][1][2] = g_sVideoSatHueMatrix
+             -[SUB_WINDOW][2][1] = 0;
+ 172   1      
+ 173   1          g_sVideoContrastMatrix[SUB_WINDOW][0][0] = g_sVideoContrastMatrix[SUB_WINDOW][1][1] = g_sVideoContrast
+             -Matrix[SUB_WINDOW][2][2] = 1024;
+ 174   1          g_sVideoContrastMatrix[SUB_WINDOW][0][1] = g_sVideoContrastMatrix[SUB_WINDOW][1][0] = g_sVideoContrast
+             -Matrix[SUB_WINDOW][2][0] =
+ 175   1          g_sVideoContrastMatrix[SUB_WINDOW][0][2] = g_sVideoContrastMatrix[SUB_WINDOW][1][2] = g_sVideoContrast
+             -Matrix[SUB_WINDOW][2][1] = 0;
+ 176   1      
+ 177   1          // For PC
+ 178   1          g_ucPCRCon = 0x80;
+ 179   1          g_ucPCGCon = 0x80;
+ 180   1          g_ucPCBCon = 0x80;
+ 181   1          g_ucPCContrast = 0x80;
+ 182   1      
+ 183   1          g_sPCConRGBMatrix[MAIN_WINDOW][0][0] = g_sPCConRGBMatrix[MAIN_WINDOW][1][1] = g_sPCConRGBMatrix[MAIN_W
+             -INDOW][2][2] = 1024;
+ 184   1          g_sPCConRGBMatrix[MAIN_WINDOW][0][1] = g_sPCConRGBMatrix[MAIN_WINDOW][1][0] = g_sPCConRGBMatrix[MAIN_W
+             -INDOW][2][0] =
+ 185   1          g_sPCConRGBMatrix[MAIN_WINDOW][0][2] = g_sPCConRGBMatrix[MAIN_WINDOW][1][2] = g_sPCConRGBMatrix[MAIN_W
+             -INDOW][2][1] = 0;
+ 186   1      
+ 187   1          g_sPCConRGBMatrix[SUB_WINDOW][0][0] = g_sPCConRGBMatrix[SUB_WINDOW][1][1] = g_sPCConRGBMatrix[SUB_WIND
+             -OW][2][2] = 1024;
+ 188   1          g_sPCConRGBMatrix[SUB_WINDOW][0][1] = g_sPCConRGBMatrix[SUB_WINDOW][1][0] = g_sPCConRGBMatrix[SUB_WIND
+             -OW][2][0] =
+ 189   1          g_sPCConRGBMatrix[SUB_WINDOW][0][2] = g_sPCConRGBMatrix[SUB_WINDOW][1][2] = g_sPCConRGBMatrix[SUB_WIND
+             -OW][2][1] = 0;
+ 190   1      
+ 191   1          // Color matrix initilaize
+ 192   1          //tSrgbMatrix = &tSRGB[0][0];
+ 193   1          tColorCorrectionMatrix = &tNormalColorCorrectionMatrix[0][0];
+ 194   1      
+ 195   1          // For erase the lost of brightness
+ 196   1          g_ucMainDigiBrightness = 0x80;
+ 197   1          g_ucSubDigiBrightness = 0x80;
+ 198   1          g_ucBriteComp = 0;
+ 199   1      
+ 200   1          //g_ucACEConfig = 0;
+ 201   1          //msACEPCYUV2RGBCtl( FALSE );
+ 202   1          //msACEPCsRGBCtl( FALSE );
+ 203   1      
+ 204   1          // for tool
+ 205   1      #if 1 //avoid compiler warning
+ 206   1          if (g_bHDTV!=g_bHDTV)
+ 207   1          {
+ 208   2              msACESetHDTVMode(FALSE);
+ 209   2              msACE_GetVersion();
+ 210   2              #if ENABLE_MAIN_NEW3X3
+ 211   2              msAdjustPCContrast( MAIN_WINDOW, 0x80 );
+ 212   2              msAdjustPCRGB( MAIN_WINDOW, 0x80, 0x80, 0x80 );
+ 213   2              #endif
+ 214   2              msAdjustPCContrast( SUB_WINDOW, 0x80 );
+ 215   2              msAdjustVideoRGB( SUB_WINDOW, 0x80, 0x80, 0x80 );
+ 216   2          }
+ 217   1      #endif
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 5   
+
+ 218   1      #if CHIP_ID == CHIP_TSUMU       //121211 Modify
+                      {
+                              BYTE xdata ucBank;
+                              ucBank = msReadByte(SC0_00);
+                              msWriteByte(SC7_41, 0x11);
+                              msWriteByte(SC0_00, ucBank);
+                      }
+              #endif
+ 226   1      }
+ 227          
+ 228          
+ 229          #define PI  (3.14159265)
+ 230          
+ 231          // sin function
+ 232          short sine(BYTE ucValue)
+ 233          {
+ 234   1          return (short)(sin((ucValue * PI) / 128.) * 1024.);
+ 235   1      }
+ 236          
+ 237          // cos function
+ 238          short cosine(BYTE ucValue)
+ 239          {
+ 240   1          return (short)(cos((ucValue * PI) / 128.) * 1024.);
+ 241   1      }
+ 242          
+ 243          
+ 244          xdata short (* sFirst)[3];
+ 245          xdata short  (* sSecond)[3];
+ 246          xdata short  (* sResult)[3];
+ 247          
+ 248          //void ArrayMultiply(short sFirst[3][3], short sSecond[3][3], short sResult[3][3])
+ 249          static void ArrayMultiply(void)
+ 250          {
+ 251   1          BYTE LOCAL_TYPE ucRow, ucCol;
+ 252   1      
+ 253   1          //go line by line
+ 254   1          for(ucRow=0; ucRow!=3; ucRow++)
+ 255   1          {
+ 256   2              // go column by column
+ 257   2              for(ucCol=0; ucCol!=3; ucCol++)
+ 258   2              {
+ 259   3                  sResult[ucRow][ucCol] = (((long)sFirst[ucRow][0] * sSecond[0][ucCol]) +
+ 260   3                                           ((long)sFirst[ucRow][1] * sSecond[1][ucCol]) +
+ 261   3                                           ((long)sFirst[ucRow][2] * sSecond[2][ucCol])) >> 10;
+ 262   3             } // for
+ 263   2          } // for
+ 264   1      }
+ 265          
+ 266          void SetVideoSatHueMatrix(BYTE bScalerWin)//static void SetVideoSatHueMatrix()
+ 267          {
+ 268   1          short LOCAL_TYPE sTmp;
+ 269   1          BYTE LOCAL_TYPE ucHue;
+ 270   1      
+ 271   1          ucHue = ((g_ucVideoHue <= 50) ? (50 - g_ucVideoHue) : ~(g_ucVideoHue - 50));
+ 272   1      
+ 273   1      //    ucHue = ((g_ucVideoHue >= 90) ? (90 - g_ucVideoHue) : ~(g_ucVideoHue -91));
+ 274   1      
+ 275   1          sTmp = ((short)g_ucVideoSaturation * 8);
+ 276   1      
+ 277   1          g_sVideoSatHueMatrix[bScalerWin][2][2] = ((((long)cosine(ucHue) * sTmp))>>10);
+ 278   1          g_sVideoSatHueMatrix[bScalerWin][0][0] = ((( (long)cosine(ucHue)* sTmp))>>10);
+ 279   1      
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 6   
+
+ 280   1          g_sVideoSatHueMatrix[bScalerWin][2][0] = ((((long)sine(ucHue)   * sTmp))>>10);
+ 281   1          g_sVideoSatHueMatrix[bScalerWin][0][2] = (((-(long)sine(ucHue)  * sTmp))>>10);
+ 282   1      
+ 283   1          g_sVideoSatHueMatrix[bScalerWin][1][1] = 1024;
+ 284   1          g_sVideoSatHueMatrix[bScalerWin][0][1] = g_sVideoSatHueMatrix[bScalerWin][1][0] = g_sVideoSatHueMatrix
+             -[bScalerWin][1][2] = g_sVideoSatHueMatrix[bScalerWin][2][1] = 0;
+ 285   1      }
+ 286          
+ 287          void SetVideoContrastMatrix(BYTE bScalerWin)//static void SetVideoContrastMatrix()
+ 288          {
+ 289   1          g_sVideoContrastMatrix[bScalerWin][0][0] = ( (WORD)g_ucVideoRCon * (g_ucVideoContrast)) >> 4;
+ 290   1          g_sVideoContrastMatrix[bScalerWin][1][1] = ( (WORD)g_ucVideoGCon * (g_ucVideoContrast)) >> 4;
+ 291   1          g_sVideoContrastMatrix[bScalerWin][2][2] = ( (WORD)g_ucVideoBCon * (g_ucVideoContrast)) >> 4;
+ 292   1      }
+ 293          
+ 294          xdata short *psMatrix;
+ 295          //void msWriteColorMatrix( short* psMatrix )
+ 296          //Main/Sub
+ 297          void msWriteColorMatrix(BYTE bScalerWin)//static void msWriteColorMatrix()
+ 298          {
+ 299   1          BYTE LOCAL_TYPE i,j;
+ 300   1          WORD  LOCAL_TYPE ucAddr ;// SC8_82//BYTE LOCAL_TYPE ucAddr = BK3_5E;
+ 301   1          short LOCAL_TYPE sTmp;
+ 302   1          BYTE LOCAL_TYPE u8Bank=_scReadByte(SC0_00);
+ 303   1      #if defined(_ACE_MST8556T_) || defined(_ACE_TSUMV_)||defined(_ACE_TSUMC_)
+ 304   1          if(bScalerWin == MAIN_WINDOW)
+ 305   1              ucAddr = SC8_82;// SC8_82
+ 306   1          else
+ 307   1              ucAddr = SC8_6E;//
+ 308   1      
+ 309   1          _scWriteByte(SC0_00, 0x08);
+ 310   1      #else
+                  BYTE LOCAL_TYPE u8OrgReg71;
+                  _scWriteByte(SC0_00, 0x03);
+                  u8OrgReg71=_scReadByte(SC3_71);
+                  if(bScalerWin == MAIN_WINDOW)
+                     _scWriteByteMask(SC3_71, BIT2, BIT2); //enable main NEW3x3
+                  else
+                     _scWriteByteMask(SC3_71, 0, BIT2); //use sub 3x3
+              
+                  ucAddr = SC3_5E;//
+              #endif
+ 321   1      
+ 322   1          for(i=0; i!=3; i++)
+ 323   1          {
+ 324   2              for(j=0; j!=3; j++)
+ 325   2              {
+ 326   3                  sTmp = psMatrix[i*3+j];
+ 327   3                  //printf( "[%X]:", ucAddr );
+ 328   3                  if( sTmp >= 0 )
+ 329   3                  {
+ 330   4                      if( sTmp > 0xfff )
+ 331   4                      {
+ 332   5                          sTmp = 0xfff;
+ 333   5                      }
+ 334   4                      _scWrite2Byte( ucAddr, sTmp );//mStar_WriteWord( ucAddr+1, sTmp );
+ 335   4                      //printf( "%X\r\n", sTmp );
+ 336   4                  }
+ 337   3                  else
+ 338   3                  {
+ 339   4                      sTmp = sTmp * -1;
+ 340   4                      if( sTmp > 0xfff )
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 7   
+
+ 341   4                      {
+ 342   5                          sTmp = 0xfff;
+ 343   5                      }
+ 344   4                  #if defined(_ACE_TSUMV_)||defined(_ACE_TSUMC_)
+ 345   4                      sTmp = 0x10000 - sTmp;//for 2's//sTmp |= 0x1000;
+ 346   4                  #else
+                              sTmp |= 0x1000;
+                          #endif
+ 349   4                      _scWrite2Byte( ucAddr, sTmp );//mStar_WriteWord( ucAddr+1, sTmp );
+ 350   4                      //printf( "%X\r\n", sTmp );
+ 351   4                  }
+ 352   3                  ucAddr += 2;
+ 353   3              } // for
+ 354   2          } // for
+ 355   1      #if !(defined(_ACE_MST8556T_) || defined(_ACE_TSUMV_)||defined(_ACE_TSUMC_))
+                  _scWriteByte(SC3_71, u8OrgReg71);
+              #endif
+ 358   1          _scWriteByte(SC0_00, u8Bank);
+ 359   1      }
+ 360          
+ 361          //Main/Sub
+ 362          void msSetVideoColorMatrix(BYTE bScalerWin)//static void msSetVedioColorMatrix()
+ 363          {
+ 364   1          XDATA short sResultTmp1[3][3];
+ 365   1          XDATA short sResultTmp2[3][3];
+ 366   1          typedef XDATA short TypArr[3][3];
+ 367   1          BYTE LOCAL_TYPE ucBank;
+ 368   1          //BYTE LOCAL_TYPE ucColorBank;
+ 369   1          short* LOCAL_TYPE psOutTab;
+ 370   1          //XDATA BYTE ucTmpBri;
+ 371   1      
+ 372   1          // Adjust hue&saturation, and then YUV to RGB
+ 373   1          if(g_bHDTV)
+ 374   1              sFirst = tHDTVYuv2rgb;
+ 375   1          else
+ 376   1              sFirst = tSDTVYuv2rgb;
+ 377   1          sSecond=g_sVideoSatHueMatrix[bScalerWin];
+ 378   1          sResult=sResultTmp1;
+ 379   1          ArrayMultiply();
+ 380   1          //ArrayMultiply( tSDTVYuv2rgb, g_sVideoSatHueMatrix, sResultTmp1 );
+ 381   1      
+ 382   1          // Adjust contrast-RGB
+ 383   1          sFirst=g_sVideoContrastMatrix[bScalerWin];
+ 384   1          sSecond=sResultTmp1;
+ 385   1          sResult=sResultTmp2;
+ 386   1          ArrayMultiply();
+ 387   1          //ArrayMultiply( g_sVideoContrastMatrix, sResultTmp1, sResultTmp2 );
+ 388   1      
+ 389   1          psOutTab = (short*)sResultTmp2;
+ 390   1      
+ 391   1          // Do color correction
+ 392   1          //ArrayMultiply( tVedioColorCorrectionMatrix, (TypArr)psOutTab, sResultTmp1 );
+ 393   1      
+ 394   1          sFirst=(TypArr)tColorCorrectionMatrix;
+ 395   1          sSecond=(TypArr)psOutTab;
+ 396   1          sResult=sResultTmp1;
+ 397   1          ArrayMultiply();
+ 398   1          //ArrayMultiply( (TypArr)tColorCorrectionMatrix, (TypArr)psOutTab, sResultTmp1 );
+ 399   1      
+ 400   1          psOutTab = (short*)sResultTmp1;
+ 401   1      
+ 402   1          // g_ucBriteComp = sResultTmp1[1][1] >> 6;
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 8   
+
+ 403   1      
+ 404   1          ucBank = _scReadByte(SC0_00); // Backup bank
+ 405   1      
+ 406   1          msDoubleBufferStart();
+ 407   1      
+ 408   1          //msWriteByte(SC0_00, REG_BANK_PIP);//ucColorBank);
+ 409   1          psMatrix=psOutTab;
+ 410   1          msWriteColorMatrix(bScalerWin);
+ 411   1      
+ 412   1      #if (defined(_ACE_MST8556T_) || defined(_ACE_TSUMV_)||defined(_ACE_TSUMC_))
+ 413   1          _scWriteByte(SC0_00, 0x08);
+ 414   1          //msWriteColorMatrix( psOutTab );
+ 415   1              #if Y_MINUS16   //120420 Modify
+ 416   1          if (bScalerWin == MAIN_WINDOW)
+ 417   1              _scWriteByteMask( SC8_81, BIT7|BIT6|BIT5|BIT3, BIT7|BIT6|BIT5|BIT4|BIT3 ); // Enable MainWin color
+             - matrix&Change R/B range Sky110215
+ 418   1          else
+ 419   1              _scWriteByteMask( SC8_80, BIT7|BIT6|BIT5|BIT3, BIT7|BIT6|BIT5|BIT4|BIT3 ); // Enable SubWin color 
+             -matrix&Change R/B range Sky110215
+ 420   1              #else
+                  if (bScalerWin == MAIN_WINDOW) //Jison BIT6 Y minus 16 ctrl by outside
+                      _scWriteByteMask( SC8_81, BIT7|BIT5|BIT3, BIT7|BIT5|BIT4|BIT3 ); // Enable MainWin color matrix&Ch
+             -ange R/B range Sky110215
+                  else
+                      _scWriteByteMask( SC8_80, BIT7|BIT5|BIT3, BIT7|BIT5|BIT4|BIT3 ); // Enable SubWin color matrix&Cha
+             -nge R/B range Sky110215
+                      #endif
+ 426   1      #else
+                  _scWriteByte(SC0_00, 0x03);
+                  #if Y_MINUS16   //120420 Modify
+                          if (bScalerWin == MAIN_WINDOW)
+                           {
+                              _scWriteByteMask( SC3_71, BIT2|BIT0, BIT2|BIT0 );  //0x15
+                               _scWriteByteMask( SC3_70, BIT5|BIT4|BIT2|BIT0|BIT3, BIT5|BIT4|BIT2|BIT1|BIT0|BIT3 );  //0
+             -x15
+                           }
+                          else
+                           {
+                                  _scWriteByteMask( SC3_71, BIT0, BIT2|BIT0 );  //0x15
+                                  _scWriteByteMask( SC3_70, BIT4|BIT2|BIT0|BIT3, BIT4|BIT2|BIT1|BIT0|BIT3 );  //0x15
+                          }
+                  #else
+                         if (bScalerWin == MAIN_WINDOW)
+                          {
+                             _scWriteByteMask( SC3_71, BIT2|BIT0, BIT2|BIT0 );  //0x15
+                              _scWriteByteMask( SC3_70, BIT5|BIT4|BIT2|BIT0, BIT5|BIT4|BIT2|BIT1|BIT0 );  //0x15
+                          }
+                         else
+                          {
+                                 _scWriteByteMask( SC3_71, BIT0, BIT2|BIT0 );  //0x15
+                                 _scWriteByteMask( SC3_70, BIT4|BIT2|BIT0, BIT4|BIT2|BIT1|BIT0 );  //0x15
+                         }
+                  #endif
+              #endif
+ 452   1          //msWriteByte( BK0_72, ucTmpBri );
+ 453   1          //msWriteByte( BK0_73, ucTmpBri );
+ 454   1          //msWriteByte( BK0_74, ucTmpBri );
+ 455   1      
+ 456   1          msDoubleBufferEnd();
+ 457   1      
+ 458   1          _scWriteByte(SC0_00, ucBank); // Restore bank
+ 459   1      }
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 9   
+
+ 460          
+ 461          //Main/Sub
+ 462          #if 0
+              void msAdjustHSC(BYTE bScalerWin,BYTE ucHue, BYTE ucSaturation, BYTE ucContrast)
+              {
+                  g_ucVideoSaturation = ucSaturation;
+                  g_ucVideoContrast = ucContrast;
+                  g_ucVideoHue = ucHue;
+                  SetVideoSatHueMatrix(bScalerWin);
+                  SetVideoContrastMatrix(bScalerWin);
+              
+                  msSetVideoColorMatrix(bScalerWin);
+              }
+              #endif
+ 474          
+ 475          #if MWEFunction
+ 476          
+ 477          //Main/Sub
+ 478          void msAdjustVideoContrast(BYTE bScalerWin, BYTE ucContrast )// 2004/12/8
+ 479          {
+ 480   1          g_ucVideoContrast = ucContrast;
+ 481   1          SetVideoContrastMatrix(bScalerWin);
+ 482   1          msSetVideoColorMatrix( bScalerWin);
+ 483   1      }
+ 484          
+ 485          //Main/Sub
+ 486          void msAdjustVideoSaturation(BYTE bScalerWin, BYTE ucSaturation )
+ 487          {
+ 488   1           g_ucVideoSaturation = ucSaturation;
+ 489   1          SetVideoSatHueMatrix(bScalerWin);
+ 490   1          msSetVideoColorMatrix(bScalerWin);
+ 491   1      }
+ 492          
+ 493          //Main/Sub
+ 494          void msAdjustVideoHue(BYTE bScalerWin, BYTE ucHue )
+ 495          {
+ 496   1          g_ucVideoHue = ucHue;
+ 497   1          SetVideoSatHueMatrix(bScalerWin);
+ 498   1          msSetVideoColorMatrix( bScalerWin);
+ 499   1      }
+ 500          
+ 501          
+ 502          //Main/Sub
+ 503          void msAdjustSubBrightness(BYTE bScalerWin,  BYTE u8brightnessR, BYTE u8brightnessG, BYTE u8brightnessB )
+ 504          {
+ 505   1        BYTE LOCAL_TYPE ucBank;
+ 506   1      
+ 507   1      #if defined(_ACE_MST8556T_) || defined(_ACE_TSUMV_)||defined(_ACE_TSUMC_)
+ 508   1      
+ 509   1          //WORD wSubBrightness = ((WORD)u8brightness)<<3;
+ 510   1          WORD wAddr;
+ 511   1      
+ 512   1          ucBank = _scReadByte(SC0_00); // Backup bank
+ 513   1      
+ 514   1          if(bScalerWin == MAIN_WINDOW)
+ 515   1              wAddr = SC8_62;
+ 516   1          else
+ 517   1              wAddr = SC8_68;
+ 518   1      
+ 519   1          _scWriteByte(SC0_00, 0x08);
+ 520   1         #if defined(_ACE_TSUMV_)
+                  u8brightnessR -= 0x80;  //120425 Modify
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 10  
+
+                  
+                  u8brightnessG -= 0x80;  //120425 Modify 
+                  
+                  u8brightnessB -= 0x80;  //120425 Modify 
+                
+                  _scWrite2Byte( wAddr, u8brightnessR );
+                  _scWrite2Byte( wAddr+2, u8brightnessG );
+                  _scWrite2Byte( wAddr+4, u8brightnessB );
+                #elif defined(_ACE_TSUMC_)
+ 531   1          if(IS_RGB_RANGE_LIMITED)            //130723 gordon
+ 532   1              {
+ 533   2                    u8brightnessR=u8brightnessR-(8);//16*1.18
+ 534   2                    u8brightnessG=u8brightnessG-(8);
+ 535   2                    u8brightnessB=u8brightnessB-(8);
+ 536   2                        
+ 537   2                          _scWrite2Byte( wAddr, (((WORD)u8brightnessR)<<3)-0x400 );
+ 538   2                          _scWrite2Byte( wAddr+2, (((WORD)u8brightnessG)<<3)-0x400 );
+ 539   2                          _scWrite2Byte( wAddr+4, (((WORD)u8brightnessB)<<3)-0x400 );
+ 540   2              }
+ 541   1              else
+ 542   1              {
+ 543   2      
+ 544   2                          _scWrite2Byte( wAddr, (((WORD)u8brightnessR)<<3)-0x400 );
+ 545   2                          _scWrite2Byte( wAddr+2, (((WORD)u8brightnessG)<<3)-0x400 );
+ 546   2                          _scWrite2Byte( wAddr+4, (((WORD)u8brightnessB)<<3)-0x400 );
+ 547   2      
+ 548   2              }
+ 549   1        #else
+                  _scWrite2Byte( wAddr, (((WORD)u8brightnessR)<<3) );
+                  _scWrite2Byte( wAddr+2, (((WORD)u8brightnessG)<<3) );
+                  _scWrite2Byte( wAddr+4, (((WORD)u8brightnessB)<<3) );
+                #endif
+ 554   1          _scWriteByte(SC0_00, ucBank);
+ 555   1      
+ 556   1      #else
+                  ucBank = _scReadByte(SC0_00);
+                  if(bScalerWin == MAIN_WINDOW)
+                  {
+                      _scWriteByte(SC0_00, 0x00); // Bank 0
+              
+                      _scWriteByte(SC0_2B, u8brightnessR);
+                      _scWriteByte(SC0_2C, u8brightnessG);
+                      _scWriteByte(SC0_2D, u8brightnessB);
+                  }
+                  else
+                  {
+                      _scWriteByte(SC0_00, 0x03); // Bank 3
+              
+                      _scWriteByte(SC3_72, u8brightnessR);
+                      _scWriteByte(SC3_73, u8brightnessG);
+                      _scWriteByte(SC3_74, u8brightnessB);
+                  }
+                _scWriteByte(SC0_00, ucBank);
+                #endif
+ 576   1      }
+ 577          #endif
+ 578          
+ 579          
+ 580          
+ 581          #if 1
+ 582          //Main/Sub
+ 583          void msAdjustVideoRGB( BYTE bScalerWin, BYTE ucRed, BYTE ucGreen, BYTE ucBlue )
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 11  
+
+ 584          {
+ 585   1          msAdjustVideoContrastRGB( bScalerWin, g_ucVideoContrast, ucRed, ucGreen, ucBlue );
+ 586   1      }
+ 587          
+ 588          void msAdjustVideoContrastRGB(BYTE bScalerWin, BYTE ucContrast, BYTE ucRCon, BYTE ucGCon, BYTE ucBCon)
+ 589          {
+ 590   1          g_ucVideoContrast = ucContrast;
+ 591   1          g_ucVideoRCon = ucRCon;
+ 592   1          g_ucVideoGCon = ucGCon;
+ 593   1          g_ucVideoBCon = ucBCon;
+ 594   1          SetVideoContrastMatrix(bScalerWin);
+ 595   1          msSetVideoColorMatrix(bScalerWin);
+ 596   1      }
+ 597          #endif
+ 598          
+ 599          #if ENABLE_MAIN_NEW3X3
+ 600          void SetPCConRGBMatrix(BYTE bScalerWin)
+ 601          {
+ 602   1          g_sPCConRGBMatrix[bScalerWin][0][0] = ( (WORD)g_ucPCRCon * (g_ucPCContrast)) >> 4;
+ 603   1          g_sPCConRGBMatrix[bScalerWin][1][1] = ( (WORD)g_ucPCGCon * (g_ucPCContrast)) >> 4;
+ 604   1          g_sPCConRGBMatrix[bScalerWin][2][2] = ( (WORD)g_ucPCBCon * (g_ucPCContrast)) >> 4;
+ 605   1      }
+ 606          
+ 607          //Main/Sub
+ 608          static void msSetPCColorMatrix( BYTE bScalerWin )
+ 609          {
+ 610   1          //XDATA short sResultTmp1[3][3];
+ 611   1          //XDATA short sResultTmp2[3][3];
+ 612   1          BYTE ucBank;//, ucColorBank;
+ 613   1          short* psOutTab;
+ 614   1      
+ 615   1          //BYTE ucReg70Val;
+ 616   1          ucBank = _scReadByte(SC0_00);
+ 617   1          //ucColorBank = REG_BANK_PIP;
+ 618   1          psOutTab = (short*)g_sPCConRGBMatrix;
+ 619   1      
+ 620   1          {
+ 621   2              //ucReg70Val = 0x80;//ucReg70Val = 0x30;
+ 622   2          }
+ 623   1      
+ 624   1          msDoubleBufferStart();
+ 625   1      
+ 626   1          //msWriteByte(BK0_00, ucColorBank);
+ 627   1          psMatrix=psOutTab;
+ 628   1          msWriteColorMatrix(bScalerWin);// psOutTab );
+ 629   1          //msWriteByte(BK3_70, ucReg70Val);
+ 630   1      #if defined(_ACE_MST8556T_) || defined(_ACE_TSUMV_)||defined(_ACE_TSUMC_)
+ 631   1          _scWriteByte(SC0_00, 0x08);
+ 632   1              #if Y_MINUS16   //120503 Modify
+ 633   1                  if(bScalerWin == MAIN_WINDOW) //Jison BIT6 Y minus 16 ctrl by outside
+ 634   1                      _scWriteByteMask(SC8_81, BIT7, BIT7|BIT6|BIT5|BIT4|BIT3); //color matrix enable
+ 635   1                  else
+ 636   1                      _scWriteByteMask(SC8_80, BIT7, BIT7|BIT6|BIT5|BIT4|BIT3);
+ 637   1              #else
+                          if(bScalerWin == MAIN_WINDOW) //Jison BIT6 Y minus 16 ctrl by outside
+                              _scWriteByteMask(SC8_81, BIT7, BIT7|BIT5|BIT4|BIT3); //color matrix enable
+                          else
+                              _scWriteByteMask(SC8_80, BIT7, BIT7|BIT5|BIT4|BIT3);
+                      #endif
+ 643   1      #else
+                  _scWriteByte(SC0_00, 0x03);
+                  #if Y_MINUS16   //120503 Modify
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 12  
+
+                      if(bScalerWin == MAIN_WINDOW)
+                          {
+                          _scWriteByteMask(SC3_71, BIT2, BIT2);
+                          _scWriteByteMask( SC3_70,BIT5|BIT4, BIT5|BIT4|BIT3|BIT2|BIT1|BIT0 );  //0x10        //120919 Modify
+                          }
+                      else
+                          {
+                          _scWriteByteMask(SC3_71, 0, BIT2);
+                          _scWriteByteMask( SC3_70, BIT5|BIT4|BIT2|BIT0, BIT5|BIT4|BIT3|BIT2|BIT1|BIT0 );     //120919 Modif
+             -y  
+                          }
+                  #else
+                      if(bScalerWin == MAIN_WINDOW)
+                          {
+                          _scWriteByteMask(SC3_71, BIT2, BIT2);
+                          _scWriteByteMask( SC3_70,BIT5|BIT4, BIT5|BIT4|BIT2|BIT1|BIT0 );  //0x10
+                          }
+                      else
+                          {
+                          _scWriteByteMask(SC3_71, 0, BIT2);
+                          _scWriteByteMask( SC3_70, BIT5|BIT4|BIT2|BIT0, BIT5|BIT4|BIT2|BIT1|BIT0 );  
+                          }
+                   #endif
+                  //Jison BIT3 Y minus 16 ctrl by outside
+                      
+              #endif
+ 671   1          msDoubleBufferEnd();
+ 672   1          _scWriteByte(SC0_00, ucBank);
+ 673   1          //msWriteByte(BK0_00, ucBank);
+ 674   1      }
+ 675          #endif
+ 676          
+ 677          #if ENABLE_MAIN_NEW3X3
+ 678          
+ 679          //Main/Sub
+ 680          void msAdjustPCContrastRGB( BYTE bScalerWin, BYTE ucContrast, BYTE ucRed, BYTE ucGreen, BYTE ucBlue )
+ 681          {
+ 682   1      
+ 683   1              if(IS_RGB_RANGE_LIMITED)        //130624 nick add
+ 684   1              {
+ 685   2                     msAdjustSubBrightness(MAIN_WINDOW,128,128,128);
+ 686   2                      g_ucPCContrast=ucContrast*1.18;         //130723 gordon
+ 687   2                      //printData("g_ucPCContrast==%d", g_ucPCContrast);
+ 688   2                      //printData("g_ucPCContrastR==%d", ucRed);
+ 689   2                      //printData("g_ucPCContrast==%d", ucGreen);
+ 690   2                      //printData("g_ucPCContrast==%d", ucBlue);
+ 691   2      
+ 692   2              }
+ 693   1              else
+ 694   1                      g_ucPCContrast = ucContrast;
+ 695   1          g_ucPCRCon = ucRed;
+ 696   1          g_ucPCGCon = ucGreen;
+ 697   1          g_ucPCBCon = ucBlue;
+ 698   1          SetPCConRGBMatrix(bScalerWin);
+ 699   1          msSetPCColorMatrix( bScalerWin );
+ 700   1      }
+ 701          
+ 702          //Main/Sub
+ 703          void msAdjustPCContrast( BYTE bScalerWin, BYTE ucContrast )
+ 704          {
+ 705   1          msAdjustPCContrastRGB( bScalerWin, ucContrast, g_ucPCRCon, g_ucPCGCon, g_ucPCBCon );
+ 706   1      }
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 13  
+
+ 707          
+ 708          //Main/Sub
+ 709          void msAdjustPCRGB( BYTE bScalerWin, BYTE ucRed, BYTE ucGreen, BYTE ucBlue )
+ 710          {
+ 711   1          msAdjustPCContrastRGB( bScalerWin, g_ucPCContrast, ucRed, ucGreen, ucBlue );
+ 712   1      }
+ 713          #endif
+ 714          
+ 715          
+ 716          /////////////////////////////////////////////////////////////////////
+ 717          // ACC
+ 718          /////////////////////////////////////////////////////////////////////
+ 719          
+ 720          #define ACC_H_POS       (PANEL_H_START+PANEL_WIDTH/4)
+ 721          #define ACC_V_POS       (PANEL_HEIGHT/4)
+ 722          #define ACC_H_SIZE      PANEL_WIDTH/2
+ 723          #define ACC_V_SIZE      PANEL_HEIGHT/2
+ 724          
+ 725          #define ACC_H_POS_SPLIT       (PANEL_H_START+PANEL_WIDTH/2)
+ 726          #define ACC_V_POS_SPLIT       (0)
+ 727          #define ACC_H_SIZE_SPLIT      PANEL_WIDTH/2
+ 728          #define ACC_V_SIZE_SPLIT      PANEL_HEIGHT
+ 729          
+ 730          #define ACC_H_POS_FULL       (PANEL_H_START)
+ 731          #define ACC_V_POS_FULL       (0)
+ 732          #define ACC_H_SIZE_FULL      PANEL_WIDTH
+ 733          #define ACC_V_SIZE_FULL      PANEL_HEIGHT
+ 734          
+ 735          // para[0]: flag
+ 736          // para[1~2]:H-Start
+ 737          // para[3~4]:V-Start
+ 738          // para[5~6]:H-Size
+ 739          // para[7~8]:V-Size
+ 740          
+ 741          
+ 742          XDATA WORD g_uiHStart;
+ 743          XDATA WORD g_uiHEnd;
+ 744          XDATA WORD g_uiVStart;
+ 745          XDATA WORD g_uiVEnd;
+ 746          /*
+ 747          
+ 748          #if CHIP_ID == CHIP_TSUM2 || CHIP_ID == CHIP_TSUMV||CHIP_ID == CHIP_TSUMC||CHIP_ID == CHIP_TSUMD||CHIP_ID 
+             -== CHIP_TSUM9        //121108 Modify
+ 749          #define WAIT_V_OUTPUT_BLANKING_START()   { if(!SyncLossState()&&PanelOnFlag){SetTimOutConter(30);while(((m
+             -sReadByte(SC0_E0)&BIT0)==0)&&bTimeOutCounterFlag);\
+ 750                                                  SetTimOutConter(30);while(((msReadByte(SC0_E0)&BIT0)!=0)&&bTimeOut
+             -CounterFlag);}}//20130227 modify for DC OFF issue
+ 751          #endif
+ 752          */
+ 753          
+ 754          #if MWEFunction
+ 755          
+ 756          void msAccSetup( WORD phstart_point, WORD phend_point, WORD pvstart_point, WORD pvend_point)
+ 757          //void msAccSetup()
+ 758          {
+ 759   1          BYTE LOCAL_TYPE ucBank;
+ 760   1          WORD LOCAL_TYPE panel_h_start;
+ 761   1          #ifdef _ACE_MST8556T_
+                  //BYTE LOCAL_TYPE u8HDiv=(phstart_point&0x8000?2:1); //Jison 110322
+                  BYTE LOCAL_TYPE u8HDiv=2; //Jison 110322
+                  #else
+ 765   1          BYTE LOCAL_TYPE u8HDiv=1; //Jison 110322
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 14  
+
+ 766   1          #endif
+ 767   1          g_uiHStart = (phstart_point&0x7FFF)/u8HDiv; //Jison 110322, bit15 is used to indicate H divider=2 if s
+             -et
+ 768   1          g_uiHEnd = phend_point/u8HDiv; //Jison 110322
+ 769   1          g_uiVStart = pvstart_point;
+ 770   1          g_uiVEnd = pvend_point;
+ 771   1      
+ 772   1          #if 0
+                  if(!SupportMWE())
+                      return;
+                  #endif
+ 776   1          ucBank = _scReadByte( SC0_00 );
+ 777   1      
+ 778   1          _scWriteByte(SC0_00, 0x00);
+ 779   1          panel_h_start=_scRead2Byte(SC0_12); // Hor. DE start
+ 780   1      
+ 781   1          g_uiHStart = g_uiHStart + panel_h_start;
+ 782   1          g_uiHEnd   = g_uiHEnd   + panel_h_start;
+ 783   1      #if 1//def _ACE_MST8556T_// for MST8556T
+ 784   1              #if CHIP_ID == CHIP_TSUMD||CHIP_ID == CHIP_TSUMC||CHIP_ID == CHIP_TSUM9 ||CHIP_ID == CHIP_TSUMF//130924 x
+             -iandi
+ 785   1              if(g_uiHEnd>g_uiHStart)
+ 786   1              #endif
+ 787   1          g_uiHEnd -=1;
+ 788   1      #endif
+ 789   1              #if CHIP_ID == CHIP_TSUM2 || CHIP_ID == CHIP_TSUMV||CHIP_ID == CHIP_TSUMC||CHIP_ID == CHIP_TSUMD||CHIP_ID
+             - == CHIP_TSUM9 ||CHIP_ID == CHIP_TSUMF        //121108 Modify
+ 790   1              WAIT_V_OUTPUT_BLANKING_START();
+ 791   1              #else
+                      mStar_WaitForDataBlanking();    //111223 Modify
+                      #endif
+ 794   1          _scWriteByte(SC0_00, 0x03);
+ 795   1          _scWrite2Byte(SC3_18,g_uiHStart);
+ 796   1          _scWrite2Byte(SC3_1C,g_uiHEnd);
+ 797   1      
+ 798   1          _scWrite2Byte(SC3_1E,g_uiVStart);
+ 799   1          _scWrite2Byte(SC3_1A,g_uiVEnd);
+ 800   1      
+ 801   1          _scWriteByte(SC0_00, ucBank);
+ 802   1      
+ 803   1      }
+ 804          void msAccOnOff( BYTE on )
+ 805          {
+ 806   1          BYTE LOCAL_TYPE ucBank=_scReadByte(SC0_00);
+ 807   1          //WORD LOCAL_TYPE time_out;
+ 808   1          //WORD LOCAL_TYPE hstart,vstart;
+ 809   1      
+ 810   1          #if 0
+                  if(!SupportMWE())
+                      return;
+                  #endif
+ 814   1      
+ 815   1          //msWriteByte(BK0_32, 0x01);//0x00);
+ 816   1              mStar_WaitForDataBlanking();    //120204 Modify
+ 817   1      #ifdef _ACE_MST8556T_//forMST8556T
+                  _scWriteByte(SC0_00, 0x03);
+                  if(on != 0)
+                  {
+                      g_bAccOnOff = TRUE;
+                      _scWriteByteMask(SC3_17, BIT0, BIT0);
+                  }
+                  else
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 15  
+
+                  {
+                      g_bAccOnOff = FALSE;
+                      _scWriteByteMask( SC3_17, 0, BIT0 );
+                  }
+              
+                  _scWriteByte(SC0_00, ucBank);
+              #else //_ACE_TSUMV_
+ 832   1          _scWriteByte(SC0_00, 0x00);
+ 833   1          if(on != 0)
+ 834   1          {
+ 835   2              g_bAccOnOff = TRUE;
+ 836   2              _scWriteByteMask(SC0_5C, BIT3, BIT3);
+ 837   2          }
+ 838   1          else
+ 839   1          {
+ 840   2              g_bAccOnOff = FALSE;
+ 841   2              _scWriteByteMask( SC0_5C, 0, BIT3 );
+ 842   2          }
+ 843   1      
+ 844   1          _scWriteByte(SC0_00, ucBank);
+ 845   1      #endif
+ 846   1      }
+ 847          
+ 848          #endif
+ 849          
+ 850          #if 1
+ 851          #define INIT_SUBWIN_PEAKING_CTL     0x03
+ 852          #define INIT_SUBWIN_CORING          0x44
+ 853          #define INIT_SUBWIN_CTI             0x90
+ 854          //#define INIT_SUBWIN_LTI             0x4C
+ 855          
+ 856          void InitialPeaking(void)
+ 857          {
+ 858   1        BYTE u8Bank=_scReadByte(SC0_00);
+ 859   1      #if defined(_ACE_MST8556T_) || defined(_ACE_TSUMV_)//MST8556T
+                _scWriteByte(SC0_00,0x07);
+                _scWriteByteMask( SC7_20, BIT0,BIT0 );    // enable peaking of main window
+                _scWriteByte( SC7_64, 0x05 );    // enable peaking of main window
+                _scWriteByteMask( SC7_3B, BIT0,BIT0 );    // enable peaking of sub window
+                _scWriteByte(SC7_21, INIT_SUBWIN_CORING); //Jison 110323, 0x00 will cause native timing too sharp while 
+             -OSD sharpness 100%
+                _scWriteByte(SC7_3C, INIT_SUBWIN_CORING);
+              
+                _scWriteByte(SC0_00,0x08);
+                _scWriteByteMask(SC8_61, BIT6, BIT6);//Enable sub bri function
+              #elif defined(_ACE_TSUMC_)
+ 870   1            BYTE uci;
+ 871   1            _scWriteByte(SC0_00,0x08);
+ 872   1            _scWriteByteMask(SC8_61, BIT6, BIT6);//Enable sub bri function
+ 873   1            _scWriteByte(SC0_00,0x0B);
+ 874   1            //Over/Under shoort Setting  //main and sub use the same setting
+ 875   1            for( uci = 0; uci < 8; uci ++ )
+ 876   1            {
+ 877   2                 _scWriteByteMask(SCB_40+uci, 0xFF,0xFF);       //overshoort¡GSCB_40~SCB_47
+ 878   2                 _scWriteByteMask(SCB_48+uci, 0xFF,0xFF);       //undershoort¡GSCB_48~SCB_4F
+ 879   2            }   
+ 880   1            for( uci = 0; uci < 4; uci ++ )
+ 881   1            {   //Term Setting for main win
+ 882   2                 _scWriteByteMask(SCB_38+uci*2  , (uci*2<<4)|(uci*2+1)  ,0x77);     
+ 883   2                 _scWriteByteMask(SCB_38+uci*2+1, (uci*2<<4)|(uci*2+1) ,0x77);      
+ 884   2                //Term Setting for sub win   
+ 885   2                 _scWriteByteMask(SCB_58+uci*2  , (uci*2<<4)|(uci*2+1)  ,0x77);     
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 16  
+
+ 886   2                 _scWriteByteMask(SCB_58+uci*2+1, (uci*2<<4)|(uci*2+1) ,0x77);      
+ 887   2            }   
+ 888   1            //_scWriteByteMask( SCB_20, BIT0    , BIT0 );   //main post peaking enable, Setting in msAdjustSharp
+             -ness()
+ 889   1            _scWriteByteMask( SCB_21, 0x01  , 0xFF );   //main Bank1 peaking enable
+ 890   1        
+ 891   1            //_scWriteByteMask( SCB_28, BIT0    , BIT0 );   //sub post peaking enable, Setting in msAdjustSharpn
+             -ess()
+ 892   1            _scWriteByteMask( SCB_29, 0x01  , 0xFF );   //sub Bank1~8 peaking enable
+ 893   1            //main win Post Coring Setting
+ 894   1            _scWriteByteMask( SCB_26, 0x42  , 0xFF );           //[7:4]:Coring_TH_2 ,[3:0]:Coring_TH_1
+ 895   1            //sub win Post Coring Setting
+ 896   1            _scWriteByteMask( SCB_2E, 0x42  , 0xFF );           //[7:4]:Coring_TH_2 ,[3:0]:Coring_TH_1
+ 897   1            //coring step - default
+ 898   1            _scWriteByteMask( SCB_61, 0x33  , 0x33 );           //[5:4]:Sub Coring_TH_Step ,[1:0]:Main Coring_TH
+             -_Step
+ 899   1      
+ 900   1      #else
+                _scWriteByte(SC0_00, 0x03);
+                // brightness
+                _scWriteByte(SC3_71, 0x01);
+                _scWriteByte(SC3_72, 0x70);
+                _scWriteByte(SC3_73, 0x70);
+                _scWriteByte(SC3_74, 0x70);
+              
+                #if 1//CHIP_TSUMA
+                _scWriteByteMask(SC3_3B,BIT0,BIT0); //enable MWE peaking
+                _scWriteByte(SC3_3E,0xFF);
+                _scWriteByte(SC3_3F,0xFF);
+                _scWriteByte(SC3_4E,0xFF);
+                _scWriteByte(SC3_4F,0xFF);
+                _scWriteByte(SC0_00, 0x00);
+                _scWriteByteMask(SC0_5C,BIT0,BIT0); //enable main wnd peaking
+                #endif
+              #endif
+ 918   1        _scWriteByte(SC0_00,u8Bank);
+ 919   1      }
+ 920          void msAdjustSharpness(BYTE bScalerWin ,BYTE ucSharpness, BYTE ucStep )
+ 921          {
+ 922   1          BYTE LOCAL_TYPE ucBank;
+ 923   1          BYTE LOCAL_TYPE ucTmp = 0;
+ 924   1          ucBank = _scReadByte(SC0_00);
+ 925   1          
+ 926   1      #if defined(_ACE_TSUMV_)
+                  _scWriteByte(SC0_00, 0x07);
+                  if(bScalerWin == MAIN_WINDOW)
+                  {
+                      _scWriteByteMask(SC7_3B, BIT4, BIT4);
+                      if( NO_CHANGE_SHARPNESS == ucSharpness )
+                          ucSharpness = _scReadByte(SC7_23)&0x1F;    // MWE window Y peaking coefficient
+                      else
+                      {
+                          ucSharpness&=0x3F;
+                          if (ucSharpness>=0x20)
+                              ucSharpness-=0x20;
+                          else
+                              ucSharpness=0x40-ucSharpness;                
+                      }
+              
+                      if( NO_CHANGE_STEP == ucStep )
+                          ucStep = _scReadByte(SC7_23)&0x40;                 // MWE window peaking step
+                      else
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 17  
+
+                          ucStep<<=6;
+                      
+                      _scWriteByte(SC7_23, (ucStep)| ucSharpness); // Bank 3
+                  }
+                  else
+                  {
+                      if( NO_CHANGE_SHARPNESS == ucSharpness )
+                          ucSharpness = _scReadByte(SC7_3F)&0x1F;    // MWE window Y peaking coefficient
+                      else
+                      {
+                          ucSharpness&=0x3F;
+                          if (ucSharpness>=0x20)
+                              ucSharpness-=0x20;
+                          else
+                              ucSharpness=0x40-ucSharpness;                
+                      }
+                      if( NO_CHANGE_STEP == ucStep )
+                          ucStep = _scReadByte(SC7_3B)&BIT4;                 // MWE window peaking step
+                      else
+                          ucStep=(ucStep?0:BIT4);
+              
+                      _scWriteByte(SC7_3B,  _scReadByte(SC7_3B)&(~BIT4)|ucStep); //Peaking Coefficient Extension as x.xx
+             -xx.
+                      _scWriteByte(SC7_3F,  ucSharpness);
+              
+                  }
+              #elif defined(_ACE_TSUMC_) // Sharpness gain, SCB_27: xx.xxxx foramt, band1 coef(sharp or blur), SCB_30: x
+             -xx.xxx format
+ 971   1          
+ 972   1              _scWriteByte(SC0_00, 0x0B);
+ 973   1          
+ 974   1              ucSharpness&=0x3F;
+ 975   1              ucStep&=0x03;
+ 976   1          
+ 977   1              if(bScalerWin == MAIN_WINDOW)
+ 978   1              {
+ 979   2                  _scWriteByte(SCB_27,  0x3F);    //gain for all band
+ 980   2                  _scWriteByte(SCB_30,  ucSharpness); //bank1 coeff
+ 981   2                  _scWriteByte(SCB_22,  (ucStep<<6 |ucStep<<4|ucStep<<2|ucStep)); //for band1~4
+ 982   2                  _scWriteByte(SCB_23,  (ucStep<<6 |ucStep<<4|ucStep<<2|ucStep)); //for band5~8
+ 983   2                  _scWriteByteMask( SCB_20, BIT0  , BIT0 );   //main post peaking enable      
+ 984   2              }
+ 985   1              else
+ 986   1              {
+ 987   2                  _scWriteByte(SCB_2F,  0x3F);    //gain for all band
+ 988   2                  _scWriteByte(SCB_50,  ucSharpness); //bank1 coeff
+ 989   2                  _scWriteByte(SCB_2A,  (ucStep<<6 |ucStep<<4|ucStep<<2|ucStep)); //for band1~4
+ 990   2                  _scWriteByte(SCB_2B,  (ucStep<<6 |ucStep<<4|ucStep<<2|ucStep)); //for band5~8
+ 991   2                  _scWriteByteMask( SCB_28, BIT0  , BIT0 );   //sub post peaking enable
+ 992   2              }
+ 993   1              
+ 994   1      
+ 995   1          
+ 996   1      #elif defined(_ACE_MST8556T_) 
+                  _scWriteByte(SC0_00, 0x07);
+                  if(bScalerWin == MAIN_WINDOW)
+                  {
+                      if( NO_CHANGE_SHARPNESS == ucSharpness )
+                          ucSharpness = _scReadByte(SC7_23)&0x1F;    // MWE window Y peaking coefficient
+                      else
+                          ucSharpness&=0x1F;
+              
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 18  
+
+                      if( NO_CHANGE_STEP == ucStep )
+                          ucStep = _scReadByte(SC7_23)&0x40;                 // MWE window peaking step
+                      else
+                          ucStep<<=6;
+              
+                      _scWriteByte(SC7_23, (ucStep)| ucSharpness); // Bank 3
+                  }
+                  else
+                  {
+                      if( NO_CHANGE_SHARPNESS == ucSharpness )
+                          ucSharpness = _scReadByte(SC7_3F)&0x1F;    // MWE window Y peaking coefficient
+                      else
+                          ucSharpness&=0x1F;
+              
+                      if( NO_CHANGE_STEP == ucStep )
+                          ucStep = _scReadByte(SC7_3F)&0xC0;                 // MWE window peaking step
+                      else
+                          ucStep<<=6;
+              
+                      _scWriteByte(SC7_3F, (ucStep)| ucSharpness); // Bank 3
+              
+                  }
+              #else //CHIP_TSUMA, not checked in CHIP_TSUML
+                  if(bScalerWin == MAIN_WINDOW)
+                  {
+                      if( NO_CHANGE_SHARPNESS == ucSharpness )
+                      {
+                          _scWriteByte(SC0_00, 0x00); // Bank 0
+                          ucSharpness = _scReadByte(SC0_5D)&(BIT4|BIT3|BIT2|BIT1|BIT0);  // main window peaking coeffici
+             -ent
+                      }
+                      if( NO_CHANGE_STEP == ucStep )
+                      {
+                          _scWriteByte(SC0_00, 0x03); // Bank 3
+                          ucStep = _scReadByte(SC3_50)&BIT7;                 // SC3_50[7] enable bit
+                      }
+              
+                      _scWriteByte(SC0_00, 0x00); // Bank 0
+                      _scWriteByteMask( SC0_5D, ucSharpness, (BIT4|BIT3|BIT2|BIT1|BIT0) );  // MWE window peaking coeffi
+             -cient
+              
+                      {
+                              _scWriteByte(SC0_00, 0x03); // Bank 3
+                              _scWriteByteMask( SC3_50, ucSharpness, (BIT4|BIT3|BIT2|BIT1|BIT0) );  // MWE window peaking coeff
+             -icient
+              
+                              _scWriteByteMask( SC3_50, (ucStep?BIT7:0), BIT7 );                   // SC3_50[7] enable bit
+                      }
+                  }
+                  else
+                  {
+                      _scWriteByte(SC0_00, 0x03); // Bank 3
+                      if( NO_CHANGE_SHARPNESS == ucSharpness )
+                      {
+                          ucSharpness = _scReadByte(SC3_41)&(BIT4|BIT3|BIT2|BIT1|BIT0);  // MWE window peaking coefficie
+             -nt
+                      }
+                      if( NO_CHANGE_STEP == ucStep )
+                      {
+                          ucStep = _scReadByte(SC3_51)&BIT7;                 // SC3_51[7] enable bit
+                      }
+              
+C51 COMPILER V9.01   MSACE                                                                 03/09/2023 15:39:05 PAGE 19  
+
+                      _scWriteByteMask( SC3_41, ucSharpness, (BIT4|BIT3|BIT2|BIT1|BIT0) );  // MWE window peaking coeffi
+             -cient
+                      _scWriteByteMask( SC3_51, ucSharpness, (BIT4|BIT3|BIT2|BIT1|BIT0) );  // MWE window peaking coeffi
+             -cient
+              
+                      _scWriteByteMask( SC3_51, (ucStep?BIT7:0), BIT7 );                   // SC3_51[7] enable bit
+                  }
+              #endif
+1069   1          _scWriteByte(SC0_00, ucBank);
+1070   1      }
+1071          
+1072          #endif
+1073          
+1074          
+1075          //XDATA BYTE g_ucVideoContrast;
+1076          //XDATA BYTE g_ucVideoSaturation;
+1077          //XDATA BYTE g_ucVideoHue;
+1078          
+1079          //void LoadACETable(BYTE * pColorTable)// 2004/11/2
+1080          //Main/Sub
+1081          #if 0
+              void LoadACETable(BYTE bScalerWin, BYTE * pColorTable,BYTE ucHue,BYTE ucSaturation,BYTE ucSubContrast)// 2
+             -004/11/2
+              {
+                  //LOCAL_TYPE BYTE *pColorTable;
+                  //pColorTable=ppColorTable;
+                  g_ucVideoHue = ucHue;
+                  g_ucVideoSaturation = ucSaturation;
+                  g_ucVideoContrast = ucSubContrast;
+                  // color correct
+                  tColorCorrectionMatrix=(short *)pColorTable;
+                  msAdjustHSC(bScalerWin, g_ucVideoHue,g_ucVideoSaturation,g_ucVideoContrast);
+              }
+              #endif
+1094          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3372    ----
+   CONSTANT SIZE    =     36    ----
+   XDATA SIZE       =    149      60
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      39
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

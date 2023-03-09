@@ -1,0 +1,149 @@
+C51 COMPILER V9.01   MISC                                                                  03/09/2023 15:39:06 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE MISC
+OBJECT MODULE PLACED IN .\obj\misc.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\KERNEL\SYSTEM\misc.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\DRIVER\INC;.
+                    -.\..\KERNEL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..\..\KERNEL\S
+                    -YSTEM\INC\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\UI\HkcOsd\IN
+                    -C) DEFINE(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\misc.lst) OBJECT(.\obj\misc.obj)
+
+line level    source
+
+   1          #include <intrins.h>
+   2          #include "types.h"
+   3          #include "board.h"
+   4          #include "global.h"
+   5          #if     (MS_PM)
+   6          #include "ms_pm.h"
+   7          #endif
+   8          
+   9          #define DelayPeriod ((WORD)CPU_CLOCK_MHZ*78/12)
+  10          void Delay4us(void)
+  11          {
+  12   1         #if Enable_Cache    // jeff 12 22 for cache add it 
+  13   1         BYTE i;  
+  14   1      
+  15   1          for(i=0;i<70;i++) // 50 090421 100 090417 
+  16   1          {
+  17   2              _nop_();
+  18   2              _nop_();
+  19   2          }
+  20   1      
+  21   1         #else
+                      _nop_();
+                      _nop_();
+                      _nop_();
+                      _nop_();
+                      _nop_();
+                      _nop_();
+                  #endif 
+  29   1      #if (MS_PM)
+  30   1              if( g_bMcuPMClock )
+  31   1              {
+  32   2                      BYTE i;
+  33   2                      for( i = 0; i < PM_DELAY4US_LOOP; i++ )
+  34   2                      {
+  35   3                              _nop_();
+  36   3                              _nop_();
+  37   3                              _nop_();
+  38   3                              _nop_();
+  39   3                              _nop_();
+  40   3                              _nop_();
+  41   3                              _nop_();
+  42   3                      }
+  43   2              }        
+  44   1      #endif
+  45   1      }
+  46          
+  47          extern BYTE xdata rxStatus;
+  48          void Delay1ms(WORD msNums)
+  49          {
+  50   1          if(!msNums)
+  51   1              return;
+  52   1          
+C51 COMPILER V9.01   MISC                                                                  03/09/2023 15:39:06 PAGE 2   
+
+  53   1          DelayCounter = msNums;
+  54   1          bDelayFlag = 1;
+  55   1          while(bDelayFlag)
+  56   1          {
+  57   2              if(InputTimingChangeFlag)
+  58   2              {
+  59   3                  DelayCounter = 0;
+  60   3                  bDelayFlag = 0;
+  61   3                  break;
+  62   3              }
+  63   2          }
+  64   1      }
+  65          
+  66          void ForceDelay1ms(WORD msNums)
+  67          { 
+  68   1          if(!msNums)
+  69   1              return;
+  70   1          
+  71   1          DelayCounter = msNums;
+  72   1          bDelayFlag = 1;
+  73   1          while(bDelayFlag);
+  74   1      }
+  75          
+  76          BYTE GetVSyncTime(void)
+  77          {
+  78   1          WORD freq;
+  79   1      #if ENABLE_FREESYNC
+                      if(IS_DP_FREESYNC())
+                      {
+                          WORD u16PixClk, u16Htt;
+                  
+                          u16PixClk = msAPI_combo_IPGetPixelClk();
+                          u16Htt = msAPI_combo_IPGetGetHTotal();
+                          if((u16Htt!=0)&&(SrcVTotal!=0))
+                          {
+                              freq = ((DWORD)u16PixClk * 100 + u16Htt/2)/u16Htt;
+                          }
+                      }
+                      else
+              #endif
+  93   1          {
+  94   2          freq = HFreq( SrcHPeriod ); //get hfreq round 5
+  95   2          }
+  96   1          freq = ((WORD)SrcVTotal *10+(freq / 2)) / freq;
+  97   1          return (BYTE)freq;
+  98   1      }
+  99          
+ 100          #if ENABLE_HDCP
+ 101                  #if HDCPKEY_IN_Flash
+ 102                          WORD CRC16(BYTE nData, WORD nCRC)
+ 103                          {
+ 104   1                              BYTE nMask;
+ 105   1                              Bool fFeedback;
+ 106   1                              for (nMask = 0x80; nMask; nMask >>= 1)
+ 107   1                              {
+ 108   2                                      fFeedback = (Bool)(((nCRC &0x8000) ? 1 : 0) ^ ((nMask &nData) ? 1 : 0));
+ 109   2                                      nCRC <<= 1;
+ 110   2                                      if (fFeedback)
+ 111   2                                      {
+ 112   3                                              nCRC ^= 0x1021;
+ 113   3                                      }
+ 114   2                              }
+C51 COMPILER V9.01   MISC                                                                  03/09/2023 15:39:06 PAGE 3   
+
+ 115   1                              return nCRC;
+ 116   1                      }
+ 117                  #endif
+ 118          #endif
+ 119          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    232    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

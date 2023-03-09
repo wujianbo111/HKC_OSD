@@ -1,0 +1,469 @@
+C51 COMPILER V9.01   MCU                                                                   03/09/2023 15:39:06 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE MCU
+OBJECT MODULE PLACED IN .\obj\mcu.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\KERNEL\SYSTEM\mcu.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\DRIVER\INC;..
+                    -\..\KERNEL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..\..\KERNEL\SY
+                    -STEM\INC\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\UI\HkcOsd\INC
+                    -) DEFINE(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\mcu.lst) OBJECT(.\obj\mcu.obj)
+
+line level    source
+
+   1          #define _MCU_C_
+   2          
+   3          #include "board.h"
+   4          #include "types.h"
+   5          #include "misc.h"
+   6          #include "debug.h"
+   7          #include "ms_rwreg.h"
+   8          #include "ms_reg.h"
+   9          #include "Reg52.h"
+  10          #if ENABLE_HDCP
+  11          #include "msHDCP.h"
+  12          #endif
+  13          #include "global.h"
+  14          #include "power.h"
+  15          #include "mcu.h"
+  16          #include "GPIO_DEF.h"
+  17          //////////////////////////////////
+  18          #include "drvMcu.h"
+  19          /////////////////////////////////
+  20          #if ENABLE_UART1
+              #include "UartControl.h"
+              #endif
+  23          
+  24          
+  25          //extern xdata BYTE xfr_regs[256];
+  26          void Init_MCU(void)
+  27          {
+  28   1          EA = 0;
+  29   1              
+  30   1      #if( ENABLE_WATCH_DOG ) //130716 xiandi follow demo code
+                      Init_WDT( _ENABLE );
+              #else
+  33   1              Init_WDT( _DISABLE );
+  34   1      #endif  // end of #if( ENABLE_WATCH_DOG )
+  35   1              
+  36   1          Init_IOPorts();
+  37   1          Init_ExternalInterrupt();
+  38   1          Init_Timer();
+  39   1          Init_SerialPort();
+  40   1              
+  41   1          EA = 1;
+  42   1      
+  43   1      #if ENABLE_DEBUG && ((CHIP_ID==CHIP_TSUMC)||(CHIP_ID==CHIP_TSUMD)||(CHIP_ID == CHIP_TSUM9)|| (CHIP_ID == C
+             -HIP_TSUMF))
+                  mcuSetUartMux(DFT_MUX_Uart0, DFT_MUX_Uart1);
+              #endif
+  46   1         mcuSetSystemSpeed(SPEED_XTAL_MODE);
+  47   1      
+  48   1      #if Enable_Cache
+  49   1          CACHE_ENABLE();
+  50   1      #else
+                  CACHE_DISABLE();
+C51 COMPILER V9.01   MCU                                                                   03/09/2023 15:39:06 PAGE 2   
+
+              #endif
+  53   1          //MCU_EnableCache(TRUE);
+  54   1          //g_u8SystemSpeedMode=SPEED_XTAL_MODE;
+  55   1      
+  56   1      
+  57   1      }
+  58          #if 0//( ENABLE_WATCH_DOG )     //130702 xiandi
+              void ClearWDT( void )
+              {
+                  msWriteBit( REG_3C66, 1, _BIT1 );
+              }
+              #endif  // end of #if( ENABLE_WATCH_DOG )
+  64          
+  65          // Initialize I/O setting
+  66          void Init_IOPorts(void)
+  67          {
+  68   1          hw_SetDDC_WP();
+  69   1          hw_SetFlashWP();
+  70   1      
+  71   1          hw_ClrBlacklit();
+  72   1      
+  73   1          hw_ClrPanel();
+  74   1              
+  75   1          Init_hwDDC_WP_Pin();
+  76   1          Init_hwFlash_WP_Pin();
+  77   1          Init_hwBlacklit_Pin();
+  78   1          Init_hwPanel_Pin();
+  79   1      
+  80   1          Init_PowerKey();
+  81   1          Init_hwDSUBCable_Pin();
+  82   1          Init_hwDVICable_Pin();
+  83   1      #if (CHIP_ID == CHIP_TSUM9/*|| CHIP_ID == CHIP_TSUMF*/)
+                  DVI5V_GPIO_Sel();
+                  Init_PowerKey();
+              #endif
+  87   1      
+  88   1      #if HDMI_PRETEST
+                  Init_hwCEC_Pin();
+              #endif
+  91   1      
+  92   1      
+  93   1      #if ENABLE_HDMI
+  94   1              Init_hwHDMICable_Pin();
+  95   1      #endif
+  96   1      
+  97   1      
+  98   1      
+  99   1      
+ 100   1      
+ 101   1      
+ 102   1      
+ 103   1      
+ 104   1      
+ 105   1      
+ 106   1      
+ 107   1      
+ 108   1      
+ 109   1      #if ENABLE_DP_INPUT
+                  Init_hwDPCable_Pin() ;
+              #endif
+ 112   1      
+ 113   1      #if !USEFLASH
+C51 COMPILER V9.01   MCU                                                                   03/09/2023 15:39:06 PAGE 3   
+
+                       Set_EEPROM_WP();
+                      Init_NVRAM_I2C_SCL_Pin();
+                      Init_NVRAM_I2C_SDA_Pin();
+                      Init_hwEEPROM_WP();
+                      Init_5V_VDET();   // for MHL Detect
+              #endif
+ 120   1      
+ 121   1      
+ 122   1      #if ENABLE_MHL
+                  #if CHIP_ID==CHIP_TSUM2
+                  Init_MHL_PS_CTRL_Pin(); // default set to discharge
+                  Init_HYBRID_MHL_HDMI_Cable_Detect_Pin();
+                  #else
+                  CLR_MHL_PS_CTRL_CHARGE0();
+                  CLR_MHL_PS_CTRL_CHARGE1();
+                  CLR_MHL_PS_CTRL_CHARGE2();
+                  Init_hwDVI0Cable_Pin();
+                  Init_hwDVI1Cable_Pin();
+                  Init_hwDVI2Cable_Pin();
+                  #endif
+              #endif
+ 135   1      
+ 136   1      
+ 137   1      #if PanelminiLVDS ||PANEL_VCOM_ADJUST   //110229 Modify
+                      Init_VCOM_I2C_SCL_Pin();
+                      Init_VCOM_I2C_SDA_Pin();
+                      #if PANEL_VCOM_ADJUST   //121211 Modify
+                      HW_CLR_VCOM_I2C_SCL();
+                      HW_CLR_VCOM_I2C_SDA();
+                      #endif
+              #endif
+ 145   1      
+ 146   1      #if ENABLE_HDCP
+ 147   1      #if ENABLE_MHL
+              #if CHIP_ID == CHIP_TSUMC || CHIP_ID == CHIP_TSUMD||CHIP_ID == CHIP_TSUM9 || CHIP_ID == CHIP_TSUMF// demo 
+             -board        // 130717 william For G15 compiling warning
+              #if ENABLE_MHL_C1
+                      hw_Set_MHLTriStateHpd();
+              #endif
+              #if ENABLE_MHL_C2
+                      hw_Set_MHLTriStateHpd2();
+              #endif
+              #if ENABLE_MHL_C3
+                      hw_Set_MHLTriStateHpd3();
+              #endif
+              #endif
+              #else
+ 160   1      
+ 161   1              hw_Set_HdcpHpd();
+ 162   1              Init_hwHDCP_Hpd_Pin();
+ 163   1              #if (ENABLE_DVI_INPUT+ENABLE_HDMI_INPUT+ENABLE_HDMI2ND_INPUT>1)
+                      hw_Set_HdcpHpd2();
+                      Init_hwHDCP_Hpd2_Pin();         //130808 xiandi
+                      #endif
+ 167   1          #endif
+ 168   1      
+ 169   1          // 130607 nick add
+ 170   1          hw_Set_HdcpHpd();   //130607 nick
+ 171   1          hw_Set_HdcpHpd2();
+ 172   1          hw_Set_HdcpHpd3();
+ 173   1          
+ 174   1      #endif
+C51 COMPILER V9.01   MCU                                                                   03/09/2023 15:39:06 PAGE 4   
+
+ 175   1      
+ 176   1      
+ 177   1          hw_SetMute();
+ 178   1          Init_hwMute_Pin();
+ 179   1          Init_Audio_SD_Pin();
+ 180   1      
+ 181   1      
+ 182   1      
+ 183   1      
+ 184   1              hw_ClrGreenLed();
+ 185   1              hw_ClrAmberLed();
+ 186   1          Init_hwGreenLed_Pin();
+ 187   1          Init_hwAmberLed_Pin();
+ 188   1      
+ 189   1      
+ 190   1      
+ 191   1      
+ 192   1      
+ 193   1      
+ 194   1      #if ENABLE_DP_INPUT && ENABLE_DP_PS_CTRL
+                      Init_DP_PS_CTRL_CHARGE();
+                      SET_DP_PS_CTRL_CHARGE();  
+              #endif
+ 198   1      
+ 199   1      #if EarphoneDet_Enable
+ 200   1      Init_HarphoneDet_Pin();
+ 201   1      #endif
+ 202   1      
+ 203   1      #if Enable_CheckVcc5V   
+               Init_DetectVCC5V_Pin();
+              #endif
+ 206   1      
+ 207   1      
+ 208   1      }
+ 209          /* initialize 8051 CPU timer & interrupt routine */
+ 210          /* TCON.7(   TF1): Timer 1 overflow flag */
+ 211          /* TCON.6(   TR1): Timer 1 stop/start bit */
+ 212          /* TCON.5(   TF0): Timer 0 overflow flag */
+ 213          /* TCON.4(   TR0): Timer 0 stop/start bit */
+ 214          /* TCON.3(   IE1): Timer 1 INT1 interrupt flag */
+ 215          /* TCON.2(   IT1): Timer 1 INT1 interrupt style setup*/
+ 216          /* TCON.1(   IE0): Timer 0 /INT0 interrupt flag */
+ 217          /* TCON.0(   IT0): Timer 0 /INT0 interrupt style setup */
+ 218          void Init_ExternalInterrupt(void)
+ 219          {
+ 220   1              //INT0
+ 221   1      #if EXT_TIMER0_1MS ||EXT_TIMER0_1S|| (ENABLE_MENULOAD && ML_USE_INT)||ENABLE_SW_DOUBLE_BUFFER   //111223 Mod
+             -ify
+ 222   1          #if EXT_TIMER0_1MS||EXT_TIMER0_1S
+ 223   1          INT_FIQ_TIMER0_ENABLE(TRUE);//msWriteByteMask( REG_2B00, 0, _BIT0 );
+ 224   1          #endif
+ 225   1          #if (ENABLE_MENULOAD && ML_USE_INT)
+                  msWriteByteMask( REG_2B00, 0, _BIT5 );
+                  #endif
+ 228   1          IT0 = 0; // 0:Level  1: falling edge trigger
+ 229   1          IE0 = 0;
+ 230   1          EX0 = 1; // enable external interrupt 0
+ 231   1      #else
+                  IT0 = 0;
+                  IE0 = 0;
+                  EX0 = 0;  // disable external interrupt 0
+              #endif
+C51 COMPILER V9.01   MCU                                                                   03/09/2023 15:39:06 PAGE 5   
+
+ 236   1      
+ 237   1              //INT1
+ 238   1      #if UseINT
+ 239   1          INT_SYNC_CHANGE_TRIGGER_TYPE();//msWriteByteMask( SC0_CA, _BIT1 | _BIT0, _BIT1 | _BIT0); // BIT0 for l
+             -evel trigger, BIT1 for active high
+ 240   1      
+ 241   1          /*
+ 242   1          #if CHIP_ID>=CHIP_TSUMV
+ 243   1          msWriteByteMask( REG_2B18, 0, _BIT1 ); // disp_int
+ 244   1          #else
+ 245   1          msWriteByteMask( REG_2B19, 0, _BIT2 ); // disp_int
+ 246   1          #endif
+ 247   1          */
+ 248   1          INT_IRQ_DISP_ENABLE(TRUE); // disp_int
+ 249   1          
+ 250   1          IT1 = 0;//1; // set external interrupt 0 & 1 as falling edge trigger
+ 251   1          IE1 = 0;  // interrupt flag
+ 252   1          EX1 = 1;  // enable external interrupt 1
+ 253   1      #else
+                  IT1 = 0;
+                  IE1 = 0;
+                  EX1 = 0;
+              #endif
+ 258   1      
+ 259   1              PX0=1;  //
+ 260   1              PX1=1;  //
+ 261   1      
+ 262   1      #if (MS_PM)&& ENABLE_DEBUG
+                      PS=1;
+              #endif
+ 265   1      
+ 266   1      #if 1//(ENABLE_DEBUG)  // 20130327 test for PM DC off ISR become busy when debug off
+ 267   1              IP0 = _BIT0 | _BIT4;
+ 268   1              IP1 = _BIT0 | _BIT4;
+ 269   1      #else
+                      IP0 = _BIT2;
+                      IP1 = _BIT0 | _BIT2 | _BIT4;
+              #endif
+ 273   1      }
+ 274          
+ 275          void Init_Timer(void)
+ 276          {
+ 277   1              WORD clock_period = ClockPeriod;
+ 278   1      
+ 279   1              /* -------------initialize Timer 0 -----------------------------*/
+ 280   1              g_ucTimer0_TH0 = clock_period >> 8;
+ 281   1              g_ucTimer0_TL0 = clock_period & 0xFF;
+ 282   1              ET0=1;  // enable timer 0 interrupt
+ 283   1              TH0 = g_ucTimer0_TH0;
+ 284   1              TL0 = g_ucTimer0_TL0; // timer 0 counter
+ 285   1              TF0=0; // timer 1 flag
+ 286   1      
+ 287   1              /* -------------initialize Timer 0 -----------------------------*/
+ 288   1              ET1=0;  // disable timer 1 interrupt
+ 289   1              TH1=0;
+ 290   1              TL1=0; // timer 1 counter
+ 291   1              TF1=0; // timer 1 flag
+ 292   1      
+ 293   1              // setup Timer mode
+ 294   1              // TMOD=0x11;  // set timer 1 as timer(1) , timer 0 as counter(5)
+ 295   1              TMOD=0x21;
+ 296   1              // enable/disable timer
+C51 COMPILER V9.01   MCU                                                                   03/09/2023 15:39:06 PAGE 6   
+
+ 297   1              TR0=1;  // disable timer 0
+ 298   1              TR1=0;  // disable timer 1
+ 299   1      
+ 300   1      #if EXT_TIMER0_1MS
+                      TR0 = 0;
+                      msWriteByte( REG_3C80, 0xEE );
+                      msWriteByte( REG_3C81, 0x37 );
+                      msWriteByte( REG_3C82, 0x00 );
+                      msWriteByte( REG_3C83, 0x00 );
+                      msWriteByte( REG_3C89, 0x03 );
+              #endif
+ 308   1      
+ 309   1      #if EXT_TIMER0_1S
+ 310   1      mcuExTimer();
+ 311   1      #endif
+ 312   1      
+ 313   1      #if 0//EnableTime1Interrupt
+                      TR1 = 0;
+                      ET1 = 0;        
+                      TH1 = g_ucTimer0_TH0; 
+                      TL1 = g_ucTimer0_TL0; 
+                      TMOD=0x11;      
+                      TR1 = 1;
+                      ET1 = 1;
+              #endif
+ 322   1      
+ 323   1      }
+ 324          
+ 325          
+ 326          #if EXT_TIMER0_1S   // 2012-05-23-1
+ 327          BYTE xdata g_second=0;
+ 328          BYTE xdata g_minute=0;
+ 329          BYTE xdata g_hour=0;
+ 330          
+ 331          // 130410 coding modified for avoid data race in isr and main, it must be bit data type.
+ 332          bit g_oneSecondFlag=0;
+ 333          bit g_oneMinuteFlag=0;//20130110 nick
+ 334          
+ 335          void mcuExTimer()
+ 336          {
+ 337   1          g_second=0;
+ 338   1          g_minute=0;
+ 339   1          g_hour=0;
+ 340   1          g_oneSecondFlag=0;
+ 341   1          g_oneMinuteFlag=0;//20130110 nick
+ 342   1      
+ 343   1          // 1Hz interrupt
+ 344   1          msWriteByte(REG_3C80, CRYSTAL_CLOCK);
+ 345   1          msWriteByte(REG_3C81, CRYSTAL_CLOCK>>8);
+ 346   1          msWriteByte(REG_3C82, CRYSTAL_CLOCK>>16);
+ 347   1          msWriteByte(REG_3C83, CRYSTAL_CLOCK>>24);
+ 348   1      
+ 349   1          msWriteByte(REG_3C89, 0x03);
+ 350   1      }
+ 351          #endif
+ 352          
+ 353          /*----------Timer 2 -------------------*/
+ 354          /* T2CON.7(   TF2): overflow flag */
+ 355          /* T2CON.6(  EXF2): extern enable flag */
+ 356          /* T2CON.5(  RCLK): receive clock */
+ 357          /* T2CON.4(  TCLK): transfer clock */
+ 358          /* T2CON.3( EXEN2): extern enable flag */
+C51 COMPILER V9.01   MCU                                                                   03/09/2023 15:39:06 PAGE 7   
+
+ 359          /* T2CON.2(   TR2): stop/start timer 2 */
+ 360          /* T2CON.1(  C_T2): intern clock(0)/extern counter(1) switch */
+ 361          /* T2CON.0(CP_RL2): capture flag */
+ 362          void Init_SerialPort(void)
+ 363          {
+ 364   1              ADCON |= _BIT7;                         // use S0RELH, S0RELL as baudrate generator
+ 365   1              SCON = 0x50;                            // mode 1, 8-bit UART, enable receive
+ 366   1              PCON |= _BIT7;
+ 367   1              TI = 0;                     // clear transfer flag
+ 368   1              ES = 0;                     // disable uart interrupt
+ 369   1              //RI = 0;   //nick check 20130205
+ 370   1              TI0_FLAG = 0;
+ 371   1      
+ 372   1      #if 0
+              #if ENABLE_DEBUG
+                      ES = 1;                                         // enable uart interrupt
+                  // default baudrate-xtal
+                  // uart0
+                  S0RELH = HIBYTE( S0REL );
+                  S0RELL = LOBYTE( S0REL );
+                  // ENABLE_UART1
+                  S1RELH = HIBYTE( S1REL );
+                  S1RELL = LOBYTE( S1REL );
+              #else
+                  ES = 0;                     // disable uart interrupt
+                  IEN2 &= ~ES1;
+              #endif
+              #endif
+ 387   1              #if 0//ENABLE_UART1
+                      S1CON &= ~TI1;    // clear TI1
+                      S1CON &= ~RI1;    // clear TI1
+                      #endif
+ 391   1          
+ 392   1              #if ENABLE_UART1
+                      S1CON = ( _BIT7 | _BIT4 );
+                      IEN2 = ES1;
+                      TI1_FLAG = 0;
+                      #endif
+ 397   1              
+ 398   1      #if ENABLE_DEBUG
+                      ReSyncCounter = 0;
+                      SIORxIndex = 0;
+               #endif   
+ 402   1       
+ 403   1      }
+ 404          
+ 405          #if 0
+              void MCU_EnableCache(Bool u8Enable)
+              {
+              #if Enable_Cache
+                      if (u8Enable)
+                      {
+                              msWriteBit( REG_1018, 1, _BIT3 );
+                              msWriteBit( REG_2BA0, 0, _BIT0 );
+                      }
+                      else
+                      {
+                              msWriteBit( REG_2BA0, 1, _BIT0 );
+                              msWriteBit( REG_1018, 0, _BIT3 );
+                      }
+              #else
+                      msWriteBit( REG_2BA0, 1, _BIT0 );
+C51 COMPILER V9.01   MCU                                                                   03/09/2023 15:39:06 PAGE 8   
+
+                      msWriteBit( REG_1018, 0, _BIT3 );
+              #endif
+              }
+              #endif
+ 425          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    497    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      4    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,181 @@
+C51 COMPILER V9.01   COMMON                                                                03/09/2023 15:39:00 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE COMMON
+OBJECT MODULE PLACED IN .\obj\Common.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\KERNEL\SYSTEM\Common.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\DRIVER\INC
+                    -;..\..\KERNEL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..\..\KERNEL
+                    -\SYSTEM\INC\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\UI\HkcOsd\
+                    -INC) DEFINE(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\Common.lst) OBJECT(.\obj\Common.obj)
+
+line level    source
+
+   1          #include "board.h"
+   2          #include "types.h"
+   3          #include "debugDef.h"
+   4          #include "global.h"
+   5          #include "ms_reg.h"
+   6          #include "ms_rwreg.h"
+   7          #include "misc.h"
+   8          
+   9          
+  10          // 121026 coding modified to prevent debug message abnormally when mcu clock change
+  11          void putSIOChar(unsigned char sendData)
+  12          {
+  13   1      #if 1
+  14   1              if( ES == 0 )
+  15   1              return;
+  16   1              
+  17   1              SBUF = sendData;
+  18   1              while( 1 )
+  19   1              {
+  20   2                  if( EA && ES )
+  21   2                  {
+  22   3                      if( TI0_FLAG )
+  23   3                      {
+  24   4                          TI0_FLAG = 0;
+  25   4                          break;
+  26   4                      }
+  27   3                  }
+  28   2                  else
+  29   2                  {
+  30   3                      if( TI )
+  31   3                      {
+  32   4                          TI = 0;
+  33   4                          break;
+  34   4                      }
+  35   3                  }
+  36   2              }
+  37   1      #else
+                  if(!ES)
+                      return;
+              
+                  
+                  //while(!TI0_FLAG);
+                  //TI0_FLAG = 0;
+                  //SBUF = sendData;
+              
+                  SBUF = sendData;
+                  while(1)
+                  {
+                      if(TI0_FLAG)
+                      {
+                          TI0_FLAG = 0;
+                          break;
+C51 COMPILER V9.01   COMMON                                                                03/09/2023 15:39:00 PAGE 2   
+
+                      }
+                  }
+              #endif    
+  56   1      }
+  57          
+  58          
+  59          
+  60          #if DEBUG_MSG
+                  void printMsg(char *str)
+              {
+                      char sendData;
+                      sendData = Send_Msg;
+                      while (sendData)
+                      //!='\0')
+                      {
+                          putSIOChar((unsigned char)sendData);
+                          sendData = *(str++);
+                      }
+                      putSIOChar(0xd);
+                      putSIOChar((char)'\n');
+                  }
+              
+              #endif
+  76          
+  77          #if DEBUG_PRINTDATA
+                  void printData(char *str, WORD value)
+                  {
+                      char sendData = Send_MsgValue;
+                      #if 0
+                          putSIOChar(Send_MsgValue);
+                          putSIOChar(value >> 8);
+                          putSIOChar(value &0xFF);
+                      #endif 
+                      while (sendData = *(str++))
+                      {
+                          if (sendData == (char)'%')
+                          // %
+                          {
+                              sendData = *(str++);
+                              if (sendData == (char)'d' || sendData == (char)'x')
+                              // d
+                              {
+                                  if (value)
+                                  {
+                                      Bool noneZero = FALSE;
+                                      WORD divider = 10000;
+                                      char dispValue;
+                                      if (sendData == (char)'x')
+                                      {
+                                          divider = 0x1000;
+                                      }
+                                      while (divider)
+                                      {
+                                          dispValue = value / divider;
+                                          value -= dispValue * divider;
+                                          if (dispValue)
+                                          {
+                                              noneZero = TRUE;
+                                          }
+                                          if (noneZero)
+                                          {
+                                              if (dispValue > 9)
+C51 COMPILER V9.01   COMMON                                                                03/09/2023 15:39:00 PAGE 3   
+
+                                              {
+                                                  dispValue += 55;
+                                              }
+                                              else
+                                              {
+                                                  dispValue += 0x30;
+                                              }
+                                              putSIOChar(dispValue);
+                                          }
+                                          if (sendData == (char)'d')
+                                          {
+                                              divider /= 10;
+                                          }
+                                          else
+                                          {
+                                              divider /= 0x10;
+                                          }
+                                      }
+                                  }
+                                  else
+                                  {
+                                      putSIOChar('0');
+                                  }
+                              }
+                          }
+                          else
+                          {
+                              putSIOChar(sendData);
+                          }
+                      }
+                      putSIOChar(0xd);
+                      putSIOChar((char)'\n');
+                  }
+              
+              #endif 
+ 150          
+ 151          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     26    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

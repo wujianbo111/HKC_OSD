@@ -1,0 +1,514 @@
+C51 COMPILER V9.01   DRVOSD                                                                03/09/2023 15:39:17 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE DRVOSD
+OBJECT MODULE PLACED IN .\obj\drvOSD.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\KERNEL\SCALER\drvOSD.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\DRIVER\INC
+                    -;..\..\KERNEL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..\..\KERNEL
+                    -\SYSTEM\INC\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\UI\HkcOsd\
+                    -INC) DEFINE(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\drvOSD.lst) OBJECT(.\obj\drvOSD.obj)
+
+line level    source
+
+   1          
+   2          #define _DRVOSD_C
+   3          
+   4          #include "types.h"
+   5          #include "board.h"
+   6          #include "ms_reg.h"
+   7          #include "drvOSD.h"
+   8          #include "ms_rwreg.h"
+   9          #include "msosd.h"
+  10          #include "halrwreg.h"
+  11          extern  xdata BYTE  OsdFontColor;
+  12          
+  13          #if 0//ENABLE_OSD_ROTATION
+              WORD drvOSD_GetTxtCAStart(BYTE u8Wnd, BYTE u8XPos, BYTE u8YPos)
+              {
+                  BYTE u8LineOffset=msReadByte((u8Wnd<<5)+OSD2_12);
+                  WORD u16CABase=msRead2Byte((u8Wnd<<5)+OSD2_10);
+                  if ((msReadByte(OSD1_03)>>6)==1) //for 90 degree only
+                      u16CABase=GET_CABASE_90_0(u16CABase,u8LineOffset);
+                  
+                  return (u16CABase+(WORD)u8YPos*u8LineOffset+u8XPos);
+              }
+              #endif
+  24          
+  25          #if defined(_MANHATTAN_OSD_)
+              void drvOSD_DrawVContinuousChar(BYTE u8Wnd, BYTE u8XPos, BYTE u8YPos, BYTE u8Char, BYTE u8Num)
+              {
+                  WORD u16TempValue;
+                  BYTE i;
+                  BYTE u8DrawCode = (!(u8YPos & BIT7));
+              
+                  u8YPos &= 0x7F;
+              
+                  //u8Wnd<<=5;
+                  //u16TempValue=msRead2Byte((u8Wnd)+OSD2_10)+(WORD)u8YPos*msReadByte((u8Wnd)+OSD2_12)+u8XPos; // get re
+             -al address
+                  u16TempValue=GET_TXT_CASTART(u8Wnd,u8XPos,u8YPos); // get real address
+                  #define LINE_OFFSET u8Wnd
+                  LINE_OFFSET=msReadByte((u8Wnd<<5)+OSD2_12);
+                  for (i=0;i<u8Num;i++)
+                  {
+                       WRITE_CAFSRAM_ADDR();
+                      msWrite2Byte(PORT_ATTR_ADDR, u16TempValue);
+                       WRITE_ATTRIBUTE(); 
+                      msWriteByte(PORT_ATTR_DATA, OsdFontColor);
+                      u16TempValue+=LINE_OFFSET;
+                  }
+                  if (u8DrawCode)
+                  {
+                      for(i=0;i<u8Num;i++)
+                      {
+                          u16TempValue-=LINE_OFFSET;
+C51 COMPILER V9.01   DRVOSD                                                                03/09/2023 15:39:17 PAGE 2   
+
+                           WRITE_CAFSRAM_ADDR();      
+                          msWrite2Byte(PORT_CODE_ADDR, u16TempValue);
+                           WRITE_CODE(); 
+                          msWriteByte(PORT_CODE_DATA, u8Char);
+                      }
+                  }
+                  #undef LINE_OFFSET
+              }
+              #endif
+  61          void drvOSD_DrawBlankPlane(BYTE u8Wnd,BYTE u8XPos,BYTE u8YPos,BYTE u8Width,BYTE u8Height)
+  62          {
+  63   1          BYTE xdata i,j;
+  64   1          WORD xdata u16TempValue;
+  65   1          BYTE xdata IsDrawCode=(!(u8YPos & BIT7));
+  66   1      
+  67   1          u8YPos&=0x7F;
+  68   1          //u8Wnd<<=5;
+  69   1          //u16TempValue=msRead2Byte((u8Wnd)+OSD2_10)+(WORD)u8YPos*msReadByte((u8Wnd)+OSD2_12)+u8XPos; // get re
+             -al address
+  70   1          u16TempValue=GET_TXT_CASTART(u8Wnd,u8XPos,u8YPos); // get real address
+  71   1          #define LINE_OFFSET u8Wnd
+  72   1          LINE_OFFSET=msReadByte((u8Wnd<<5)+OSD2_12);
+  73   1          for (i = 0; i < u8Height; i++)
+  74   1          {
+  75   2               WRITE_CAFSRAM_ADDR();
+  76   2              msWrite2Byte(PORT_ATTR_ADDR, u16TempValue);
+  77   2               WRITE_ATTRIBUTE(); 
+  78   2              for(j=0;j<u8Width;j++)
+  79   2              {
+  80   3                  msWriteByte(PORT_ATTR_DATA, OsdFontColor);
+  81   3              }
+  82   2              u16TempValue+=LINE_OFFSET;
+  83   2          }
+  84   1          if (!IsDrawCode)
+  85   1              return;
+  86   1          u16TempValue-=(LINE_OFFSET*u8Height); // recover real address
+  87   1          for (i = 0; i < u8Height; i++)
+  88   1          {
+  89   2               WRITE_CAFSRAM_ADDR();
+  90   2              msWrite2Byte(PORT_CODE_ADDR, u16TempValue);
+  91   2               WRITE_CODE();   
+  92   2              for(j=0;j<u8Width;j++)
+  93   2              {
+  94   3                  msWriteByte(PORT_CODE_DATA, SPACE_FONT);
+  95   3              }
+  96   2              u16TempValue+=LINE_OFFSET;
+  97   2          }
+  98   1          #undef LINE_OFFSET
+  99   1      
+ 100   1      }
+ 101          
+ 102          void drvOSD_SetWndLineOffset(BYTE u8Wnd, BYTE u8LineOffset)
+ 103          {
+ 104   1          msWriteByte((u8Wnd<<5)+OSD2_12,u8LineOffset);
+ 105   1      }
+ 106          #if !ENABLE_MENULOAD//||!ENABLE_SW_DOUBLE_BUFFER
+ 107          void drvOSD_SetWndHPosition(BYTE u8Wnd, WORD u16HStart, WORD u16HEnd)
+ 108          {
+ 109   1          u8Wnd<<=5;
+ 110   1          msWrite2Byte((u8Wnd)+OSD2_04,u16HStart);
+ 111   1          msWrite2Byte((u8Wnd)+OSD2_08,u16HEnd);
+ 112   1      }
+C51 COMPILER V9.01   DRVOSD                                                                03/09/2023 15:39:17 PAGE 3   
+
+ 113          void drvOSD_SetWndVPosition(BYTE u8Wnd, WORD u16VStart, WORD u16VEnd)
+ 114          {
+ 115   1          u8Wnd<<=5;
+ 116   1          msWrite2Byte((u8Wnd)+OSD2_06,u16VStart);
+ 117   1          msWrite2Byte((u8Wnd)+OSD2_0A,u16VEnd);
+ 118   1      }
+ 119          #endif
+ 120          WORD drvOSD_GetWndInfo(BYTE u8Wnd,BYTE u8Info)
+ 121          {
+ 122   1          u8Wnd<<=5;
+ 123   1          if (u8Info==OSD_WND_INFO_H_START)
+ 124   1              return  msRead2Byte((u8Wnd)+OSD2_04);
+ 125   1          if (u8Info==OSD_WND_INFO_V_START)
+ 126   1              return msRead2Byte((u8Wnd)+OSD2_06);
+ 127   1          if (u8Info==OSD_WND_INFO_V_END)
+ 128   1              return msRead2Byte((u8Wnd)+OSD2_0A);
+ 129   1          if (u8Info==OSD_WND_INFO_LINE_OFFSET)
+ 130   1              return msReadByte((u8Wnd)+OSD2_12);
+ 131   1          if (u8Info==OSD_WND_INFO_CABASE)
+ 132   1              return msRead2Byte((u8Wnd)+OSD2_10);
+ 133   1          return 0;
+ 134   1      }
+ 135          void drvOSD_SetWndOn(BYTE u8Wnd,Bool u8On)
+ 136          {
+ 137   1          msWriteByteMask((u8Wnd<<5)+OSD2_00,(u8On?BIT0:0),BIT0);
+ 138   1      }
+ 139          void drvOSD_SetWndCtrl(BYTE u8Wnd, BYTE u8CtrlType, WORD u16Value,WORD u16Mask)
+ 140          {
+ 141   1          u8Wnd<<=5;
+ 142   1          if (u8CtrlType==OSD_WND_CTRL0)
+ 143   1              msWrite2ByteMask((u8Wnd)+OSD2_00,u16Value,u16Mask);
+ 144   1          else if (u8CtrlType==OSD_WND_CTRL1)
+ 145   1              msWrite2ByteMask((u8Wnd)+OSD2_02,u16Value,u16Mask);
+ 146   1          else if (u8CtrlType==OSD_WND_CTRL2)
+ 147   1              msWrite2ByteMask((u8Wnd)+OSD2_14,u16Value,u16Mask);
+ 148   1          else if (u8CtrlType==OSD_WND_CTRL3)
+ 149   1              msWrite2ByteMask((u8Wnd)+OSD2_1A,u16Value,u16Mask);
+ 150   1      }
+ 151          void drvOSD_SetWndFixAlpha(BYTE u8Wnd,BYTE u8Lvl,BYTE u8Value)
+ 152          {
+ 153   1          u8Wnd<<=5;
+ 154   1          if (u8Lvl==OSD_ALPHA_OUT)
+ 155   1              msWriteByteMask((u8Wnd)+OSD2_0C,u8Value,0x3F);
+ 156   1          else if (u8Lvl==OSD_ALPHA_LV1)
+ 157   1              msWriteByteMask((u8Wnd)+OSD2_0D,u8Value,0x3F);
+ 158   1          else if (u8Lvl==OSD_ALPHA_LV2)
+ 159   1              msWriteByteMask((u8Wnd)+OSD2_19,u8Value,0x3F);
+ 160   1      }
+ 161          void drvOSD_SetWndFixColor(BYTE u8Wnd,BYTE u8Red,BYTE u8Green,BYTE u8Blue)
+ 162          {
+ 163   1          u8Wnd<<=5;
+ 164   1          msWriteByte((u8Wnd)+OSD2_16,u8Red);
+ 165   1          msWriteByte((u8Wnd)+OSD2_17,u8Green);
+ 166   1          msWriteByte((u8Wnd)+OSD2_18,u8Blue);
+ 167   1      }
+ 168          void drvOSD_SetWndShiftPixel(BYTE u8Wnd,u8X,u8Y)
+ 169          {
+ 170   1          u8Wnd<<=5;
+ 171   1          msWriteByte((u8Wnd)+OSD2_0E,u8X);
+ 172   1          msWriteByte((u8Wnd)+OSD2_0F,u8Y);
+ 173   1      }
+ 174          void drvOSD_SetWndCABaseAddr(BYTE u8Wnd,WORD u16Addr)
+C51 COMPILER V9.01   DRVOSD                                                                03/09/2023 15:39:17 PAGE 4   
+
+ 175          {
+ 176   1          msWrite2Byte((u8Wnd<<5)+OSD2_10,u16Addr);
+ 177   1      }
+ 178          void drvOSD_SetWndFixAttr(BYTE u8Wnd,BYTE u8Enable,BYTE u8Attr)
+ 179          {
+ 180   1          u8Wnd<<=5;
+ 181   1          #if CHIP_ID>=CHIP_TSUM2
+ 182   1          msWriteByteMask((u8Wnd)+OSD2_15,(u8Enable?(BIT7|BIT6):0),BIT7|BIT6);
+ 183   1          #else
+                  #endif
+ 185   1          msWriteByte((u8Wnd)+OSD2_1A,u8Attr);
+ 186   1          msWriteByteMask((u8Wnd)+OSD2_1B,(u8Enable?BIT7:0),BIT7);
+ 187   1      }
+ 188          #if CHIP_ID >= CHIP_TSUM2
+ 189          #define DEF_ARRANGE_WIN(i) void OSDArrangeWin##i(WORD hs, WORD he, WORD vs, WORD ve) { \
+ 190              SET_OSD_WIN_REG_WIN##i##_HEND_PIX(he); \
+ 191              SET_OSD_WIN_REG_WIN##i##_HSTR_PIX(hs); \
+ 192              SET_OSD_WIN_REG_WIN##i##_VEND_PIX(ve); \
+ 193              SET_OSD_WIN_REG_WIN##i##_VSTR_PIX(vs); }
+ 194          
+ 195          #define DEF_BLENDING_WIN(i) void OSDBlendingWin##i(BYTE r_gd, BYTE g_gd, BYTE b_gd, BYTE fix_r, BYTE fix_g
+             -, BYTE fix_b, BYTE l1a_sel, BYTE fix_al1, BYTE l2a_sel, BYTE fix_al2, BYTE outa_sel, BYTE fix_aout) { \
+ 196              SET_OSD_WIN_REG_WIN##i##_CLR_B_SEL(b_gd); \
+ 197              SET_OSD_WIN_REG_WIN##i##_CLR_G_SEL(g_gd); \
+ 198              SET_OSD_WIN_REG_WIN##i##_CLR_R_SEL(r_gd); \
+ 199              SET_OSD_WIN_REG_WIN##i##_FIX_CLR_R(fix_r); \
+ 200              SET_OSD_WIN_REG_WIN##i##_FIX_CLR_G(fix_g); \
+ 201              SET_OSD_WIN_REG_WIN##i##_FIX_CLR_B(fix_b); \
+ 202              SET_OSD_WIN_REG_WIN##i##_FIX_ALPHA_LV1(fix_al1); \
+ 203              SET_OSD_WIN_REG_WIN##i##_FIX_ALPHA_LV2(fix_al2); \
+ 204              SET_OSD_WIN_REG_WIN##i##_FIX_ALPHA_OUT(fix_aout); \
+ 205              SET_OSD_WIN_REG_WIN##i##_LV1_A_SEL(l1a_sel); \
+ 206              SET_OSD_WIN_REG_WIN##i##_LV2_A_SEL(l2a_sel); \
+ 207              SET_OSD_WIN_REG_WIN##i##_OUT_A_SEL(outa_sel); }
+ 208          #if 0
+              SET_OSD_WIN_REG_WIN0_CLR_B_SEL(r_gd); \
+              SET_OSD_WIN_REG_WIN0_CLR_G_SEL(g_gd); \
+              SET_OSD_WIN_REG_WIN0_CLR_R_SEL(b_gd); \
+              SET_OSD_WIN_REG_WIN0_FIX_CLR_R(fix_r);
+              SET_OSD_WIN_REG_WIN0_FIX_CLR_G(fix_g);
+              SET_OSD_WIN_REG_WIN0_FIX_CLR_B(fix_b);
+              SET_OSD_WIN_REG_WIN0_FIX_ALPHA_LV1(fix_al1); \
+              SET_OSD_WIN_REG_WIN0_FIX_ALPHA_LV2(fix_al2); \
+              SET_OSD_WIN_REG_WIN0_FIX_ALPHA_OUT(fix_aout); \
+              SET_OSD_WIN_REG_WIN0_LV1_A_SEL(l1a_sel); \
+              SET_OSD_WIN_REG_WIN0_LV2_A_SEL(l2a_sel); \
+              SET_OSD_WIN_REG_WIN0_OUT_A_SEL(outa_sel); }
+              #endif
+ 222          
+ 223          
+ 224          #define DEF_CONF_SRAM_WIN(i) void OSDConfSramWin##i(BYTE fh, WORD base_addr, BYTE l_off, BYTE sh_x, BYTE s
+             -h_y) { \
+ 225              SET_OSD_WIN_REG_WIN##i##_CHARHIGH(fh); \
+ 226              SET_OSD_WIN_REG_WIN##i##_BASE(base_addr); \
+ 227              SET_OSD_WIN_REG_WIN##i##_LINE_OFFSET(l_off); \
+ 228              SET_OSD_WIN_REG_WIN##i##_SHIFT_PIX_X(sh_x); \
+ 229              SET_OSD_WIN_REG_WIN##i##_SHIFT_PIX_Y(sh_y); }
+ 230          #if 0
+              SET_OSD_WIN_REG_WIN0_CHARHIGH(fh); \
+              SET_OSD_WIN_REG_WIN0_BASE(base_addr); \
+              SET_OSD_WIN_REG_WIN0_LINE_OFFSET(l_off); \
+              SET_OSD_WIN_REG_WIN0_SHIFT_PIX_X(sh_x); \
+C51 COMPILER V9.01   DRVOSD                                                                03/09/2023 15:39:17 PAGE 5   
+
+              SET_OSD_WIN_REG_WIN0_SHIFT_PIX_Y(sh_y); }
+              #endif
+ 237          
+ 238          #define DEF_CONF_SRAM_TEXT_WIN(i) void OSDConfSramTextWin##i(BYTE fh, WORD base_addr, BYTE l_off, BYTE sh_
+             -x, BYTE sh_y) { \
+ 239              SET_OSD_WIN_REG_WIN##i##_CHARHIGH(fh); \
+ 240              SET_OSD_WIN_REG_WIN##i##_BASE_TX(base_addr); \
+ 241              SET_OSD_WIN_REG_WIN##i##_LINE_OFFSET_TX(l_off); \
+ 242              SET_OSD_WIN_REG_WIN##i##_SHIFT_PIX_X(sh_x); \
+ 243              SET_OSD_WIN_REG_WIN##i##_SHIFT_PIX_Y(sh_y); }
+ 244          #if 0
+              SET_OSD_WIN_REG_WIN0_CHARHIGH(fh); \
+              SET_OSD_WIN_REG_WIN0_BASE_TX(base_addr); \
+              SET_OSD_WIN_REG_WIN0_LINE_OFFSET_TX(l_off); \
+              SET_OSD_WIN_REG_WIN0_SHIFT_PIX_X(sh_x); \
+              SET_OSD_WIN_REG_WIN0_SHIFT_PIX_Y(sh_y); }
+              #endif
+ 251          
+ 252          #define DEF_CONF_GD_TG(i) void OSDConfGDTimingGenerator##i(unsigned hs, unsigned he, unsigned vs, unsigned
+             - ve) { \
+ 253              _CTRL_OSD_GD_REGISTERS(); \
+ 254              SET_OSD_GD_REG_GD_TG##i##_HST(hs); \
+ 255              SET_OSD_GD_REG_GD_TG##i##_VST(vs); \
+ 256              SET_OSD_GD_REG_GD_TG##i##_HEND(he); \
+ 257              SET_OSD_GD_REG_GD_TG##i##_VEND(ve); }
+ 258          #if 0
+              SET_OSD_GD_REG_GD_TG0_HST(hs); \
+              SET_OSD_GD_REG_GD_TG0_VST(vs); \
+              SET_OSD_GD_REG_GD_TG0_HEND(he); \
+              SET_OSD_GD_REG_GD_TG0_VEND(ve); }
+              #endif
+ 264          
+ 265          
+ 266          void OSDSetMask0(BYTE item, BYTE v)
+ 267          {
+ 268   1          _CTRL_OSD_CTRL_REGISTERS();
+ 269   1          SET_OSD_CTRL_REG_TRIG_MODE(_TRIG_MODE_P0_ADDR);
+ 270   1          SET_OSD_CTRL_REG_WR_PORT(item);
+ 271   1          SET_OSD_CTRL_REG_TRIG_MODE(_TRIG_MODE_P0_MASK);
+ 272   1          SET_OSD_CTRL_REG_WR_PORT(v);
+ 273   1      }
+ 274          
+ 275          /*
+ 276          void OSDSetColorKey0(BYTE item, BYTE v)
+ 277          {
+ 278              _CTRL_OSD_CTRL_REGISTERS();
+ 279              SET_OSD_CTRL_REG_TRIG_MODE(_TRIG_MODE_P0_ADDR);
+ 280              SET_OSD_CTRL_REG_WR_PORT(item);
+ 281              SET_OSD_CTRL_REG_TRIG_MODE(_TRIG_MODE_P0_CKEY);
+ 282              SET_OSD_CTRL_REG_WR_PORT(v);
+ 283          }
+ 284          */
+ 285          
+ 286          void OSDConfGDCurveH(BYTE ci, BYTE pixel_init, BYTE delta_init, 
+ 287                          BYTE step, BYTE data_sign, BYTE delta_sign, BYTE delta, WORD length0, WORD length1,
+ 288                          BYTE hv_sign, BYTE overflow_en, BYTE md)
+ 289          {
+ 290   1          BYTE tmp;
+ 291   1          
+ 292   1          _CTRL_OSD_GD_REGISTERS();
+ 293   1          CLR_OSD_GD_REG_CURVE_RDATA_EN();
+ 294   1          _CTRL_OSD_CTRL_REGISTERS();
+C51 COMPILER V9.01   DRVOSD                                                                03/09/2023 15:39:17 PAGE 6   
+
+ 295   1          SET_OSD_CTRL_REG_TRIG_MODE(_TRIG_MODE_GD_ADDR);
+ 296   1          ci <<= 1; SET_OSD_CTRL_REG_WR_PORT(ci);
+ 297   1          SET_OSD_CTRL_REG_TRIG_MODE(_TRIG_MODE_GD_DATA);
+ 298   1          SET_OSD_CTRL_REG_WR_PORT(pixel_init);
+ 299   1          SET_OSD_CTRL_REG_WR_PORT(delta_init);
+ 300   1          SET_OSD_CTRL_REG_WR_PORT(step);
+ 301   1          tmp = ( (0 != data_sign) << 7 ) | ( (0 != delta_sign) << 6 ) | ( delta & 0x3f );
+ 302   1          SET_OSD_CTRL_REG_WR_PORT(tmp);
+ 303   1          SET_OSD_CTRL_REG_WR_PORT(length0&0xff);
+ 304   1          tmp = ( (length1 & 0x0f) << 4 ) | ( (length0 & 0x700) >> 8 );
+ 305   1          SET_OSD_CTRL_REG_WR_PORT(tmp);
+ 306   1          tmp = ( ( 0 != hv_sign ) << 7 ) | ( (length1 & 0x7f0) >> 4 );
+ 307   1          SET_OSD_CTRL_REG_WR_PORT(tmp);
+ 308   1          tmp = ( (0 != overflow_en) << 7 ) | (md & 0x3);
+ 309   1          SET_OSD_CTRL_REG_WR_PORT(tmp);
+ 310   1      }
+ 311          
+ 312          
+ 313          void OSDConfGDCurveV(BYTE ci, BYTE pixel_init, BYTE delta_init, 
+ 314                          BYTE step, BYTE data_sign, BYTE delta_sign, BYTE delta, WORD length0, WORD length1,
+ 315                          BYTE overflow_en, BYTE md)
+ 316          {
+ 317   1          BYTE tmp;
+ 318   1          
+ 319   1          _CTRL_OSD_GD_REGISTERS();
+ 320   1          CLR_OSD_GD_REG_CURVE_RDATA_EN();
+ 321   1          _CTRL_OSD_CTRL_REGISTERS();
+ 322   1          SET_OSD_CTRL_REG_TRIG_MODE(_TRIG_MODE_GD_ADDR);
+ 323   1          ci <<= 1; ci++; SET_OSD_CTRL_REG_WR_PORT(ci);
+ 324   1          SET_OSD_CTRL_REG_TRIG_MODE(_TRIG_MODE_GD_DATA);
+ 325   1          SET_OSD_CTRL_REG_WR_PORT(pixel_init);
+ 326   1          SET_OSD_CTRL_REG_WR_PORT(delta_init);
+ 327   1          SET_OSD_CTRL_REG_WR_PORT(step);
+ 328   1          tmp = ( (0 != data_sign) << 7 ) | ( (0 != delta_sign) << 6 ) | ( delta & 0x3f );
+ 329   1          SET_OSD_CTRL_REG_WR_PORT(tmp);
+ 330   1          SET_OSD_CTRL_REG_WR_PORT(length0);
+ 331   1          tmp = ( (length1 & 0x0f) << 4 ) | ( (length0 & 0x700) >> 8 );
+ 332   1          SET_OSD_CTRL_REG_WR_PORT(tmp);
+ 333   1          tmp = ( (length1 & 0x7f0) >> 4 );
+ 334   1          SET_OSD_CTRL_REG_WR_PORT(tmp);
+ 335   1          tmp = ( (0 != overflow_en) << 7 ) | (md & 0x3);
+ 336   1          SET_OSD_CTRL_REG_WR_PORT(tmp);
+ 337   1      }
+ 338          
+ 339          void OSDGDCurveSelectionForWindow(BYTE gi, BYTE wi, BYTE ci)
+ 340          {
+ 341   1      #define SET_GDX_WINY_CURV_SEL(gi, wi, ci) SET_OSD_GD_REG_GD##gi##_WIN##wi##_CUR_SEL(ci);
+ 342   1          
+ 343   1      #define DEF_SET_GD_WINX_CURV_SEL(gi, wi, ci) switch (wi) { \
+ 344   1              case 0: SET_GDX_WINY_CURV_SEL(gi, 0, ci); break; \
+ 345   1              case 1: SET_GDX_WINY_CURV_SEL(gi, 1, ci); break; \
+ 346   1              case 2: SET_GDX_WINY_CURV_SEL(gi, 2, ci); break; \
+ 347   1              case 3: SET_GDX_WINY_CURV_SEL(gi, 3, ci); break; \
+ 348   1              case 4: SET_GDX_WINY_CURV_SEL(gi, 4, ci); break; \
+ 349   1              case 5: SET_GDX_WINY_CURV_SEL(gi, 5, ci); break; \
+ 350   1              case 6: SET_GDX_WINY_CURV_SEL(gi, 6, ci); break; \
+ 351   1              case 7: SET_GDX_WINY_CURV_SEL(gi, 7, ci); break; \
+ 352   1              default: ; }
+ 353   1          
+ 354   1      #define DEF_SET_GDX_WINY_CURV_SEL(gi, wi, ci) switch (gi) { \
+ 355   1              case 0: DEF_SET_GD_WINX_CURV_SEL(0, wi, ci); break; \
+ 356   1              case 1: DEF_SET_GD_WINX_CURV_SEL(1, wi, ci); break; \
+C51 COMPILER V9.01   DRVOSD                                                                03/09/2023 15:39:17 PAGE 7   
+
+ 357   1              case 2: DEF_SET_GD_WINX_CURV_SEL(2, wi, ci); break; \
+ 358   1              case 3: DEF_SET_GD_WINX_CURV_SEL(3, wi, ci); break; \
+ 359   1              case 4: DEF_SET_GD_WINX_CURV_SEL(4, wi, ci); break; \
+ 360   1              case 5: DEF_SET_GD_WINX_CURV_SEL(5, wi, ci); break; \
+ 361   1              default: ; }       
+ 362   1          
+ 363   1      #if 0
+                  SET_OSD_GD_REG_GD0_WIN0_CUR_SEL(V);
+              #endif
+ 366   1      
+ 367   1      
+ 368   1      
+ 369   1      
+ 370   1          _CTRL_OSD_GD_REGISTERS();
+ 371   1          DEF_SET_GDX_WINY_CURV_SEL(gi, wi, ci);
+ 372   1      }
+ 373          
+ 374          void drvOSD_SetGDEngineEnableWnd(void)
+ 375          {
+ 376   1          BYTE i;
+ 377   1          for (i=0;i<255;i++)
+ 378   1          {
+ 379   2              OSDSetMask0(i,0);
+ 380   2          }
+ 381   1      #if 0        
+                  OSDGDCurveSelectionForWindow(OSD_GD_EG3, OSD_CURSOR_WND, 0);
+               //OSDConfGDCurveH( ci, Hpixel_init, Hdelta_init, Hstep, Hdata_sign, Hdelta_sign, Hdelta, Hlength0, Hlengt
+             -h1, hv_sign, Hoverflow_en, Hmd );
+                  OSDConfGDCurveH( 0,        0x00,        0x00,     0,          0,           0,      0,   0xffff,   0xff
+             -ff,       0,            0,   0 );
+               //OSDConfGDCurveV( ci, Vpixel_init, Vdelta_init, Vstep, Vdata_sign, Vdelta_sign, Vdelta, Vlength0, Vlengt
+             -h1, Voverflow_en, Vmd );
+                  OSDConfGDCurveV( 0,        0xFF,        0x0F,     0,          1,           0,      0,       18,       
+             - 0,            0,   0 );
+              
+                  OSDGDCurveSelectionForWindow(OSD_GD_EG4, OSD_MAIN_WND, 1);
+               //OSDConfGDCurveH( ci, Hpixel_init, Hdelta_init, Hstep, Hdata_sign, Hdelta_sign, Hdelta, Hlength0, Hlengt
+             -h1, hv_sign, Hoverflow_en, Hmd );
+                  OSDConfGDCurveH( 1,        0x00,        0x00,     0,          0,           0,      0,   0xffff,   0xff
+             -ff,       0,            0,   0 );
+               //OSDConfGDCurveV( ci, Vpixel_init, Vdelta_init, Vstep, Vdata_sign, Vdelta_sign, Vdelta, Vlength0, Vlengt
+             -h1, Voverflow_en, Vmd );
+                  OSDConfGDCurveV( 1,        0xFF,        0x03,     0,          1,           0,      0,       90,   216-
+             -90,            0,   0 );
+              #endif
+ 394   1      }
+ 395          
+ 396          #elif CHIP_ID == CHIP_TSUMV
+              
+              void drvOSD_SetGDEngineEnableWnd(BYTE u8GDEngine, WORD u16EnableFlags,WORD u16Mask)
+              {
+                  BYTE xdata u8Bank=msReadByte(OSD1_00);
+                  WORD xdata u16Addr;
+                  msWriteByte(OSD1_00,0x01);//subbank 1
+                  if (u8GDEngine<OSD_GD_EG4)
+                      u16Addr=OSD1_44+u8GDEngine;
+                  else
+                      u16Addr=OSD1_EC+(u8GDEngine-OSD_GD_EG4);// gd4/gd5 //110627
+                  if (u16EnableFlags&0xFF) //for wnd
+                  {
+                      msWriteByteMask(u16Addr,(u16EnableFlags&0xFF),(u16Mask&0xFF));
+                  }
+C51 COMPILER V9.01   DRVOSD                                                                03/09/2023 15:39:17 PAGE 8   
+
+                  u16EnableFlags&=0x0F00;
+                  u16Mask&=0x0F00;
+                  if (u16Mask) //for timing gen
+                  {
+                      if (u8GDEngine&0x01) //GD1/GD3/GD5
+                      {
+                          u16EnableFlags>>=4;
+                          u16Mask>>=4;
+                      }
+                      else //GD0/GD2/GD4
+                      {
+                          u16EnableFlags>>=8;
+                          u16Mask>>=8;
+                      }
+                      msWriteByteMask(OSD1_EE+(u8GDEngine>>1),u16EnableFlags,u16Mask); //110627
+                  }
+              
+                  msWriteByte(OSD1_00,u8Bank);
+              }
+              #endif
+ 431          
+ 432          void drvOSD_FrameColorEnable(Bool bEnable)
+ 433          {
+ 434   1          msWriteByteMask(SC0_32,(bEnable?BIT0:0),BIT0);
+ 435   1      }
+ 436          void drvOSD_FrameColorRGB(BYTE u8Red,BYTE u8Green,BYTE u8Blue)
+ 437          {
+ 438   1          msWriteByte(SC0_33, u8Red);
+ 439   1          msWriteByte(SC0_34, u8Green);
+ 440   1          msWriteByte(SC0_35, u8Blue);
+ 441   1      }
+ 442          
+ 443          // wait for coding
+ 444          //extern void Osd_LoadColorPalette( void );
+ 445          
+ 446          void drvOSD_uncall(void)
+ 447          {
+ 448   1          drvOSD_DrawBlankPlane(0, 0, 0, 0, 0);
+ 449   1          drvOSD_GetWndInfo(0, 0);
+ 450   1          drvOSD_SetWndOn(0, 0);
+ 451   1          drvOSD_SetWndCtrl(0, 0, 0, 0);
+ 452   1          drvOSD_SetWndFixAlpha(0, 0, 0);
+ 453   1          drvOSD_SetWndFixColor(0, 0, 0, 0);
+ 454   1          drvOSD_SetWndShiftPixel(0, 0, 0);
+ 455   1          drvOSD_SetWndCABaseAddr(0, 0);
+ 456   1          drvOSD_SetWndFixAttr(0, 0, 0);
+ 457   1          drvOSD_SetWndLineOffset(0, 0);
+ 458   1          //Osd_LoadColorPalette();
+ 459   1          
+ 460   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2582    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----       5
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      69
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

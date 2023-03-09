@@ -1,0 +1,4 @@
+
+
+extern Bool AdjustSuperResolution(void);
+

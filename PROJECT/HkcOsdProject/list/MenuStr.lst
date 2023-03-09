@@ -1,0 +1,1428 @@
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE MENUSTR
+OBJECT MODULE PLACED IN .\obj\MenuStr.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\UI\HkcOsd\MenuStr.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\DRIVER\INC;..
+                    -\..\KERNEL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..\..\KERNEL\SY
+                    -STEM\INC\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\UI\HkcOsd\INC
+                    -) DEFINE(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\MenuStr.lst) OBJECT(.\obj\MenuStr.obj)
+
+line level    source
+
+   1          #include "types.h"
+   2          #include "board.h"
+   3          #include "global.h"
+   4          #include "keypaddef.h"
+   5          #include "menudef.h"
+   6          
+   7          #if PropFontNewData
+   8          #include "menuTextProp_new.h"
+   9          #else
+              #include "menuTextProp.h"
+              #endif
+  12          
+  13          #define Icon4Color_AddrShift   2
+  14          #define Icon8Color_AddrShift   3
+  15          
+  16          BYTE code strBrightnessIcon[7]=
+  17          {
+  18                  _8ColorMainIconStart+0*Icon8Color_AddrShift,
+  19                  _8ColorMainIconStart+1*Icon8Color_AddrShift,
+  20                  _8ColorMainIconStart+2*Icon8Color_AddrShift,
+  21                  _8ColorMainIconStart+3*Icon8Color_AddrShift,
+  22                  _8ColorMainIconStart+4*Icon8Color_AddrShift,
+  23                  _8ColorMainIconStart+5*Icon8Color_AddrShift,
+  24                   '\0'   
+  25          };      
+  26          BYTE code strImageIcon[7]=
+  27          {
+  28                  _4ColorMainIconStart+0*Icon4Color_AddrShift,
+  29                  _4ColorMainIconStart+1*Icon4Color_AddrShift,
+  30                  _4ColorMainIconStart+2*Icon4Color_AddrShift,
+  31                  _4ColorMainIconStart+3*Icon4Color_AddrShift,
+  32                  _4ColorMainIconStart+4*Icon4Color_AddrShift,
+  33                  _4ColorMainIconStart+5*Icon4Color_AddrShift,
+  34                   '\0'   
+  35          };
+  36          
+  37          BYTE code strColorTempIcon[7]=
+  38          {
+  39                  _8ColorMainIconStart+6*Icon8Color_AddrShift,
+  40                  _8ColorMainIconStart+7*Icon8Color_AddrShift,
+  41                  _8ColorMainIconStart+8*Icon8Color_AddrShift,
+  42                  _8ColorMainIconStart+9*Icon8Color_AddrShift,
+  43                  _8ColorMainIconStart+10*Icon8Color_AddrShift,
+  44                  _8ColorMainIconStart+11*Icon8Color_AddrShift,
+  45                   '\0'   
+  46          };      
+  47          
+  48          BYTE code strOSDIcon[7]=
+  49          {
+  50                  _8ColorMainIconStart+12*Icon8Color_AddrShift,
+  51                  _8ColorMainIconStart+13*Icon8Color_AddrShift,
+  52                  _8ColorMainIconStart+14*Icon8Color_AddrShift,
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 2   
+
+  53                  _8ColorMainIconStart+15*Icon8Color_AddrShift,
+  54                  _8ColorMainIconStart+16*Icon8Color_AddrShift,
+  55                  _8ColorMainIconStart+17*Icon8Color_AddrShift,
+  56                   '\0'   
+  57          };
+  58          
+  59          BYTE code strResetIcon[7]=
+  60          {
+  61                  _4ColorMainIconStart+6*Icon4Color_AddrShift,
+  62                  _4ColorMainIconStart+7*Icon4Color_AddrShift,
+  63                  _4ColorMainIconStart+8*Icon4Color_AddrShift,
+  64                  _4ColorMainIconStart+9*Icon4Color_AddrShift,
+  65                  _4ColorMainIconStart+10*Icon4Color_AddrShift,
+  66                  _4ColorMainIconStart+11*Icon4Color_AddrShift,
+  67                   '\0'   
+  68          };      
+  69          
+  70          BYTE code strMiscIcon[7]=
+  71          {
+  72                  _4ColorMainIconStart+12*Icon4Color_AddrShift,
+  73                  _4ColorMainIconStart+13*Icon4Color_AddrShift,
+  74                  _4ColorMainIconStart+14*Icon4Color_AddrShift,
+  75                  _4ColorMainIconStart+15*Icon4Color_AddrShift,
+  76                  _4ColorMainIconStart+16*Icon4Color_AddrShift,
+  77                  _4ColorMainIconStart+17*Icon4Color_AddrShift,
+  78                   '\0'   
+  79          };
+  80          
+  81          BYTE* BrightnessIcon(void)
+  82          { return strBrightnessIcon;
+  83   1      }
+  84          BYTE* ImageIcon(void)
+  85          { return strImageIcon;
+  86   1      }
+  87          BYTE* ColorTempIcon(void)
+  88          { return strColorTempIcon;
+  89   1      }
+  90          BYTE* OSDIcon(void)
+  91          { return strOSDIcon;
+  92   1      }
+  93          BYTE* ResetIcon(void)
+  94          { return strResetIcon;
+  95   1      }
+  96          BYTE* MiscIcon(void)
+  97          {return strMiscIcon;
+  98   1      }
+  99          
+ 100          
+ 101          //----Eson Start----------------------------------
+ 102          //========= TEXT =========
+ 103          BYTE* MainMenu_BrightText(void) 
+ 104          { 
+ 105   1        return strLuminanceM7[UserPrefLanguage];
+ 106   1      }
+ 107          BYTE* MainMenu_ImageText(void)  
+ 108          { 
+ 109   1        return strImageSetupM7[UserPrefLanguage];
+ 110   1      }
+ 111          BYTE* MainMenu_ColorText(void)  
+ 112          { 
+ 113   1        return strColorSetupM7[UserPrefLanguage];
+ 114   1      }
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 3   
+
+ 115          
+ 116          BYTE* MainMenu_OSDText(void)    
+ 117          { 
+ 118   1        return strOSDSetupM7[UserPrefLanguage];
+ 119   1      }
+ 120          
+ 121          BYTE* MainMenu_ResetText(void)  
+ 122          { 
+ 123   1        return strResetM7[UserPrefLanguage];
+ 124   1      }
+ 125          BYTE* MainMenu_MiscText(void)   
+ 126          { 
+ 127   1        return strExtraM7[UserPrefLanguage];
+ 128   1      }
+ 129          BYTE *Main_FText(void)
+ 130          {
+ 131   1          return strFactory;
+ 132   1      }
+ 133          
+ 134          //-----------------------------------------------
+ 135          BYTE *ContrastText( void )
+ 136          {
+ 137   1          return strContrastM1[UserPrefLanguage];
+ 138   1      }
+ 139          BYTE *BrightnessText( void )
+ 140          {
+ 141   1          return strBrightnessM1[UserPrefLanguage];
+ 142   1      }
+ 143          BYTE *ECOModeText( void )
+ 144          {
+ 145   1          return strEcoModeM1[UserPrefLanguage];
+ 146   1      }
+ 147          BYTE *ECOModeValue( void )
+ 148          {
+ 149   1          if( UserPrefECOMode == ECO_Standard )
+ 150   1          {
+ 151   2              return strStandardM1[UserPrefLanguage];
+ 152   2          }
+ 153   1          else if( UserPrefECOMode == ECO_Internet )
+ 154   1          {
+ 155   2              return strInternetM1[UserPrefLanguage];
+ 156   2          }
+ 157   1          else if( UserPrefECOMode == ECO_Game )
+ 158   1          {
+ 159   2              return strGameM1[UserPrefLanguage];
+ 160   2          }
+ 161   1      #if ENABLE_FPS_RTS
+                       else if( UserPrefECOMode == ECO_FPS )
+                   {
+                       return strFPSM1[UserPrefLanguage];
+                   }
+                   else if( UserPrefECOMode == ECO_RTS )
+                   {
+                       return strRTSM1[UserPrefLanguage];
+                   }
+               #endif
+ 171   1          else if( UserPrefECOMode == ECO_Movie)
+ 172   1          {
+ 173   2              return strMovieM1[UserPrefLanguage];
+ 174   2          }
+ 175   1      #if     PresetMode_Enable
+                  else if( UserPrefECOMode == ECO_Preset)
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 4   
+
+                  {
+                      return strPresetModeM1[UserPrefLanguage];
+                  }
+              #endif
+ 181   1          else
+ 182   1          {
+ 183   2              return strStandardM1[UserPrefLanguage];
+ 184   2          }
+ 185   1      }
+ 186          #if Enable_Gamma
+              BYTE *GammaText( void )
+              {
+                  return strGammaM1[UserPrefLanguage];
+              }
+              BYTE *GammaModeValue( void )
+              {
+              
+                      BYTE u8gammamode = UserPrefGamaMode;
+                      
+                  if( u8gammamode == GAMA2 )
+                  {
+                      return strGamma2M1[UserPrefLanguage];
+                  }
+                  else if( u8gammamode == GAMA3 )
+                  {
+                      return strGamma3M1[UserPrefLanguage];
+                  }
+                  else
+                  {
+                      return strGamma1M1[UserPrefLanguage];
+                  }
+              }
+              #endif
+ 210          BYTE *DCRText( void )
+ 211          {
+ 212   1      #if PresetMode_Enable && Enable_Gamma
+              if(UserPrefECOMode == ECO_Preset)
+                  return strGammaM1[UserPrefLanguage];
+              else
+              #endif
+ 217   1          return strDCRM1[UserPrefLanguage];
+ 218   1      }
+ 219          BYTE *DcrValueText( void )
+ 220          {
+ 221   1      #if PresetMode_Enable && Enable_Gamma
+              if(UserPrefECOMode == ECO_Preset)
+              {
+                  if( UserPrefGamaMode == GAMA2 )
+                  {
+                      return strGamma2M1[UserPrefLanguage];
+                  }
+                  else if( UserPrefGamaMode == GAMA3 )
+                  {
+                      return strGamma3M1[UserPrefLanguage];
+                  }
+                  else
+                  {
+                      return strGamma1M1[UserPrefLanguage];
+                  }
+              }
+              else
+              #endif
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 5   
+
+ 239   1      {
+ 240   2          if( UserPrefDcrMode )
+ 241   2          {
+ 242   3              return strOnM1[UserPrefLanguage];
+ 243   3          }
+ 244   2          else
+ 245   2          {
+ 246   3              return strOffM1[UserPrefLanguage];
+ 247   3          }
+ 248   2      }       
+ 249   1      }
+ 250          
+ 251          #if (ENABLE_RTE ) 
+              #if PresetMode_Enable
+              BYTE *OverdriveText( void )
+              {
+                  return strOverdriveM6[UserPrefLanguage];
+              }
+              BYTE *OverdriveValueText( void )
+              {
+              #if  1
+              #if (ENABLE_DUAL_LINK)  //130402 Modify
+              if(Disabe_Overdrive_Item)       
+              {
+                          return strOffM6[UserPrefLanguage];
+              }
+              else
+              #endif
+              {
+                  if(UserPrefRTEMode==RTE1)
+                  {
+                      return strOnM6[UserPrefLanguage];
+                  }
+                  else
+                  {
+                      return strOffM6[UserPrefLanguage];
+                  }
+                  }
+                  #endif
+              }
+              #else
+              BYTE *OverdriveText( void )
+              {
+                  return strOverdriveM1[UserPrefLanguage];
+              }
+              BYTE *OverdriveValueText( void )
+              {
+              #if  1
+              #if (ENABLE_DUAL_LINK)  //130402 Modify
+              if(Disabe_Overdrive_Item)       
+              {
+                          return strOffM1[UserPrefLanguage];
+              }
+              else
+              #endif
+              {
+                  if(UserPrefRTEMode==RTE1)
+                  {
+                      return strOnM1[UserPrefLanguage];
+                  }
+                  else
+                  {
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 6   
+
+                      return strOffM1[UserPrefLanguage];
+                  }
+                  }
+                  #endif
+              }
+              #endif
+              #endif
+ 308          //-----------------------------------------------
+ 309          
+ 310          //-----------------------------------------------------------
+ 311          BYTE *HPositionText( void )
+ 312          {
+ 313   1          return strHPositionM2[UserPrefLanguage];
+ 314   1      }
+ 315          BYTE *VPositionText( void )
+ 316          {
+ 317   1          return strVPositionM2[UserPrefLanguage];
+ 318   1      }
+ 319          BYTE *ClockText( void )
+ 320          {
+ 321   1          return strClockM2[UserPrefLanguage];
+ 322   1      }
+ 323          BYTE *FocusText( void )
+ 324          {
+ 325   1          return strPhaseM2[UserPrefLanguage];
+ 326   1      }
+ 327          #if Enable_Func_AdjExpansion
+ 328          BYTE *ExpansionText( void )
+ 329          {
+ 330   1          return strImageRatioM2[UserPrefLanguage];
+ 331   1      }
+ 332          BYTE *ExpansionValueText( void )
+ 333          {
+ 334   1          if( UserprefExpansionMode == Expansion_Aspect && ExpansionFlag )
+ 335   1          {
+ 336   2              return strRatio43M2[UserPrefLanguage];
+ 337   2          }
+ 338   1      #if ENABLE_OVER_SCAN
+                  else if( UserprefExpansionMode == Expansion_11 )//&& !INPUT_IS_NATIVE_TIMING() )    //121228 Modify
+                  {
+                      return strRatio11M63[UserPrefLanguage];
+                  }
+                  else if( UserprefExpansionMode == PIC_FORMAT_17Picth )//&& !INPUT_IS_NATIVE_TIMING() )      //121228 Modify
+                  {
+                      return strRatio43_17M64[UserPrefLanguage];
+                  }
+                  else if( UserprefExpansionMode == PIC_FORMAT_19Picth )//&& !INPUT_IS_NATIVE_TIMING() )      //121228 Modify
+                  {
+                      return strRatio43_19M65[UserPrefLanguage];
+                  }
+                  else if( UserprefExpansionMode == PIC_FORMAT_W19Picth )//&& !INPUT_IS_NATIVE_TIMING() )     //121228 Modif
+             -y
+                  {
+                      return strRatio1610_19M66[UserPrefLanguage];
+                  }
+                  else if( UserprefExpansionMode == PIC_FORMAT_W21_5Picth )//&& !INPUT_IS_NATIVE_TIMING() )   //121228 Mod
+             -ify
+                  {
+                      return strRatio169_215M67[UserPrefLanguage];
+                  }
+                  else if( UserprefExpansionMode == PIC_FORMAT_W22Picth )//&& !INPUT_IS_NATIVE_TIMING() )     //121228 Modif
+             -y
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 7   
+
+                  {
+                      return strRatio1610_22M68[UserPrefLanguage];
+                  }
+                  else if( UserprefExpansionMode == PIC_FORMAT_W23Picth )//&& !INPUT_IS_NATIVE_TIMING() )     //121228 Modif
+             -y
+                  {
+                      return strRatio169_23M69[UserPrefLanguage];
+                  }
+              #endif
+ 368   1          else
+ 369   1          {
+ 370   2              return strWideM2[UserPrefLanguage];
+ 371   2          }
+ 372   1      }
+ 373          
+ 374          #endif
+ 375          //-----------------------------------------------------------------------
+ 376          //-----------------------------------------------------------
+ 377          BYTE *ColorTempText( void )
+ 378          {
+ 379   1          return strColorTempM3[UserPrefLanguage];
+ 380   1      }
+ 381          BYTE *ColorTempValueText( void )
+ 382          {
+ 383   1      #if PresetMode_Enable
+              if(UserPrefECOMode == ECO_Preset)
+              {
+                  if( UserPrefColorTemp_Preset== CTEMP_Warm1)
+                  {
+                      return strWarmM3[UserPrefLanguage];
+                  }
+                  else if( UserPrefColorTemp_Preset == CTEMP_Normal)
+                  {
+                      return strNormalM3[UserPrefLanguage];
+                  }
+                  else if( UserPrefColorTemp_Preset == CTEMP_Cool1)
+                  {
+                      return strCoolM3[UserPrefLanguage];
+                  }
+                  else if( UserPrefColorTemp_Preset == CTEMP_USER )
+                  {
+                      return strUserM3[UserPrefLanguage];
+                  }
+                  else
+                  {
+                      return strWarmM3[UserPrefLanguage];
+                  }
+              }
+              else
+              #endif
+ 409   1      {
+ 410   2          if( UserPrefColorTemp == CTEMP_Warm1)
+ 411   2          {
+ 412   3              return strWarmM3[UserPrefLanguage];
+ 413   3          }
+ 414   2      #if CT_7500K_ENABLE     
+                  else if( UserPrefColorTemp == CTEMP_Normal)
+                  {
+                      return strNormalM3[UserPrefLanguage];
+                  }
+              #endif  
+ 420   2          else if( UserPrefColorTemp == CTEMP_Cool1)
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 8   
+
+ 421   2          {
+ 422   3              return strCoolM3[UserPrefLanguage];
+ 423   3          }
+ 424   2              #if CT_sRGB_ENABLE
+                  else if( UserPrefColorTemp == CTEMP_SRGB )
+                  {
+                      return strsRGBM3[UserPrefLanguage];
+                  }
+                      #endif
+ 430   2          else if( UserPrefColorTemp == CTEMP_USER )
+ 431   2          {
+ 432   3              return strUserM3[UserPrefLanguage];
+ 433   3          }
+ 434   2      #if LowBlueLightType ==  LowBlueLight_SharpFunc
+                  else if( UserPrefColorTemp == CTEMP_LowBlue )
+                  {
+                      return strLowBlueLightM3[UserPrefLanguage];
+                  }
+              #endif
+ 440   2          else
+ 441   2          {
+ 442   3              return strWarmM3[UserPrefLanguage];
+ 443   3          }
+ 444   2      }       
+ 445   1      }
+ 446          BYTE *UserColorRText( void )
+ 447          {
+ 448   1          return strRedM3[UserPrefLanguage];
+ 449   1      }
+ 450          BYTE *UserColorGText( void )
+ 451          {
+ 452   1          return strGreenM3[UserPrefLanguage];
+ 453   1      }
+ 454          BYTE *UserColorBText( void )
+ 455          {
+ 456   1          return strBlueM3[UserPrefLanguage];
+ 457   1      }
+ 458          #if ( LowBlueLightType==LowBlueLight_ColorTemp)
+              BYTE *LowBlueLightText( void )
+              {
+                  return strLowBlueLightM3[UserPrefLanguage];
+              }
+              
+              BYTE *LowBlueLightStatusText( void )
+              {
+                  if(UserprefLowBlueLightMode==LOW_BLUE_LIGHT_Weak)
+                  {
+                      return strWeakM3[UserPrefLanguage];
+                  }
+                  else if(UserprefLowBlueLightMode==LOW_BLUE_LIGHT_Middle)
+                  {
+                      return strMediumM3[UserPrefLanguage];
+                  }
+                  else if(UserprefLowBlueLightMode==LOW_BLUE_LIGHT_Strong)
+                  {
+                      return strStrongM3[UserPrefLanguage];
+                  }
+                  else
+                  {
+                      return strOffM3[UserPrefLanguage];
+                  }
+              }
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 9   
+
+              #elif ( LowBlueLightType==LowBlueLight_Misc_Guage)
+              BYTE *LowBlueLightText( void )
+              {
+                  return strLowBlueLightM6[UserPrefLanguage];
+              }
+              #elif ( LowBlueLightType==LowBlueLight_SharpFunc)
+              BYTE *LowBlueLightText( void )
+              {
+                  return strLowBlueLightM3[UserPrefLanguage];
+              }
+              
+              BYTE *LowBlueLightStatusText( void )
+              {
+                  if(gTempLowBlueMode==LOW_BLUE_LIGHT_Weak)
+                  {
+                      return strWeakM3[UserPrefLanguage];
+                  }
+                  else if(gTempLowBlueMode==LOW_BLUE_LIGHT_Middle)
+                  {
+                      return strMediumM3[UserPrefLanguage];
+                  }
+                  else if(gTempLowBlueMode==LOW_BLUE_LIGHT_Stronger)
+                  {
+                      return strStrongerM3[UserPrefLanguage];
+                  }   
+                  else if(gTempLowBlueMode==LOW_BLUE_LIGHT_Strong)
+                  {
+                      return strStrongM3[UserPrefLanguage];
+                  }
+                  else
+                  {
+                      return strOffM3[UserPrefLanguage];
+                  }
+              }
+              #elif ( LowBlueLightType==LowBlueLight_Misc_Group)
+ 518          BYTE *LowBlueLightText( void )
+ 519          {
+ 520   1          return strLowBlueLightM6[UserPrefLanguage];
+ 521   1      }
+ 522          
+ 523          BYTE *LowBlueLightStatusText( void )
+ 524          {
+ 525   1          if(UserprefLowBlueLightMode==LOW_BLUE_LIGHT_Weak)
+ 526   1          {
+ 527   2              return strWeakM6[UserPrefLanguage];
+ 528   2          }
+ 529   1          else if(UserprefLowBlueLightMode==LOW_BLUE_LIGHT_Middle)
+ 530   1          {
+ 531   2              return strMediumM6[UserPrefLanguage];
+ 532   2          }
+ 533   1          else if(UserprefLowBlueLightMode==LOW_BLUE_LIGHT_Strong)
+ 534   1          {
+ 535   2              return strStrongestM6[UserPrefLanguage];
+ 536   2          }
+ 537   1          else if(UserprefLowBlueLightMode==LOW_BLUE_LIGHT_Stronger)
+ 538   1          {
+ 539   2              return strStrongM6[UserPrefLanguage];
+ 540   2          }   
+ 541   1          else
+ 542   1          {
+ 543   2              return strOffM6[UserPrefLanguage];
+ 544   2          }
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 10  
+
+ 545   1      }
+ 546          #endif
+ 547          
+ 548          //-----------------------------------------------------------
+ 549          #if OsdAdjustHVPos_Enable
+ 550          BYTE *OsdHPositionText( void )
+ 551          {
+ 552   1          return strHPositionM4[UserPrefLanguage];
+ 553   1      }
+ 554          BYTE *OsdVPositionText( void )
+ 555          {
+ 556   1          return strVPositionM4[UserPrefLanguage];
+ 557   1      }
+ 558          #endif
+ 559          BYTE *OsdTimeOutText( void )
+ 560          {
+ 561   1          return strTimeoutM4[UserPrefLanguage];
+ 562   1      }
+ 563          BYTE *TransparenceText( void )
+ 564          {
+ 565   1          return strTransparenceM4[UserPrefLanguage];
+ 566   1      }
+ 567          BYTE *LanguageText( void )
+ 568          {
+ 569   1          return strLanguageM4[UserPrefLanguage];
+ 570   1      }
+ 571          #if AdjustLanguageFunction
+ 572          BYTE *LanguageStatusText( void )
+ 573          {
+ 574   1          return strLanguageStatusM8[UserPrefLanguage];
+ 575   1      }
+ 576          #else
+              
+              BYTE *strEnglishText( void )
+              {
+                      return strEnglishM8[0];
+              }
+              BYTE *strFranceText( void )
+              {
+                      return strFranshM8[0];
+              }
+              BYTE *strEspanolText( void )
+              {
+                      return strEspanolM8[0];
+              }
+              BYTE *strPortuguesText( void )
+              {
+                      return strPortuguesM8[0];
+              }
+              BYTE *strDeutschText( void )
+              {
+                      return strDeutschM8[0];
+              }
+              
+              BYTE *strItalianoText( void )
+              {
+                      return strItalianoM8[0];
+              }
+              BYTE *strNederlandsText( void )
+              {
+                      return strNederlandsM8[0];
+              }
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 11  
+
+              BYTE * strSvenskaText( void )
+              {
+                      return strSvenskaM8[0];
+              }
+              BYTE *strSuomiText( void )
+              {
+                      return strSuomiM8[0];
+              }
+              BYTE *strPolskiText( void )
+              {
+                      return strPolskiM8[0];
+              }
+              
+              BYTE *strCestinaText( void )
+              {
+                      return strCestinaM8[0];
+              }
+              BYTE *strPycText( void )
+              {
+                      return strPycM8[0];
+              }
+              BYTE *strKoreanText( void )
+              {
+                      return strKoreanM8[0];
+              }
+              BYTE *strTChineseText( void )
+              {
+                      return strTChineseM8[0];
+              }
+              BYTE *strSChineseText( void )
+              {
+                      return strSChineseM8[0];
+              }
+              BYTE *strJapanText( void )
+              {
+                      return strJapanM8[0];
+              }
+              
+              #endif
+ 646          
+ 647          BYTE *ResetText( void )
+ 648          {
+ 649   1          return strResetM5[UserPrefLanguage];
+ 650   1      }
+ 651          
+ 652          #if AboutDSUBFunc_Enable
+ 653          BYTE *SubAutoColorText(void)
+ 654          {
+ 655   1          return strAutoColorM5[UserPrefLanguage];
+ 656   1      }
+ 657          BYTE *AutoConfigText( void )
+ 658          {
+ 659   1          return strAutoConfigM5[UserPrefLanguage];
+ 660   1      }
+ 661          #endif
+ 662          #ifdef OffPower 
+              
+              BYTE *OffTimerText( void )
+              {
+                  return strOffTimerM5[UserPrefLanguage];
+              }
+              BYTE *NullText( void )
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 12  
+
+              {
+                  return 0;
+              }
+              #endif
+ 673          
+ 674          //-------------------------------------------------------------
+ 675          #if (INPUT_TYPE!=INPUT_1A) && (INPUT_TYPE!=INPUT_1H)
+ 676          BYTE *InputSelectText( void )
+ 677          {
+ 678   1          return strInputSelectM6[UserPrefLanguage];
+ 679   1      }
+ 680          #endif
+ 681          #if !HKC_INPUTSELECT_MODE
+ 682          #if (INPUT_TYPE!=INPUT_1A) && (INPUT_TYPE!=INPUT_1H)
+ 683          
+ 684          BYTE *InputSourceText( void )
+ 685          {
+ 686   1      #if ENABLE_AutoDetech
+                  if (UserPrefInputSelectType == INPUT_PRIORITY_AUTO)//(EnableAutoswitchFlag)
+                  {
+                      return strAutoM6[UserPrefLanguage];
+                  }
+                  else
+              #endif
+ 693   1          {
+ 694   2      #if INPUT_TYPE == INPUT_1A2H || INPUT_TYPE == INPUT_2H //110424 Modify
+                      if( UserPrefInputType == INPUT_PRIORITY_DVI)
+                      {          
+                              return strHDMI1M6[UserPrefLanguage];
+                      }
+                      else if( UserPrefInputType == INPUT_PRIORITY_HDMI)
+                      {
+                              return strHDMI2M6[UserPrefLanguage];    //120511 Modify
+                      }
+              #elif INPUT_TYPE == INPUT_1A1H || INPUT_TYPE == INPUT_1H        
+ 704   2              if( UserPrefInputType == INPUT_PRIORITY_HDMI)
+ 705   2              {
+ 706   3                  return strHDMIM6[UserPrefLanguage]; //120511 Modify
+ 707   3              }
+ 708   2      #elif INPUT_TYPE == INPUT_1A1D1DP       //130924 xiandi    
+                      if( UserPrefInputType == INPUT_PRIORITY_DVI)
+                      {
+                          return strDVIM6[UserPrefLanguage];
+                      }
+                      else if( UserPrefInputType == INPUT_PRIORITY_DP)
+                      {
+                          return strDPM6[UserPrefLanguage];
+                      }
+              #elif INPUT_TYPE == INPUT_1A1DP //20151126 Alpha
+                      if( UserPrefInputType == INPUT_PRIORITY_DP)
+                      {
+                          return strDPM6[UserPrefLanguage];
+                      }               
+              #elif (INPUT_TYPE == INPUT_1A2H1DP)
+                        if( UserPrefInputType == INPUT_PRIORITY_HDMI)
+                      {
+                          return strHDMI1M6[UserPrefLanguage];
+                      }
+                      else if( UserPrefInputType == INPUT_PRIORITY_HDMI2ND)
+                      {
+                           return strHDMI2M6[UserPrefLanguage];       
+                      }
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 13  
+
+                      else if( UserPrefInputType == INPUT_PRIORITY_DP)
+                      {
+                          return strDPM6[UserPrefLanguage];   // 20130109
+                      }       
+              #elif (INPUT_TYPE == INPUT_1A1D1H1DP)       
+                      if( UserPrefInputType == INPUT_PRIORITY_DVI)
+                      {
+                          return strDVIM6[UserPrefLanguage];
+                      }
+                      else if( UserPrefInputType == INPUT_PRIORITY_HDMI)
+                      {
+                           return strHDMIM6[UserPrefLanguage];        
+                      }
+                      else if( UserPrefInputType == INPUT_PRIORITY_DP)
+                      {
+                          return strDPM6[UserPrefLanguage];   // 20130109
+                              }
+              #elif INPUT_TYPE == INPUT_1A1H1DP
+                      if( UserPrefInputType == INPUT_PRIORITY_HDMI)
+                      {
+                           return strHDMIM6[UserPrefLanguage];        
+                      }
+                      else if( UserPrefInputType == INPUT_PRIORITY_DP)
+                      {
+                          return strDPM6[UserPrefLanguage];   // 20130109
+                      }
+              #elif INPUT_TYPE == INPUT_1D1H1DP
+                              if( UserPrefInputType == INPUT_PRIORITY_HDMI)
+                              {
+                                   return strHDMIM6[UserPrefLanguage];    
+                              }
+                              else if( UserPrefInputType == INPUT_PRIORITY_DP)
+                              {
+                                  return strDPM6[UserPrefLanguage];   // 20130109
+                              }
+                              else if( UserPrefInputType == INPUT_PRIORITY_DVI)
+                              {
+                                  return strDVIM6[UserPrefLanguage];   // 20130109
+                              }
+              #elif INPUT_TYPE == INPUT_1A1D1H        //131113 fay     
+                      if( UserPrefInputType == INPUT_PRIORITY_DVI)
+                      {
+                          return strDVIM6[UserPrefLanguage];
+                      }
+                      else if( UserPrefInputType == INPUT_PRIORITY_HDMI)
+                      {
+                          return strHDMIM6[UserPrefLanguage]; 
+                      }        
+              #else
+                      if( UserPrefInputType == INPUT_PRIORITY_DVI)
+                      {
+                          return strDVIM6[UserPrefLanguage];
+                      }
+                      /*
+                      else if( UserPrefInputType == INPUT_PRIORITY_HDMI)
+                      {
+                          return strHDMIM6[UserPrefLanguage];
+                      }
+                      */
+              #endif
+ 791   2        #if INPUT_TYPE != INPUT_1D1H1DP
+ 792   2              else
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 14  
+
+ 793   2              {
+ 794   3                  return strDSUBM6[UserPrefLanguage];
+ 795   3              }
+ 796   2      #else
+                      return strDVIM6[UserPrefLanguage]; 
+                #endif
+ 799   2          }
+ 800   1      }
+ 801          #endif
+ 802          #endif
+ 803          #if AudioFunc
+ 804          #if EANBLE_MUTE_ON_OFF   
+ 805          
+ 806          BYTE *MuteText(void)
+ 807          {
+ 808   1          return strMuteM6[UserPrefLanguage];
+ 809   1      }
+ 810          BYTE *MuteValueText( void )
+ 811          {
+ 812   1          if( UserPrefMuteState)
+ 813   1          {
+ 814   2              return strOnM6[UserPrefLanguage];
+ 815   2          }
+ 816   1          else
+ 817   1          {
+ 818   2              return strOffM6[UserPrefLanguage];
+ 819   2          }
+ 820   1      }
+ 821          #endif
+ 822          BYTE *VolumeText(void)
+ 823          {
+ 824   1          return strVolumeM6[UserPrefLanguage];
+ 825   1      }
+ 826          #endif
+ 827          #if Enable_Adjust_SharpnessMenu
+              BYTE *SharpnessText( void )
+              {
+                  return strSharpnessM6[UserPrefLanguage];
+              }
+              #endif
+ 833          
+ 834          #if  DDCCI_ENABLE && DDCCCIMenu_Enable
+              BYTE *DDCCIText( void )
+              {
+                  return strDDCCIM6[UserPrefLanguage];
+              }
+              BYTE *DDCCIValueText( void )
+              {
+                  if( DDCciFlag )
+                  {
+                      return strOnM6[UserPrefLanguage];
+                  }
+                  else
+                  {
+                      return strOffM6[UserPrefLanguage];
+                  }
+              }
+              #endif
+ 851          #if  FreeSyncMenu_Enable
+              BYTE *FreeSyncText( void )
+              {
+                  return strFreeSyncM6[UserPrefLanguage];
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 15  
+
+              }
+              BYTE *FreeSyncValueText( void )
+              {
+              #if FREESYNC_DP_on_off
+              if (CURRENT_INPUT_IS_HDMI())
+                  return strOnM6[UserPrefLanguage];
+               else if(CURRENT_INPUT_IS_DVI())
+                  return strOffM6[UserPrefLanguage];
+              else
+              {
+                  if(UserprefFreeSyncMode ==FreeSyncMenuItems_On)//    if( FreeSyncFlag )            
+                  {
+                      return strOnM6[UserPrefLanguage];
+                  }
+                  else
+                  {
+                      return strOffM6[UserPrefLanguage];
+                  }
+              
+              }
+              #else
+                 if(CURRENT_INPUT_IS_VGA())
+                      return strOffM6[UserPrefLanguage];
+                 #if ENABLE_FREESYNC
+                  if(UserprefFreeSyncMode ==FreeSyncMenuItems_On)//    if( FreeSyncFlag )            
+                  {
+                      return strOnM6[UserPrefLanguage];
+                  }
+                  else
+                      #endif
+                  {
+                      return strOffM6[UserPrefLanguage];
+                  }
+              #endif
+              
+              }
+              #endif
+ 892          #if 0//ENABLE_FREESYNC
+              BYTE *FreesyncDesText1( void )
+              {
+                  return strFreeSyncDes01M15[UserPrefLanguage];
+              }
+              BYTE *FreesyncDesText2( void )
+              {
+                  return strFreeSyncDes02M15[UserPrefLanguage];
+              }
+              BYTE *Quick_FreesyncText( void )
+              {
+                  return strFreeSyncM2[UserPrefLanguage];
+              }
+              BYTE *Quick_FreesyncValue( void )
+              {
+               if(UserprefFreeSyncMode==FreeSyncMenuItems_On)
+                  return strONM2[UserPrefLanguage];
+               else
+                  return strOFFM2[UserPrefLanguage];
+              }
+              #endif
+ 913          
+ 914          
+ 915          //-------------------------------------------------------------
+ 916          
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 16  
+
+ 917          
+ 918          
+ 919          BYTE *InputConnectorText(void)
+ 920          {
+ 921   1          if (SrcInputType == Input_VGA)
+ 922   1          {
+ 923   2              return strDSUBM6[UserPrefLanguage];
+ 924   2          }
+ 925   1          
+ 926   1      #if ENABLE_DP_INPUT
+                  #if CHIP_ID>=CHIP_TSUMC
+                      #if (INPUT_TYPE == INPUT_1A1DP)
+                      else if( SrcInputType == Input_Displayport )
+                      {
+                      return strDPM6[UserPrefLanguage];  
+                      }
+                      #else
+                      else if( SrcInputType == Input_Displayport3 )
+                      {
+                      return strDPM6[UserPrefLanguage];  
+                      }
+                      #endif
+                  #else
+                      else if( SrcInputType == Input_Displayport)
+                      {
+                      return strDPM6[UserPrefLanguage];  
+                      }
+                  #endif
+              #endif
+ 946   1      
+ 947   1      #if ENABLE_HDMI
+ 948   1              #if INPUT_TYPE==INPUT_1A1H ||INPUT_TYPE==INPUT_1A1H1DP
+ 949   1          else if(SrcInputType == Input_Digital)
+ 950   1              #else
+                  else if(SrcInputType == Input_Digital2)
+                      #endif
+ 953   1          {
+ 954   2              #if INPUT_TYPE==INPUT_1A2H ||INPUT_TYPE == INPUT_2H     //121108 Modify
+                              return strHDMI2M6[UserPrefLanguage];
+                      #else
+ 957   2                      #if INPUT_TYPE==INPUT_1A2H1DP 
+                                      return strHDMI2M6[UserPrefLanguage];
+                              #else
+ 960   2                              return strHDMIM6[UserPrefLanguage];
+ 961   2                      #endif
+ 962   2              #endif
+ 963   2          }
+ 964   1      #endif
+ 965   1          else
+ 966   1          {
+ 967   2              #if  INPUT_TYPE==INPUT_1A2H ||INPUT_TYPE == INPUT_2H    //121108 Modify
+                                  return strHDMI1M6[UserPrefLanguage];
+                       #elif INPUT_TYPE == INPUT_1H
+                                    return strHDMIM6[UserPrefLanguage];
+                      #else
+ 972   2                      #if INPUT_TYPE == INPUT_1A2H1DP
+                                      return strHDMI1M6[UserPrefLanguage];
+                              #else
+ 975   2                              return strDVIM6[UserPrefLanguage];
+ 976   2                      #endif
+ 977   2              #endif
+ 978   2          }
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 17  
+
+ 979   1      }
+ 980          
+ 981          
+ 982          
+ 983          
+ 984          
+ 985          
+ 986          
+ 987          
+ 988          
+ 989          
+ 990          
+ 991          
+ 992          
+ 993          
+ 994          
+ 995          
+ 996          
+ 997          
+ 998          
+ 999          
+1000          
+1001          
+1002          
+1003          
+1004          
+1005          
+1006          
+1007          
+1008          
+1009          
+1010          
+1011          
+1012          
+1013          
+1014          
+1015          
+1016          
+1017          //-----------------------------------------------------------
+1018          
+1019          
+1020          
+1021          //-----------------------------------------------------------
+1022          
+1023          
+1024          #if Dual
+1025          #if ENABLE_VGA
+1026          BYTE *AnalogText( void )
+1027          {
+1028   1          return strDSUBM6[UserPrefLanguage];
+1029   1      }
+1030          #endif
+1031          #if ENABLE_DVI
+              BYTE *DigitalText( void )
+              {
+                      return strDVIM6[UserPrefLanguage];
+              }
+              #endif
+1037          #if ENABLE_HDMI
+1038          BYTE *HDMIText( void )
+1039          {
+1040   1      #if ENABLE_HDMI2
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 18  
+
+                   return strHDMI1M6[UserPrefLanguage];
+              #else
+1043   1           return strHDMIM6[UserPrefLanguage];
+1044   1      #endif
+1045   1      }
+1046          #endif
+1047          #if ENABLE_HDMI2
+              BYTE *HDMI2Text( void )
+              {
+                   return strHDMI2M6[UserPrefLanguage];
+              }
+              #endif
+1053          #if ENABLE_DP_INPUT
+              BYTE *DPText( void )
+              {
+                  return strDPM6[UserPrefLanguage];
+              }
+              #endif
+1059          
+1060          
+1061          
+1062          
+1063          #if (INPUT_TYPE!=INPUT_1A) && (INPUT_TYPE!=INPUT_1H)
+1064          #if ENABLE_AutoDetech
+              BYTE *AutoText( void )
+              {
+                  return strAutoM6[UserPrefLanguage];
+              }
+              #endif
+1070          #endif
+1071          
+1072          #if HKC_INPUTSELECT_MODE
+              BYTE *InputTypeRationText( void )
+              {
+              //CURRENT_INPUT_IS_TMDS()
+              #if ENABLE_VGA
+              if(UserPrefInputType==Input_VGA  ) //=
+              return strDSUBM6[UserPrefLanguage];
+              #endif
+              #if ENABLE_HDMI
+              if(UserPrefInputType==Input_HDMI) //=
+              return strHDMIM6[UserPrefLanguage];
+              #endif
+              #if ENABLE_HDMI2
+              if(UserPrefInputType==Input_HDMI2)//==========problem
+              strHDMI2M6[UserPrefLanguage];
+              #endif
+              
+              #if ENABLE_DVI
+               if(UserPrefInputType==Input_DVI     )
+               return strDVIM6[UserPrefLanguage];
+              #endif
+              #if ENABLE_DP_INPUT
+              if(UserPrefInputType==Input_Displayport)
+              return strDPM6[UserPrefLanguage];
+              #endif
+              #if 0//(INPUT_TYPE!=INPUT_1A) && (INPUT_TYPE!=INPUT_1H)
+              if(UserPrefInputType==INPUT_PRIORITY_AUTO)  //=
+              return strAutoM6[PropFontIndex];
+               #endif
+              
+              }
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 19  
+
+              #endif
+1104          
+1105          #endif
+1106          
+1107          
+1108          
+1109          
+1110          #if ENABLE_FREESYNC
+              BYTE *VsyncText( void )
+              {
+                  return strVsyncM6[UserPrefLanguage];
+              }
+              #endif
+1116          
+1117          //-----------------------------------------------------------
+1118          BYTE *OutOfRangeText( void )
+1119          {
+1120   1          return strInputNotSupportM9[UserPrefLanguage];
+1121   1      }
+1122          BYTE * CableNotConnectText( void )
+1123          {
+1124   1          return strCableNotConnectedM10[UserPrefLanguage];
+1125   1      }
+1126          
+1127          BYTE *NoSyncText( void )
+1128          {
+1129   1          return strNoSignalM11[UserPrefLanguage];
+1130   1      }
+1131          
+1132          
+1133          
+1134          
+1135          
+1136          #ifdef OffPower        
+              BYTE *OffTimerM98Text( void )
+              {
+                  return strOffTimerM98[UserPrefLanguage];
+              }
+              BYTE *MonitorOffText( void )
+              {
+                  return strMonitorOffM98[UserPrefLanguage];
+              }
+              #endif
+1146          
+1147          
+1148          
+1149          #if Hot_Corss_ColorSelect
+              
+              
+              
+              BYTE code strCorssIcon[41]=
+              {
+                (CorssAddr+0),  (CorssAddr+0),  (CorssAddr+0), (CorssAddr+1),    (CorssAddr+2),   (CorssAddr+0),       (
+             -CorssAddr+0),    (CorssAddr+0),
+                (CorssAddr+0),  (CorssAddr+0),  (CorssAddr+0), (CorssAddr+3),    (CorssAddr+4),   (CorssAddr+0),       (
+             -CorssAddr+0),    (CorssAddr+0),
+                (CorssAddr+5),  (CorssAddr+6),  (CorssAddr+7), (CorssAddr+8),    (CorssAddr+9),   (CorssAddr+7),       (
+             -CorssAddr+10),  (CorssAddr+11),
+                (CorssAddr+0),  (CorssAddr+0),  (CorssAddr+0), (CorssAddr+12),  (CorssAddr+13),  (CorssAddr+0),       (C
+             -orssAddr+0),    (CorssAddr+0),
+                (CorssAddr+0),  (CorssAddr+0),  (CorssAddr+0), (CorssAddr+14),  (CorssAddr+15),  (CorssAddr+0),       (C
+             -orssAddr+0),    (CorssAddr+0),
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 20  
+
+                '\0'
+              };
+              
+              
+              BYTE* CorssIcon(void)
+              {
+                      return strCorssIcon;
+              }  
+              #elif Hot_Corss_FY_ColorSelect
+              
+              
+              #define CRM(x)        (CorssAddr+x)
+               BYTE code strCROWindow_ONE[6][11]=
+              {
+                      {        CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x01), CRM(0x02), CRM(0x00), CRM(0x00), 
+                               CRM(0x00), CRM(0x00), 
+                       0},
+                      {        CRM(0x00), CRM(0x00), CRM(0x03), CRM(0x04), CRM(0x05), CRM(0x06), CRM(0x07), CRM(0x08), 
+                               CRM(0x00), CRM(0x00), 
+                       0},
+                      {        CRM(0x09), CRM(0x0A), CRM(0x0B), CRM(0x0A), CRM(0x0C), CRM(0x0D), CRM(0x0A), CRM(0x0E), 
+                               CRM(0x0A), CRM(0x0F), 
+                       0},
+                      {        CRM(0x10), CRM(0x11), CRM(0x12), CRM(0x11), CRM(0x13), CRM(0x14), CRM(0x11), CRM(0x15), 
+                               CRM(0x11), CRM(0x16), 
+                       0},
+                      {        CRM(0x00), CRM(0x00), CRM(0x17), CRM(0x18), CRM(0x19), CRM(0x1A), CRM(0x1B), CRM(0x1C), 
+                               CRM(0x00), CRM(0x00), 
+                       0},
+                      {        CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x1D), CRM(0x1E), CRM(0x00), CRM(0x00), 
+                               CRM(0x00), CRM(0x00), 
+                       0}
+              };
+              
+              
+              
+               BYTE code strCROWindow_TOW[6][11]=
+              {
+                      {        CRM(0x00), CRM(0x01), CRM(0x02), CRM(0x03), CRM(0x04), CRM(0x05), CRM(0x06), CRM(0x07), 
+                               CRM(0x08), CRM(0x00), 
+                       0},
+                      {        CRM(0x09), CRM(0x0A), CRM(0x0B), CRM(0x00), CRM(0x0C), CRM(0x0B), CRM(0x00), CRM(0x0C), 
+                               CRM(0x0D), CRM(0x0E), 
+                       0},
+                      {        CRM(0x0F), CRM(0x10), CRM(0x08), CRM(0x11), CRM(0x12), CRM(0x13), CRM(0x14), CRM(0x01), 
+                               CRM(0x15), CRM(0x16), 
+                       0},
+                      {        CRM(0x17), CRM(0x18), CRM(0x0B), CRM(0x19), CRM(0x1A), CRM(0x1B), CRM(0x1C), CRM(0x0C), 
+                               CRM(0x1D), CRM(0x1E), 
+                       0},
+                      {        CRM(0x1F), CRM(0x20), CRM(0x08), CRM(0x00), CRM(0x01), CRM(0x08), CRM(0x00), CRM(0x01), 
+                               CRM(0x21), CRM(0x22), 
+                       0},
+                      {        CRM(0x00), CRM(0x0C), CRM(0x23), CRM(0x24), CRM(0x25), CRM(0x26), CRM(0x27), CRM(0x28), 
+                               CRM(0x0B), CRM(0x00), 
+                       0}
+              };
+              
+              
+               BYTE code strCROWindow_THR[6][11]=
+              {
+                      {        CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x01), CRM(0x02), CRM(0x00), CRM(0x00), 
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 21  
+
+                               CRM(0x00), CRM(0x00), 
+                       0},
+                      {        CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x03), CRM(0x04), CRM(0x00), CRM(0x00), 
+                               CRM(0x00), CRM(0x00), 
+                       0},
+                      {        CRM(0x05), CRM(0x06), CRM(0x07), CRM(0x06), CRM(0x08), CRM(0x09), CRM(0x0A), CRM(0x0B), 
+                               CRM(0x0A), CRM(0x0C), 
+                       0},
+                      {        CRM(0x0D), CRM(0x0E), CRM(0x0F), CRM(0x0E), CRM(0x10), CRM(0x11), CRM(0x12), CRM(0x13), 
+                               CRM(0x12), CRM(0x14), 
+                       0},
+                      {        CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x15), CRM(0x16), CRM(0x00), CRM(0x00), 
+                               CRM(0x00), CRM(0x00), 
+                       0},
+                      {        CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x17), CRM(0x18), CRM(0x00), CRM(0x00), 
+                               CRM(0x00), CRM(0x00), 
+                       0}
+              };
+              
+              BYTE* CorssIcon1(void)
+              {
+                      return strCROWindow_ONE;
+              }  
+              BYTE* CorssIcon2(void)
+              {
+                      return strCROWindow_TOW;
+              }  
+              BYTE* CorssIcon3(void)
+              {
+                      return strCROWindow_THR;
+              }  
+              
+              #elif Hot_Corss_FND_Select
+              
+              
+              #define CRM(x)        (CorssAddr+x)
+               BYTE code strCROWindow_ONE[6][11]=
+              {
+                      {        CRM(0x00), CRM(0x00), CRM(0x01), CRM(0x02), CRM(0x03), CRM(0x04), CRM(0x05), CRM(0x06), 
+                               CRM(0x00), CRM(0x00), 
+                       0},
+                      {        CRM(0x00), CRM(0x07), CRM(0x08), CRM(0x09), CRM(0x0A), CRM(0x0B), CRM(0x0C), CRM(0x0D), 
+                               CRM(0x0E), CRM(0x00), 
+                       0},
+                      {        CRM(0x00), CRM(0x0F), CRM(0x10), CRM(0x11), CRM(0x12), CRM(0x13), CRM(0x14), CRM(0x10), 
+                               CRM(0x15), CRM(0x00), 
+                       0},
+                      {        CRM(0x00), CRM(0x16), CRM(0x17), CRM(0x18), CRM(0x19), CRM(0x1A), CRM(0x1B), CRM(0x17), 
+                               CRM(0x1C), CRM(0x00), 
+                       0},
+                      {        CRM(0x00), CRM(0x1D), CRM(0x1E), CRM(0x1F), CRM(0x20), CRM(0x21), CRM(0x22), CRM(0x23), 
+                               CRM(0x24), CRM(0x00), 
+                       0},
+                      {        CRM(0x00), CRM(0x00), CRM(0x25), CRM(0x26), CRM(0x27), CRM(0x28), CRM(0x29), CRM(0x2A), 
+                               CRM(0x00), CRM(0x00), 
+                       0}
+              };
+              
+              
+              
+               BYTE code strCROWindow_TOW[6][11]=
+              {
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 22  
+
+                      {        CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x01), CRM(0x02), CRM(0x00), CRM(0x00), 
+                               CRM(0x00), CRM(0x00), 
+                       0},
+                      {        CRM(0x00), CRM(0x00), CRM(0x03), CRM(0x04), CRM(0x05), CRM(0x06), CRM(0x07), CRM(0x08), 
+                               CRM(0x00), CRM(0x00), 
+                       0},
+                      {        CRM(0x09), CRM(0x0A), CRM(0x0B), CRM(0x0C), CRM(0x0D), CRM(0x0E), CRM(0x0F), CRM(0x10), 
+                               CRM(0x11), CRM(0x12), 
+                       0},
+                      {        CRM(0x13), CRM(0x14), CRM(0x15), CRM(0x16), CRM(0x17), CRM(0x18), CRM(0x19), CRM(0x1A), 
+                               CRM(0x1B), CRM(0x1C), 
+                       0},
+                      {        CRM(0x00), CRM(0x00), CRM(0x1D), CRM(0x1E), CRM(0x1F), CRM(0x20), CRM(0x21), CRM(0x22), 
+                               CRM(0x00), CRM(0x00), 
+                       0},
+                      {        CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x23), CRM(0x24), CRM(0x00), CRM(0x00), 
+                               CRM(0x00), CRM(0x00), 
+                       0}
+              };
+              
+               BYTE code strCROWindow_THR[6][11]=
+              {
+                      {        CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x01), CRM(0x02), CRM(0x00), CRM(0x00), 
+                               CRM(0x00), CRM(0x00), 
+                       0},
+                      {        CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x03), CRM(0x04), CRM(0x00), CRM(0x00), 
+                               CRM(0x00), CRM(0x00), 
+                       0},
+                      {        CRM(0x05), CRM(0x06), CRM(0x07), CRM(0x08), CRM(0x09), CRM(0x0A), CRM(0x0B), CRM(0x0C), 
+                               CRM(0x06), CRM(0x0D), 
+                       0},
+                      {        CRM(0x0E), CRM(0x0F), CRM(0x10), CRM(0x11), CRM(0x12), CRM(0x13), CRM(0x14), CRM(0x15), 
+                               CRM(0x0F), CRM(0x16), 
+                       0},
+                      {        CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x17), CRM(0x18), CRM(0x00), CRM(0x00), 
+                               CRM(0x00), CRM(0x00), 
+                       0},
+                      {        CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x00), CRM(0x19), CRM(0x1A), CRM(0x00), CRM(0x00), 
+                               CRM(0x00), CRM(0x00), 
+                       0}
+              };
+              
+              BYTE* CorssIcon1(void)
+              {
+                      return strCROWindow_ONE;
+              }  
+              BYTE* CorssIcon2(void)
+              {
+                      return strCROWindow_TOW;
+              }  
+              BYTE* CorssIcon3(void)
+              {
+                      return strCROWindow_THR;
+              }  
+              
+              #endif
+1340          
+1341          
+1342          
+1343          
+1344          
+1345          //----Eson End----------------------------------
+C51 COMPILER V9.01   MENUSTR                                                               03/09/2023 15:39:02 PAGE 23  
+
+1346          
+1347          
+1348          
+1349          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1250    ----
+   CONSTANT SIZE    =   2476    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,64 @@
+BankArea(0x2A00,0xFFFF) 
+PRINT(".\List\TSUM.m51") RAMSIZE(256) 
+BANK0(
+
+  		 ?CO?MSOSD(0x2A00)
+		,?CO?MENUSTR
+	    ,?CO?MENU
+        //,?CO?2D3DSTRING		
+	 )
+
+BANK1(
+		?CO?MENUFUNC(0x2A00)
+		,?CO?DRVMSTAR
+         //,?CO?MSHDMI
+		,?CO?DRVMCU
+		//,?CO?MS_PM
+		//,?CO?MSHDCP
+		,?CO?MSACE
+		,?CO?MSSCALER
+	
+	)
+BANK2(
+	
+		?CO?PROPFONT(0x2A00)
+		,?CO?FACTORYSTRING
+	)
+BANK3(
+
+	  ?CO?DDC2Bi(0x2A00)
+		,?CO?font1 
+		,?CO?DRVADC
+		,?CO?DRVGAMMA
+		,?CO?MODE
+	  //,?CO?USERDATASPACE(0xA000)
+
+	)
+BANK4(
+	  ?CO?font2(0x2A00)	
+	 ,?CO?DRVMSOVD	
+	 ,?CO?DRVMHL
+	)
+
+	
+BANK6(
+	  
+	   ?CO?MSFB(0x2A00)
+	  ,?CO?TOUCHKEY
+	  ,?CO?MSDPS_SETTING
+	  ,?CO?MSDPS_HANDLER
+	  //,?CO?SUPERRESOLUTION
+	  ,?CO?UARTCONTROL
+	  
+ 
+	)										
+
+BANK7(
+
+	  //?CO?MS2DTO3D(0x2A00)
+	  ?CO?USERDATASPACE(0xA000)
+
+	)
+
+
+XDATA( 0X4000-0X45FF )

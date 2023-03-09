@@ -1,0 +1,527 @@
+C51 COMPILER V9.01   POWER                                                                 03/09/2023 15:39:08 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE POWER
+OBJECT MODULE PLACED IN .\obj\power.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\KERNEL\SYSTEM\power.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\DRIVER\INC;
+                    -..\..\KERNEL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..\..\KERNEL\
+                    -SYSTEM\INC\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\UI\HkcOsd\I
+                    -NC) DEFINE(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\power.lst) OBJECT(.\obj\power.obj)
+
+line level    source
+
+   1          #include "types.h"
+   2          #include "board.h"
+   3          #include "global.h"
+   4          #include "ms_reg.h"
+   5          #include "panel.h"
+   6          #include "misc.h"
+   7          #include "ms_rwreg.h"
+   8          #include "mstar.h"
+   9          #include "debug.h"
+  10          #include "msOsd.h"
+  11          #include "msosdfunction.h"
+  12          #include "menudef.h"
+  13          #include <math.h>
+  14          #include "GPIO_DEF.h"
+  15          #include "drvgpio.h"
+  16          
+  17          #if ENABLE_HDCP
+  18              #include "MsHDCP.h"
+  19          #endif ///#if UseHDCP
+  20          #include "adjust.h"
+  21          
+  22          #if MS_PM
+  23          #include "MS_PM.h"
+  24          #endif
+  25          #if PanelminiLVDS || PANEL_VCOM_ADJUST  //110229 Modify
+              #include "msMiniLVDSI2c.h"
+              #endif
+  28          ////////////////////////////////////////////////////
+  29          //#include "drvPower.h" // the function moves to drvmStar
+  30          #include "drvmStar.h"
+  31          ///////////////////////////////////////////////////
+  32          
+  33          #define TurnOffOSD      1
+  34          void Power_TurnOffLed(void);
+  35          void Power_TurnOnGreenLed(void);
+  36          void Power_TurnOnAmberLed(void);
+  37          
+  38          void Power_TurnOffPanel(void);
+  39          void Power_PowerOffSystem(void);
+  40          void DrawOsdMenu(void);
+  41          extern Bool PowerOffSystem( void );
+  42          
+  43          
+  44          
+  45          //=============================================
+  46          // Control system power status
+  47          // caller : main()
+  48          void Power_PowerHandler(void)
+  49          {
+  50   1          if (ForcePowerSavingFlag)
+  51   1          {
+  52   2              Clr_ForcePowerSavingFlag(); // clear force power saving flag
+C51 COMPILER V9.01   POWER                                                                 03/09/2023 15:39:08 PAGE 2   
+
+  53   2              if (!PowerSavingFlag)
+  54   2              {
+  55   3                  if (PowerOnFlag)
+  56   3                  {
+  57   4                     #if ENABLE_DP_INPUT && (CHIP_ID == CHIP_TSUM9 ||CHIP_ID == CHIP_TSUMF)
+                                      if(DPRXCheckDPMS()) // Do not into power saving when CTS
+                                      {
+                                      Clr_ForcePowerSavingFlag();
+                                      return;
+                                      }
+                             #endif
+  64   4                          #if PowerSaveLedFlicker_Enable
+                              //Power_TurnOnGreenLed();
+                                      #else   
+  67   4                      Power_TurnOnAmberLed();         
+  68   4                              #endif
+  69   4      
+  70   4                      {               //130821 jb
+  71   5      
+  72   5                      Power_PowerOffSystem();
+  73   5                              #if (MS_PM)
+  74   5                                      #if ESaverPowerDownFunc //120612 Modify
+  75   5                                      if(ESaverPowerDownCounter==0)
+  76   5                                      #endif
+  77   5                                      #if ENABLE_MHL
+                                              if(!GET_MHL_CABLE_PLUGGED())
+                                              #endif
+  80   5                                      msPM_SetFlag_Standby();
+  81   5                              #endif
+  82   5                      }
+  83   4                  }
+  84   3                  else
+  85   3                  {
+  86   4                      PowerOffSystem();
+  87   4                  }            
+  88   3              }
+  89   2          }
+  90   1      }
+  91          #if 1
+  92            #if AudioFunc
+  93              extern void mStar_AdjustVolume(BYTE volume);
+  94           #endif
+  95          void Power_PowerOnSystem(void)
+  96          { 
+  97   1      
+  98   1      
+  99   1          gBoolVisualKey = 0;
+ 100   1          gByteVisualKey = 0xff;
+ 101   1          Power_TurnOffPanel();
+ 102   1              mStar_PowerUp();
+ 103   1       
+ 104   1      
+ 105   1      
+ 106   1      
+ 107   1          Clr_PowerSavingFlag();
+ 108   1          Set_InputTimingChangeFlag();
+ 109   1      #if Dual
+ 110   1              if (!(FactoryModeFlag))
+ 111   1              Set_ShowInputInfoFlag();
+ 112   1      #endif
+ 113   1      
+ 114   1      
+C51 COMPILER V9.01   POWER                                                                 03/09/2023 15:39:08 PAGE 3   
+
+ 115   1      
+ 116   1       #if EANBLE_NEW_DCR_Functing
+ 117   1      DCR_Counter=0;                                          
+ 118   1      Clr_EanbleClearBalclightStartFlag();
+ 119   1      Clr_DoClearBalclightFlag();
+ 120   1      #endif 
+ 121   1      
+ 122   1              SwitchPortCntr = 0; // 071226
+ 123   1              
+ 124   1          SrcFlags |= SyncLoss;
+ 125   1      }
+ 126          void Power_PowerOffSystem(void)
+ 127          {
+ 128   1      
+ 129   1      
+ 130   1      
+ 131   1      #if AudioFunc // 120426 coding modified for audio control
+ 132   1          mStar_AdjustVolume(0);
+ 133   1          hw_SetAudio_SD();
+ 134   1              #if ENABLE_HDMI
+ 135   1          mstar_HDMIAudioMute(0);
+ 136   1              #endif
+ 137   1          hw_SetMute();
+ 138   1      #endif
+ 139   1      
+ 140   1          Power_TurnOffPanel();
+ 141   1      
+ 142   1          mStar_PowerDown();
+ 143   1          Set_PowerSavingFlag();
+ 144   1          Clr_InputTimingChangeFlag();
+ 145   1          OsdCounter = 0;
+ 146   1          PowerDownCounter = 0;       //120601 Modify
+ 147   1          Clr_OsdTimeoutFlag();
+ 148   1          Clr_DoModeSettingFlag();            //110311 Modify
+ 149   1          Set_InputTimingStableFlag();        //110311 Modify
+ 150   1      
+ 151   1         #if Enable_Rotate180Func
+                 ForceDelay1ms(100);
+                 #endif
+ 154   1              
+ 155   1      
+ 156   1      #if ENABLE_DEBUG
+              printMsg("Power_PowerOffSystem ");
+              #endif
+ 159   1      
+ 160   1       #if EANBLE_NEW_DCR_Functing
+ 161   1      DCR_Counter=0;                                          
+ 162   1      Clr_EanbleClearBalclightStartFlag();
+ 163   1      Clr_DoClearBalclightFlag();
+ 164   1      #endif 
+ 165   1      
+ 166   1          //UserPrefInputType = SrcInputType; // 120523 coding, check it again
+ 167   1      }
+ 168          #endif 
+ 169          void Power_TurnOffLed(void)
+ 170          {
+ 171   1      
+ 172   1          hw_ClrGreenLed();
+ 173   1          hw_ClrAmberLed();
+ 174   1              
+ 175   1      }
+ 176          void Power_TurnOnGreenLed(void)
+C51 COMPILER V9.01   POWER                                                                 03/09/2023 15:39:08 PAGE 4   
+
+ 177          {
+ 178   1      #if FactoryLedFlicker_Enable
+              #else
+ 180   1              if(FactoryModeFlag)
+ 181   1              {
+ 182   2                  hw_SetAmberLed();
+ 183   2                  hw_ClrGreenLed();
+ 184   2              }
+ 185   1              else
+ 186   1      #endif
+ 187   1              {
+ 188   2          hw_ClrAmberLed();
+ 189   2          hw_SetGreenLed();
+ 190   2              }
+ 191   1      
+ 192   1      }
+ 193          
+ 194          //void Power_TurnOffGreenLed(void)
+ 195          //{ hw_ClrGreenLed();
+ 196          //}
+ 197          void Power_TurnOnAmberLed(void)
+ 198          { 
+ 199   1                      hw_ClrGreenLed();
+ 200   1                      hw_SetAmberLed();
+ 201   1      }
+ 202          
+ 203          void Power_TurnOnPanel(void)
+ 204          {
+ 205   1          while(bPanelDelayFlag)      //110421 Modify
+ 206   1          {
+ 207   2              if(InputTimingChangeFlag && !DisplayLogoFlag)
+ 208   2              {
+ 209   3                  return;
+ 210   3              }
+ 211   2          }
+ 212   1      #if ENABLE_DEBUG
+              printMsg("33333333333333333333");
+              #endif
+ 215   1                      
+ 216   1          Set_PanelOnFlag();
+ 217   1          
+ 218   1      #if ENABLE_RTE // 081124 od modified
+                      //msOD_Reset(_OD_Enable);
+              #endif
+ 221   1      
+ 222   1          mStar_BlackWhiteScreenCtrl(BW_SCREEN_BLACK);
+ 223   1          hw_SetPanel();
+ 224   1              
+ 225   1      
+ 226   1      
+ 227   1              
+ 228   1      #if PANEL_VCOM_ADJUST           //120607 Modify
+                      HW_SET_VCOM_I2C_SDA();
+                      HW_SET_VCOM_I2C_SCL();
+              #endif
+ 232   1      #if !ENABLE_DisplayPortTX // Leger eDP Tx output without this process to improve display time
+ 233   1          ForceDelay1ms( PanelOnTiming1 );
+ 234   1      #if MainBoardType==     MainBoard_JRY_O58FHG_BV1
+                  ForceDelay1ms(30);
+              #endif
+ 237   1      
+ 238   1      
+C51 COMPILER V9.01   POWER                                                                 03/09/2023 15:39:08 PAGE 5   
+
+ 239   1          Power_ModCtrl(_ENABLE);
+ 240   1      
+ 241   1      #if !PANEL_TCON_CONFIG_LVDS_IMPEDANCE// Delay time  less  20130819 jb move
+ 242   1          if( !iGenTuningFinished )
+ 243   1          {
+ 244   2              I_Gen_Tuning();
+ 245   2          }
+ 246   1              
+ 247   1      #endif
+ 248   1      
+ 249   1      #if DisplayPowerOnLogo
+ 250   1              if(DisplayLogoFlag)
+ 251   1                      mStar_AdjustBrightness(DefBrightness);
+ 252   1              else
+ 253   1      #endif  
+ 254   1              if (SyncLossState())    
+ 255   1                  mStar_AdjustBrightness(100);
+ 256   1              else
+ 257   1                  mStar_AdjustBrightness(UserPrefBrightness);
+ 258   1      
+ 259   1      #if PANEL_VCOM_ADJUST                   //R/W VCOM After 500ms  130311 Modify
+              if(PanelOnTiming2>=500)
+                  ForceDelay1ms( PanelOnTiming2 );
+              else
+                  ForceDelay1ms( 500 );
+              #else
+ 265   1          ForceDelay1ms( PanelOnTiming2 );
+ 266   1      #endif
+ 267   1      #endif
+ 268   1      #if PANEL_TCON_CONFIG_LVDS_IMPEDANCE// Delay time  less  20130819 jb move
+                  if( !iGenTuningFinished )
+                  {
+                      I_Gen_Tuning();
+                              ForceDelay1ms(300);     //130826 xiandi for AC on logo garbage
+                  }
+              #endif
+ 275   1      
+ 276   1      #if ENABLE_TOUCH_PANEL_CTRL
+                      hw_Set_TouchPanel();
+              #endif
+ 279   1      
+ 280   1          mStar_BlackWhiteScreenCtrl(BW_SCREEN_OFF);
+ 281   1      
+ 282   1              #if PanelminiLVDS||PANEL_VCOM_ADJUST    //110229 Modify
+                      #if PANEL_VCOM_ADJUST                   //      For Turn on panel  R/W Vcom     130311 Modify
+                      #else
+                      if(g_bACPowerOn_CheckVCOM)
+                      #endif
+                      {
+                              #if VCOM_TYPE == VCOM_MAXIM     || VCOM_TYPE == VCOM_SMIM ||VCOM_TYPE == VCOM_TPSIM     //120322 Modify
+                              WORD ucReg;
+                              #else
+                              BYTE ucReg;
+                              #endif
+                              
+                              ucReg = msReadMiniLVDSi2c_Vcom();
+              
+                              if (ucReg!=FactorySetting.VcomValue)
+                              {
+                                      msWriteMiniLVDSi2c_Vcom(FactorySetting.VcomValue);
+                              }
+                              #if PANEL_VCOM_ADJUST                   //      For Turn on panel  R/W Vcom     130311 Modify
+C51 COMPILER V9.01   POWER                                                                 03/09/2023 15:39:08 PAGE 6   
+
+                              #else
+                              g_bACPowerOn_CheckVCOM = FALSE;
+                              #endif
+                      }
+                      #endif
+ 306   1      
+ 307   1              
+ 308   1          if (InputTimingChangeFlag && !DisplayLogoFlag)
+ 309   1          {
+ 310   2              Power_TurnOffPanel();
+ 311   2          }
+ 312   1          else
+ 313   1          {
+ 314   2      
+ 315   2                      hw_SetBlacklit();
+ 316   2              }
+ 317   1      
+ 318   1      #if ENABLE_DEBUG
+              printMsg("power turn on panel");
+              #endif
+ 321   1      
+ 322   1      }
+ 323          #if TURNOFF_PANEL_BEFORE_DISABLE_LVDS_OUTPUT            //120703 Modify
+              void Power_TurnOffPanel( void )
+              {
+                  if( !PanelOnFlag )
+                      return;
+                  Clr_PanelOnFlag();
+              #if TurnOffOSD
+                  Osd_DoubleBuffer(FALSE);
+                  Osd_Hide();
+                  mStar_ScalerDoubleBuffer(FALSE);
+                  Delay4us();
+              #endif
+              
+                  hw_ClrBlacklit();
+              
+                  ForceDelay1ms( PanelOffTiming1 );
+              #if !NormalWhite
+                  mStar_BlackWhiteScreenCtrl(BW_SCREEN_BLACK);
+              #else
+                  mStar_BlackWhiteScreenCtrl(BW_SCREEN_WHITE);
+              #endif
+                  ForceDelay1ms( PanelOffTiming2);
+                  hw_ClrPanel();
+                  ForceDelay1ms( 100 );
+                  Power_ModCtrl(_DISABLE);
+                  mStar_BlackWhiteScreenCtrl(BW_SCREEN_OFF);
+              #if TurnOffOSD
+                  Osd_DoubleBuffer(TRUE);
+              #endif
+                  PanelOffOnDelayCntr = PanelOffOnDelay;
+                  bPanelDelayFlag = 1;
+              }
+              #elif AFTER_DISABLE_PANEL_POWER_INSERT_WHITE
+              void Power_TurnOffPanel( void )
+              {
+                  if( !PanelOnFlag )
+                      return;
+                  Clr_PanelOnFlag();
+                  
+              #if TurnOffOSD
+C51 COMPILER V9.01   POWER                                                                 03/09/2023 15:39:08 PAGE 7   
+
+                  Osd_DoubleBuffer(FALSE);
+                  Osd_Hide();
+                  mStar_ScalerDoubleBuffer(FALSE);
+                  Delay4us();
+              #endif
+              
+              
+                  hw_ClrBlacklit();
+              
+                  ForceDelay1ms( PanelOffTiming1 );
+                  mStar_BlackWhiteScreenCtrl(BW_SCREEN_WHITE);
+                  ForceDelay1ms( PanelOffTiming2);
+                  hw_ClrPanel();
+                  ForceDelay1ms( 300 );       //121212 Modify
+                  Power_ModCtrl(_DISABLE);
+                  mStar_BlackWhiteScreenCtrl(BW_SCREEN_OFF);
+                  
+              #if TurnOffOSD
+                  Osd_DoubleBuffer(TRUE);
+              #endif
+              
+                  PanelOffOnDelayCntr = PanelOffOnDelay;
+                  bPanelDelayFlag = 1;
+              }
+              #elif LVDS_OUTPUT_DO_NOT_TURNOFF_PANEL_POWER 
+                void Power_TurnOffPanel(void)
+              {
+                  // 080123
+                  if(!PanelOnFlag)
+                      return;
+              
+                  Clr_PanelOnFlag();
+              
+              #if TurnOffOSD
+                       Osd_DoubleBuffer(FALSE);
+                       Osd_Hide();
+                       mStar_ScalerDoubleBuffer(FALSE);
+                       Delay4us();
+              #endif
+              
+              
+                       hw_ClrBlacklit();
+              
+              
+                  ForceDelay1ms( PanelOffTiming1 );
+                  mStar_BlackWhiteScreenCtrl(BW_SCREEN_WHITE);
+                  ForceDelay1ms( PanelOffTiming2 );
+                      hw_ClrPanel();
+                  ForceDelay1ms( 90);//( 70 );
+                  mStar_BlackWhiteScreenCtrl(BW_SCREEN_OFF);
+                  Power_ModCtrl(_DISABLE);
+                 // hw_ClrPanel();
+                
+              #if TurnOffOSD
+                       Osd_DoubleBuffer(TRUE);
+              #endif
+              
+                  PanelOffOnDelayCntr = PanelOffOnDelay;
+                  bPanelDelayFlag = 1;
+              }
+              
+              
+C51 COMPILER V9.01   POWER                                                                 03/09/2023 15:39:08 PAGE 8   
+
+              #else
+ 426                  void Power_TurnOffPanel(void)
+ 427          {
+ 428   1          // 080123
+ 429   1          if(!PanelOnFlag)
+ 430   1              return;
+ 431   1      
+ 432   1          Clr_PanelOnFlag();
+ 433   1      
+ 434   1      #if TurnOffOSD
+ 435   1              Osd_DoubleBuffer(FALSE);
+ 436   1              Osd_Hide();
+ 437   1              mStar_ScalerDoubleBuffer(FALSE);
+ 438   1              Delay4us();
+ 439   1      #endif
+ 440   1      
+ 441   1      
+ 442   1              hw_ClrBlacklit();
+ 443   1      
+ 444   1              
+ 445   1          ForceDelay1ms( PanelOffTiming1 );
+ 446   1      
+ 447   1      #if 1//!NormalWhite
+ 448   1              mStar_BlackWhiteScreenCtrl(BW_SCREEN_BLACK);
+ 449   1      #else
+                      mStar_BlackWhiteScreenCtrl(BW_SCREEN_WHITE);
+              #endif
+ 452   1          ForceDelay1ms( 80 );
+ 453   1          mStar_BlackWhiteScreenCtrl(BW_SCREEN_OFF);
+ 454   1      #if MainBoardType==MainBoard_W58CDT9_JV1||MainBoardType==MainBoard_MST9570S_DEMO||MainBoardType==MainBoard
+             -_WO587HT9_JV1||MainBoardType==MainBoard_JRY_O58FHG_BV1||MainBoardType==MainBoard_JRY_WQ570||MainBoardType == MainBoard_J
+             -RY_L58CDT9_PV1||MainBoardType==MainBoard_JRY_W58CDT9_GV3||MainBoardType==MainBoard_JRY_L58CDT9_EV1||MainBoardType==MainB
+             -oard_TSUMO58FDT9_1    ||MainBoardType==MainBoard_JRY_W58CDT9_AV6//for panel 5v have 120ms delay tina 20170517
+                  hw_ClrPanel();
+                  ForceDelay1ms( PanelOffTiming2 );
+                  Power_ModCtrl(_DISABLE);
+              #else
+ 459   1      
+ 460   1          Power_ModCtrl(_DISABLE);
+ 461   1              
+ 462   1      #if PANEL_VCOM_ADJUST           //120607 Modify
+                      HW_CLR_VCOM_I2C_SCL();
+                      HW_CLR_VCOM_I2C_SDA();
+              #endif
+ 466   1      
+ 467   1      
+ 468   1          ForceDelay1ms( PanelOffTiming2 );
+ 469   1      
+ 470   1          hw_ClrPanel();
+ 471   1      #endif
+ 472   1      
+ 473   1      #if TurnOffOSD
+ 474   1              Osd_DoubleBuffer(TRUE);
+ 475   1      #endif
+ 476   1      
+ 477   1              PanelOffOnDelayCntr = PanelOffOnDelay;
+ 478   1          bPanelDelayFlag = 1;
+ 479   1      }
+ 480          
+ 481          #endif
+ 482          
+
+C51 COMPILER V9.01   POWER                                                                 03/09/2023 15:39:08 PAGE 9   
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    538    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

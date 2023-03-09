@@ -1,0 +1,17 @@
+15 10 0 22 42 1 11 1 1
+9 01 InputNotSupport 'Input\x001Not\x001Support' x15x
+9 02 InputNotSupport 'Ent\x00FNon\x001Support\x00F' x15x
+9 03 InputNotSupport 'Entr\x00FNo\x001Adm\x00F' x15x
+9 04 InputNotSupport 'Entrada\x001N\x0F6o\x001Suportada' x15x
+9 05 InputNotSupport 'N\x00FUnterst\x00FEing' x15x
+9 06 InputNotSupport 'Ingr\x00FNon\x001Supp' x15x
+9 07 InputNotSupport 'Niet\x001Onderst' x15x
+9 08 InputNotSupport 'Inmatn\x00FSt\x0F4ds\x001Ej' x15x
+9 09 InputNotSupport 'Tuloa\x001ei\x001Tueta' x15x
+9 10 InputNotSupport 'Wej\x104cie\x001Nieobslugiw' x15x
+9 11 InputNotSupport 'Nepodpor\x00FVstup' x15x
+9 12 InputNotSupport 'Bx\x1F8\x1F5\x001\x1F3\x1F6\x001\x1F7\x1F8\x1F5\x1F5' x15x
+9 13 InputNotSupport '\x1C8\x1D8\x19E\x1D9\x001\x1BD\x1DA' x15x
+9 14 InputNotSupport '\x0DD\x0A9\x0AF\x0B0\x0E6' x15x
+9 15 InputNotSupport '\x0A8\x0A9\x0AF\x0B0\x0B1' x15x
+9 16 InputNotSupport '\x110\x111\x16E\x14C\x13B\x130\x127\x16F\x170\x171\x172\x117\x118\x119' x15x

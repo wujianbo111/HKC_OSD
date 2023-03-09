@@ -1,0 +1,1026 @@
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\obj\main.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\KERNEL\SYSTEM\main.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\DRIVER\INC;.
+                    -.\..\KERNEL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..\..\KERNEL\S
+                    -YSTEM\INC\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\UI\HkcOsd\IN
+                    -C) DEFINE(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\main.lst) OBJECT(.\obj\main.obj)
+
+line level    source
+
+   1          #include "types.h"
+   2          #include "board.h"
+   3          #include "global.h"
+   4          #include "mcu.h"
+   5          #include "detect.h"
+   6          #include "menu.h"
+   7          #include "ms_reg.h"
+   8          #include "power.h"
+   9          #include "debug.h"
+  10          #include "ms_rwreg.h"
+  11          #include "msosd.h"
+  12          #include "misc.h"
+  13          #include "NVRam.h"
+  14          #include "mstar.h"
+  15          #include "UserPref.h"
+  16          #include "keypad.h"
+  17          #include "Panel.h"
+  18          #include "msflash.h"  //2006-03-20
+  19          #include "ddc2bi.h"
+  20          #include "menudef.h"//071226
+  21          #include "keypaddef.h"
+  22          #if DDCCI_ENABLE   || AudioFunc
+  23              #include "adjust.h"
+  24          #endif
+  25          #if MWEFunction
+  26              #include "MsDLC.h"
+  27              #include "MsACE.h"
+  28          #endif
+  29          
+  30          #if ENABLE_RTE
+                  #include "drvmsovd.h"
+              #endif
+  33          
+  34          #if ENABLE_HDMI
+  35          #include "MsHDMI.h"
+  36          #endif
+  37          #if 1   //#ifdef ReduceDDC   For WH_REQUEST
+  38          #include "ddc.h"
+  39          #endif
+  40          #if MS_DAC
+  41          #include "drvDAC.h"
+  42          #endif
+  43          #if MS_PM
+  44          #include "MS_PM.h"
+  45          #endif
+  46          
+  47          #if ENABLE_DisplayPortTX
+              #include "drvDPTxApp.h"
+              #endif
+  50          
+  51          
+  52          ////////////////////////////////////
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 2   
+
+  53          //#include "drvMcu.h"
+  54          ///////////////////////////////////
+  55          #include "GPIO_DEF.h"
+  56          
+  57          #if  ENABLE_ANDROID_IR  //131008 Modify
+              #include "drv_Ir.h"
+              #endif
+  60          
+  61          #define Main_DEBUG    0
+  62          #if ENABLE_DEBUG&&Main_DEBUG
+                  #define Main_printData(str, value)   printData(str, value)
+                  #define Main_printMsg(str)           printMsg(str)
+              #else
+  66              #define Main_printData(str, value)
+  67              #define Main_printMsg(str)
+  68          #endif
+  69          
+  70          void Init_Device(void);
+  71          void Main_SlowTimerHandler(void);
+  72          extern void Init_GlobalVariables(void);
+  73          extern void NVRAM_i2C_Intial(void); //2006/03/20
+  74          //extern WORD ReadFlashID(DWORD address); 
+  75          
+  76          extern BYTE xdata PowerDownCounter;
+  77          #if ENABLE_DeltaE
+              extern BYTE xdata bToolWriteGamma;
+              #endif
+  80          #if ENABLE_HDCP
+  81              #if HDCPKEY_IN_Flash
+  82                  extern void msInitHDCPProductionKey(void);
+  83              #endif
+  84          #endif
+  85          
+  86          #if 1// 110915 coding def OffPower           //090331 xiandi.yu Auto Off Power
+  87          extern PowerOffSystem(void);
+  88          #endif
+  89          
+  90          #if Enable_CheckVcc5V
+              extern Bool CheckVCC5V ( void );
+              #endif
+  93          
+  94          //extern BYTE Second;
+  95          
+  96          #if ((CHIP_ID == CHIP_TSUM9 || CHIP_ID == CHIP_TSUMF)&& ENABLE_CABLE_5V_EDID)
+              void ReadHdcpEdidInFlashSetting(void)
+              {
+                      FLASH_HDCP_EDIDAddr = FDATA_HDCPKEY_START_ADDR; 
+              }
+              #endif
+ 102          
+ 103          
+ 104          
+ 105          #if AudioFunc
+ 106          
+ 107          #if All_AudioDet
+              
+              void CheckEarphoneDetStatus(void)
+              {
+                      
+                   if (HarphoneDet_Pin) 
+                      {
+                              if(bAudioInputStatus == AudioInput_Spk)
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 3   
+
+                              {
+                              #if DEBUG_MSG
+                              printMsg("change to ear");
+                              #endif
+                                      Delay1ms(1);
+                                      if (HarphoneDet_Pin)
+                                      {
+                                             #if SWAP_LR_CHANNL
+                                                #if CHIP_ID==CHIP_TSUMU  
+                                              msWriteByte(REG_2C05, 0x00);
+                                                #else
+                                                #endif
+                                               #endif  
+                                              Set_EarphoneDetStatusChangeFlag();
+                                              bAudioInputStatus = AudioInput_Ear;
+                                      }
+                              }
+              
+                       }
+                       else
+                       {
+                              if(bAudioInputStatus == AudioInput_Ear)
+                                      {
+                                              Delay1ms(1);
+                                              if (HarphoneDet_Pin)
+                                              {
+                                                      ;
+                                              }
+                                              else
+                                              {
+                              #if DEBUG_MSG           
+                              printMsg("change to spk");
+                              #endif
+                                                 #if SWAP_LR_CHANNL
+                                                      #if CHIP_ID==CHIP_TSUMU
+                                                      msWriteByte(REG_2C05, 0x10);
+                                                      #else
+              
+                                                      #endif
+                                                    #endif               
+                                                      msAudioLineOutGain( Def_DACGain );
+                                                      msAudioEARout_Mute( FALSE );
+                                                      Set_EarphoneDetStatusChangeFlag();
+                                                      bAudioInputStatus = AudioInput_Spk;
+                                              }
+                                      }
+                       }
+                       
+              }
+              
+              
+              
+              
+              void Volume_EarphoneDetHander(void)
+              {
+                      CheckEarphoneDetStatus();
+              
+                      if(EarphoneDetStatusChangeFlag)
+                      {
+                              #if DEBUG_MSG           
+                              printMsg("change to audio");
+                              #endif  
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 4   
+
+                              mStar_AdjustVolume(UserPrefVolume);
+                              Clr_EarphoneDetStatusChangeFlag();
+                      }
+              }
+              #endif
+ 182          
+ 183          
+ 184          #endif
+ 185          
+ 186          
+ 187          
+ 188          void main(void)
+ 189          {   
+ 190   1      
+ 191   1       #if Enable_CheckVcc5V
+                   Restart:
+              #endif
+ 194   1      
+ 195   1      
+ 196   1      #if (CHIP_ID == CHIP_TSUM9|| CHIP_ID == CHIP_TSUMF)
+                  #if ENABLE_CABLE_5V_EDID
+                  ReadHdcpEdidInFlashSetting();
+                  #endif
+                      drvmStar_PowerOnInit(); 
+              #if (CHIP_ID == CHIP_TSUMF)
+                              MPLL_CLOCK_ADC(TRUE);
+              #endif
+              #endif
+ 205   1      
+ 206   1      
+ 207   1      #if ENABLE_DP_INPUT
+                  gDPInfo.bDPSave = 1;
+                  g_bDoDPInit = TRUE;
+              #endif
+ 211   1      
+ 212   1          Init_MCU();
+ 213   1      
+ 214   1      #if (CHIP_ID == CHIP_TSUM9|| CHIP_ID == CHIP_TSUMF)
+                      if (!g_bFROTrimResult)
+                              Main_printMsg("FRO trim failed!");
+              #endif
+ 218   1      
+ 219   1      #if( ENABLE_WATCH_DOG ) //130716 xiandi follow demo code
+                      WDT_CLEAR();
+              #endif
+ 222   1      
+ 223   1          ForceDelay1ms(100); // 100802 coding, wait for system power stable then execute scalar setting
+ 224   1          ScalerReset();
+ 225   1          mcuSetSystemSpeed(SPEED_NORMAL_MODE);
+ 226   1          Delay1ms( 100 );
+ 227   1              
+ 228   1              
+ 229   1      
+ 230   1          GPIOPWMSelect();    
+ 231   1      
+ 232   1          g_ucFlashID = ReadFlashID();
+ 233   1              
+ 234   1      #if !USEFLASH 
+                  NVRAM_i2C_Intial(); 
+              #endif
+ 237   1      
+ 238   1      #if DisplayPowerOnLogo
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 5   
+
+ 239   1          UserPrefLogoON=1;   //120420 Modify
+ 240   1      #endif    
+ 241   1      
+ 242   1      
+ 243   1      #if  Enable_CheckVcc5V
+                  if ( CheckVCC5V() )         
+                      goto Restart;
+              #endif
+ 247   1      
+ 248   1          ReadMonitorSetting(); //Benz 2007.4.23   19:11:22
+ 249   1      
+ 250   1      
+ 251   1          mStar_InitDDC(); // 2017/02/20
+ 252   1         
+ 253   1          mStar_Init(); //2006-03-07
+ 254   1      
+ 255   1      
+ 256   1              
+ 257   1      #if  (MS_PM)
+ 258   1              msPM_Init();
+ 259   1      #endif
+ 260   1      #if (FEnterFunction==FEnter_AC_MENU)
+ 261   1             CheckFactoryKeyStatus();
+ 262   1      #endif
+ 263   1              
+ 264   1          Init_GlobalVariables();
+ 265   1          Menu_InitVariable();        
+ 266   1          Init_Device();
+ 267   1          DDC2Bi_Init();
+ 268   1      #if ENABLE_FACTORY_BLACKLEVEL  ||   ENABLE_DDCCI_BLACKLEVEL   
+                  mStar_AdjustUserPrefBlacklevel(UserprefRedBlackLevel, UserprefGreenBlackLevel, UserprefBlueBlackLevel)
+             -;
+              #else
+ 271   1          mStar_AdjustUserPrefBlacklevel(DefRedBlackLevel, DefGreenBlackLevel, DefBlueBlackLevel);
+ 272   1      #endif
+ 273   1              
+ 274   1      #if ENABLE_MHL
+                      mapi_mhl_init();
+              #endif
+ 277   1      
+ 278   1      
+ 279   1      
+ 280   1      do {            
+ 281   2      
+ 282   2      
+ 283   2              #if     (MS_PM)
+ 284   2              while(1)
+ 285   2              {
+ 286   3                      msPM_Handler();
+ 287   3                      if(msPM_IsState_IDLE())break;
+ 288   3              }
+ 289   2              #endif
+ 290   2      
+ 291   2      
+ 292   2              
+ 293   2              while(1)
+ 294   2              {
+ 295   3      
+ 296   3      #if Enable_CheckVcc5V
+                        if ( CheckVCC5V() )   goto Restart;     
+              #endif
+ 299   3      
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 6   
+
+ 300   3      
+ 301   3                      DebugHandler();
+ 302   3                      if(DebugOnlyFlag)
+ 303   3                              continue;
+ 304   3      
+ 305   3      #if( ENABLE_WATCH_DOG ) //130702 xiandi
+                              WDT_CLEAR();//ClearWDT();
+              #endif
+ 308   3      
+ 309   3                      DDC2Bi_CommandHandler();
+ 310   3      
+ 311   3                      Main_SlowTimerHandler();
+ 312   3      
+ 313   3      #if JRY_Color_Tool_Functing
+ 314   3                      if (ATEModeFlag)
+ 315   3                              continue;
+ 316   3      
+ 317   3              #if LoadAllPortSeriealnumberByOneVGAPort
+ 318   3              if(DDCCOneVGAPortLoadEDIDFlag&&!ATEModeFlag)
+ 319   3              {
+ 320   4              hw_ClrAmberLed();
+ 321   4              hw_ClrGreenLed();               
+ 322   4              ReLoadEDIDtoAddSN();
+ 323   4               Clr_DDCCOneVGAPortLoadEDIDFlag();      
+ 324   4              }
+ 325   3              #endif
+ 326   3      
+ 327   3                      
+ 328   3                      #if WriteSN_Functiom_New
+                              if(DDCCIReadLoadEDIDFlag) break;
+                              #elif JRY_FDDCCI_WriteEDID
+ 331   3                      if (DDCCIReadLoadEDIDFlag&&DDCCILoadEDIDCount%3==0)
+ 332   3                      {
+ 333   4                              mStar_InitDDC();
+ 334   4                              #if ENABLE_DP_INPUT
+                                      DPRxEDIDLoad();
+                                      #endif
+ 337   4                              Clr_DDCCIReadLoadEDIDFlag();
+ 338   4                              DDCCILoadEDIDCount=0;
+ 339   4                      }
+ 340   3                      #endif  
+ 341   3      #endif
+ 342   3                              
+ 343   3      #if ENABLE_DeltaE
+                              if(bToolWriteGamma) //nick add for avoid delta-E fail 20131122
+                                              continue;
+              #endif
+ 347   3      
+ 348   3                          
+ 349   3      #if 0//def UseVGACableReadWriteAllPortsEDID
+                              #if ENABLE_DP_INPUT||ENABLE_MHL //121228 Modify
+                                      if(LoadEDIDFlag)
+                                      {
+                                      #if ENABLE_DP_INPUT
+                                              DPRxEDIDLoad();
+                                      #endif
+                                      #if ENABLE_MHL
+                                              mapi_mhl_init();
+                                      #endif
+                                              Clr_LoadEDIDFlag();
+                                      }
+                              #endif
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 7   
+
+                                  if(WriteDeviceFlag)
+                                      continue;
+              #endif
+ 365   3      
+ 366   3      //3这是DDCCI烧录HDCP，我们不需要使用
+ 367   3      #if 0//ENABLE_HDCP                      
+                          #if HDCPKEY_IN_Flash
+                              if (WriteHDCPcodeFlag)
+                                      continue;
+              
+                              if (LoadHDCPKeyFlag)
+                                      {
+                                              msInitHDCPProductionKey();
+                                              Clr_LoadHDCPKeyFlag();
+                                              #if ENABLE_DP_INPUT     //121228 Modify
+                                              DPRxHDCPLoadKey();
+                                              #endif
+                                      }
+                          #endif
+              #endif
+ 382   3                              
+ 383   3      
+ 384   3                      Power_PowerHandler();
+ 385   3      #if (MS_PM)
+ 386   3                      if(!msPM_IsState_IDLE())break;
+ 387   3      #endif
+ 388   3      
+ 389   3                              if (!ModeDetectCounter || InputTimingChangeFlag)
+ 390   3                              {
+ 391   4                                      mStar_MonitorInputTiming();
+ 392   4                                      ModeDetectCounter = 20;
+ 393   4                              }
+ 394   3      
+ 395   3                      mStar_ModeHandler();
+ 396   3      
+ 397   3      #if(CHIP_ID==CHIP_TSUM9)
+              #if (ENABLE_HDMI || ENABLE_DVI)
+                              drv_TMDS_DATA_ALIGN();
+              #endif
+              #endif
+ 402   3      
+ 403   3      #if ENABLE_HDMI
+ 404   3                      mstar_HDMIHandler();
+ 405   3      #endif
+ 406   3      
+ 407   3      #if ENABLE_DP_INPUT
+                          if (CURRENT_INPUT_IS_DISPLAYPORT())
+                              DPRxHandle();             // DP hander
+              #endif
+ 411   3      
+ 412   3      #if ENABLE_DisplayPortTX
+                      //if( !SyncLossState() )
+                              DPTxHandle();
+              #endif
+ 416   3      
+ 417   3      
+ 418   3      #if MS_DAC
+ 419   3      #if (CHIP_ID==CHIP_TSUMC ||CHIP_ID==CHIP_TSUMD||CHIP_ID == CHIP_TSUM9|| CHIP_ID == CHIP_TSUMF)
+ 420   3                           msDACInitStep();
+ 421   3      #endif
+ 422   3                              msAudioGainToggle();
+ 423   3      #endif
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 8   
+
+ 424   3      
+ 425   3                       Menu_OsdHandler();
+ 426   3      
+ 427   3      #if (MS_PM)
+ 428   3                              if(!msPM_IsState_IDLE())break;
+ 429   3      #endif
+ 430   3      
+ 431   3      #if MWEFunction
+ 432   3                          if ((UserPrefDcrMode) && PowerOnFlag && !SyncLossState() && !FreeRunModeFlag&& InputTimingStableFlag
+             -)//edit by yz.nie .for DCR ON,change timing quickly have white screen.
+ 433   3                          {
+ 434   4                              msDlcHandler();
+ 435   4                          msDCRHandler();
+ 436   4                          }
+ 437   3      #endif
+ 438   3      
+ 439   3                          
+ 440   3      
+ 441   3      
+ 442   3      #if 0// ENABLE_MHL
+                          if(MHL_CHECK_CONDITION()) // 120614 coding addition//130703 nick
+                          { 
+                              #if ((CHIP_ID == CHIP_TSUMC || CHIP_ID == CHIP_TSUMD||CHIP_ID == CHIP_TSUM9|| CHIP_ID == CHIP_TSU
+             -MF))
+                                      #if MHL_HW_RTERM_SUPPORT                // 130717 william For G15 compiling warning
+                                  mapi_mhl_RtermControlHWMode(FALSE);
+                                      #endif
+                              #endif
+                              mapi_mhl_handler();
+                              #if ((CHIP_ID == CHIP_TSUMC || CHIP_ID == CHIP_TSUMD||CHIP_ID == CHIP_TSUM9|| CHIP_ID == CHIP_TSU
+             -MF))
+                                      #if MHL_HW_RTERM_SUPPORT                // 130717 william For G15 compiling warning
+                                  mapi_mhl_RtermControlHWMode(TRUE);
+                                      #endif
+                              #endif
+                          }
+              #endif
+ 458   3      
+ 459   3      #if AudioFunc
+ 460   3      #if All_AudioDet
+              
+              if((!InputTimingChangeFlag)&&InputTimingStableFlag&&(!SyncLossState())&&(!PowerSavingFlag)&&PanelOnFlag&&(
+             -!UnsupportedModeFlag))
+                      Volume_EarphoneDetHander();
+              
+              #endif
+ 466   3      #endif
+ 467   3      
+ 468   3      #if USEFLASH
+ 469   3                              UserPref_FlashDataSaving();
+ 470   3      #endif
+ 471   3      
+ 472   3                 }
+ 473   2      
+ 474   2      #if WriteSN_Functiom_New
+              #message "你将使用只烧录SN的方式，请确认是否满足需求"
+              #message "若使用，请遵守规范"
+              if(DDCCIReadLoadEDIDFlag)
+              {
+                    ReLoadEDIDtoAddSN();
+                      mStar_InitDDC();
+                      #if ENABLE_DP_INPUT
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 9   
+
+                      DPRxEDIDLoad();
+                      #endif  
+                  Clr_DDCCIReadLoadEDIDFlag();        
+                  Power_TurnOnGreenLed();
+              }       
+              #endif
+ 488   2      
+ 489   2              
+ 490   2      }    while (1);
+ 491   1      }
+ 492          
+ 493          
+ 494          void Init_Device()
+ 495          {
+ 496   1      
+ 497   1      
+ 498   1      #if AudioFunc
+ 499   1              mStar_AdjustVolume(0);
+ 500   1      #endif
+ 501   1      
+ 502   1      
+ 503   1      
+ 504   1              if (PowerOnFlag)
+ 505   1              {
+ 506   2                  Power_TurnOnGreenLed();             
+ 507   2              }
+ 508   1              else
+ 509   1              {
+ 510   2                  Power_TurnOffLed();
+ 511   2              }
+ 512   1      }
+ 513          
+ 514          #if Enable_CheckVcc5V
+              extern void Osd_Hide( void );
+              extern void Power_PowerOffSystem( void );
+              
+              Bool CheckVCC5V ( void )
+              {
+                  if ( !hwDetectVCC5V_Pin )  
+                  {
+                      Delay1ms ( 20 );
+                      if ( !hwDetectVCC5V_Pin )
+                      {
+                          Clr_CheckVcc5VFlag();
+                      if(PowerOnFlag&&(!PowerSavingFlag))
+                        {
+                          hw_ClrBlacklit();
+                          hw_ClrPanel();
+                           Osd_Hide();
+                          Power_PowerOffSystem();
+                          hw_ClrGreenLed();
+                          hw_ClrAmberLed();
+                        }
+                       else
+                        {     
+                         hw_ClrGreenLed();
+                         hw_ClrAmberLed();
+                        }
+                          Delay1ms ( 20 );
+                          while ( 1 )
+                          {
+                              if ( hwDetectVCC5V_Pin )
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 10  
+
+                              {
+                                  Delay1ms ( 20 );
+                                  if ( hwDetectVCC5V_Pin )
+                                  {   Set_CheckVcc5VFlag();
+                                      return TRUE;
+                                  }
+                              }
+                          }
+                      }
+                  }
+              
+                  return FALSE;
+              }
+              
+              
+              #endif
+ 560          
+ 561          void Main_SlowTimerHandler(void)
+ 562          {
+ 563   1          if(ms10Flag)
+ 564   1          {
+ 565   2              if (ModeDetectCounter)
+ 566   2              {
+ 567   3                  if(ModeDetectCounter > 10)
+ 568   3                      ModeDetectCounter -= 10;
+ 569   3                  else       
+ 570   3                      ModeDetectCounter = 0;
+ 571   3              }
+ 572   2      
+ 573   2              if( TPDebunceCounter )
+ 574   2              {
+ 575   3                  if(TPDebunceCounter > 10)
+ 576   3                      TPDebunceCounter -= 10;
+ 577   3                  else
+ 578   3                      TPDebunceCounter = 0;
+ 579   3              }
+ 580   2      
+ 581   2      #if ENABLE_HDMI
+ 582   2              if(HdmiPollingCounter)
+ 583   2              {
+ 584   3                  if(HdmiPollingCounter > 10)
+ 585   3                      HdmiPollingCounter -= 10;
+ 586   3                  else
+ 587   3                      HdmiPollingCounter = 0;
+ 588   3              }
+ 589   2      
+ 590   2              if (gScInfo.InputTmdsType==TMDS_HDMI && (!(SrcFlags&(SyncLoss|bUnsupportMode))) )
+ 591   2              {
+ 592   3                  if(gScInfo.wAviPktLossCnt<AviPktLossBound)
+ 593   3                      gScInfo.wAviPktLossCnt += 10;
+ 594   3              }
+ 595   2      #endif
+ 596   2      
+ 597   2      
+ 598   2      #if MS_DAC
+ 599   2              if(ToggleGainCntr)
+ 600   2              {
+ 601   3                  if(ToggleGainCntr > 10)
+ 602   3                      ToggleGainCntr -= 10;
+ 603   3                  else
+ 604   3                  {
+ 605   4                      ToggleGainCntr = 0;
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 11  
+
+ 606   4                      bToggleGainFlag = 1;
+ 607   4                  }
+ 608   3                      
+ 609   3              }
+ 610   2      #endif
+ 611   2      
+ 612   2      
+ 613   2      #if ENABLE_MHL
+                  #if((CHIP_ID == CHIP_TSUMC) ||(CHIP_ID == CHIP_TSUMD||CHIP_ID == CHIP_TSUM9|| CHIP_ID == CHIP_TSUMF))
+                              mapi_mhl_PollingTimerhandler();
+                  #endif
+              #endif
+ 618   2      
+ 619   2      #if MS_DAC && ((CHIP_ID == CHIP_TSUMC) || (CHIP_ID == CHIP_TSUMD) || (CHIP_ID == CHIP_TSUM9)|| (CHIP_ID ==
+             - CHIP_TSUMF))
+ 620   2      #if (!InitialDACByISR)
+                              if( w16DAC_DePopCounter )
+                              {
+                                      if(w16DAC_DePopCounter > 10)
+                                      {
+                                              w16DAC_DePopCounter -= 10;
+                                      }
+                                      else
+                                      {
+                                              w16DAC_DePopCounter = 0;
+                                              bDAC_DePopFlag = 1;
+                                      }
+                              }
+              #endif
+ 634   2      #endif
+ 635   2      
+ 636   2      
+ 637   2              Clr_ms10Flag();
+ 638   2          }
+ 639   1          
+ 640   1          if(ms50Flag)
+ 641   1          {
+ 642   2      
+ 643   2              Clr_ms50Flag();
+ 644   2          }
+ 645   1      #if 0//ENABLE_FREESYNC
+                  if(ms250Flag)
+                  {
+                      Clr_ms250Flag();
+                      
+                      //if(USER_PREF_FREE_SYNC)//need check it
+                          Set_FreeSyncFlag();
+                  }
+              #endif
+ 654   1      #if 0//ENABLE_FREESYNC
+                      if(ms250Flag)
+                      {
+                          Clr_ms250Flag();
+                          
+                      }
+              #endif
+ 661   1      
+ 662   1          if(SecondFlag)
+ 663   1          {
+ 664   2      
+ 665   2      #if ((ENABLE_FREESYNC)&&(CHIP_ID==CHIP_TSUMU))//mqsh 20170421 for RX480 dp freesync on sometime get DRRFla
+             -g error
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 12  
+
+                  if((PowerOnFlag)&&(!SyncLossState())&&(!FreeRunModeFlag)&&(!InputTimingChangeFlag)&&(!UnsupportedModeF
+             -lag)&&(UserprefFreeSyncMode==FreeSyncMenuItems_On)&&(CURRENT_INPUT_IS_DISPLAYPORT()))
+                  {
+                      if(DCOffOnCounter)
+                      {
+                        if((msRead2Byte(SC0_0F))!=0x02)
+                          {
+                           if(DPRxGetDRRFlag())
+                           {
+                                BYTE xdata ucDlyLine,u8SampleRangeVStartOffset; //SC0_7E
+                  
+                         if( ( CURRENT_SOURCE_IS_INTERLACE_MODE() )
+                          || (g_SetupPathInfo.ucSCFmtIn == SC_FMT_IN_3D_FP)
+                          || ((g_SetupPathInfo.wImgSizeOutV / g_SetupPathInfo.wImgSizeInV) >=3) )
+                             ucDlyLine = 2;
+                         else
+                             ucDlyLine = 1;
+                     
+                      #if ENABLE_DUAL_LINK//for DP 1680x1050/60Hz flick
+                         if(CURRENT_INPUT_IS_DISPLAYPORT())  // follow trunk code
+                             ucDlyLine = 2;   
+                      #endif
+                                
+                                msWriteByteMask(SC0_0F, 0x02, 0x0F); //Ylock line
+                                u8SampleRangeVStartOffset = (msRead2Byte(SC0_7E)) + (4 - ucDlyLine); 
+                                msWrite2Byte(SC0_05, u8SampleRangeVStartOffset); // set capture window vstart
+                           }
+                            DCOffOnCounter--;
+                          }
+                      }
+                  }
+              #endif
+ 697   2      
+ 698   2              
+ 699   2      
+ 700   2      #if FactoryLedFlicker_Enable
+                      if(FactoryModeFlag)
+                  {
+                      LedCounter ++; 
+                      if(LedCounter%2)
+                      {
+                              hw_SetGreenLed();
+                              //hw_SetAmberLed();
+                      }       
+                      else
+                      {
+                              hw_ClrGreenLed();
+                              //hw_ClrAmberLed();
+                      }
+                  }
+              #endif
+ 716   2      
+ 717   2      
+ 718   2      #if PowerSaveLedFlicker_Enable
+                  if((PowerSavingFlag&&PowerOnFlag))
+                  {
+                      LedCounter ++; 
+                      if(LedCounter%2)
+                      {
+                              hw_SetGreenLed();
+                              //hw_SetAmberLed();
+                      }       
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 13  
+
+                      else
+                      {
+                              hw_ClrGreenLed();
+                              //hw_ClrAmberLed();
+                      }
+                  }
+              #endif  
+ 734   2               
+ 735   2      
+ 736   2      
+ 737   2      #if EANBLE_NEW_DCR_Functing
+ 738   2             if(DCR_Counter!=0&&EanbleClearBalclightStartFlag)
+ 739   2                 if(--DCR_Counter==0)
+ 740   2                   Set_DoClearBalclightFlag();
+ 741   2      #endif
+ 742   2      
+ 743   2      
+ 744   2              if (!PowerSavingFlag)
+ 745   2              {
+ 746   3              #if Show_BackLightTimeValue
+ 747   3              if (BlacklitTime_S<0xFF)
+ 748   3               {
+ 749   4                      BlacklitTime_S++;
+ 750   4                              if (BlacklitTime_S>=60)
+ 751   4                              {
+ 752   5                                      BlacklitTime_S=0;
+ 753   5                                      BlacklitTime_M++;
+ 754   5      
+ 755   5                                      if (BlacklitTime_M%30==0)
+ 756   5                                      {
+ 757   6                                              if (BlacklitTime_M>=60)
+ 758   6                                              {
+ 759   7                                                      BlacklitTime_M=0;
+ 760   7      
+ 761   7      
+ 762   7                                                      if (BlacklitTime_H>=0xFFFF)
+ 763   7                                                      {
+ 764   8                                                              BlacklitTime_H=0xFFFE;
+ 765   8                                                      }
+ 766   7                                                      BlacklitTime_H++;
+ 767   7                                              }       
+ 768   6                                              BlacklitTime_S=18;//2矫正时间
+ 769   6                                              
+ 770   6                                              MonitorBackLightTime_M=BlacklitTime_M;
+ 771   6                                              MonitorBackLightTime_H=BlacklitTime_H;
+ 772   6                                              SaveMonitorSetting2();
+ 773   6                                      }
+ 774   5      
+ 775   5                              
+ 776   5                              }
+ 777   4                      }
+ 778   3                      else
+ 779   3                              BlacklitTime_S=0;
+ 780   3                      #endif                  
+ 781   3              }
+ 782   2                      
+ 783   2      #if JRY_Color_Tool_Functing
+ 784   2              if (WhileCounte>0&&(ATEModeFlag))
+ 785   2              {
+ 786   3                      WhileCounte--;
+ 787   3      
+ 788   3                      if (WhileCounte==0)
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 14  
+
+ 789   3                              Clr_ATEModeFlag();
+ 790   3              }
+ 791   2      #endif
+ 792   2      
+ 793   2      #if JRY_FDDCCI_WriteEDID
+ 794   2              DDCCILoadEDIDCount++;
+ 795   2      #endif
+ 796   2      
+ 797   2                      #if ESaverPowerDownFunc
+ 798   2                      if(ESaverPowerDownCounter)
+ 799   2                        {
+ 800   3                   if(--ESaverPowerDownCounter == 0)
+ 801   3                              {
+ 802   4                              {
+ 803   5                                      MenuPageIndex=PowerOffMenu;
+ 804   5                                      MenuItemIndex=0;
+ 805   5                                      PowerOffSystem();
+ 806   5                              }
+ 807   4                              }
+ 808   3                              // Osd_Draw4Num(1,2,ESaverPowerDownCounter);
+ 809   3                        }
+ 810   2                      #endif
+ 811   2      
+ 812   2      
+ 813   2              #if Enable_ButtonKeyLongPressFunction
+                       if(g_HoldKeypadButton<BTN_EndBTN)
+                           if(g_HoldKeyCounter<10)
+                                  g_HoldKeyCounter++;
+                      #endif
+ 818   2              
+ 819   2              if (OsdCounter)
+ 820   2              {  
+ 821   3                  if (--OsdCounter == 0)
+ 822   3                  {
+ 823   4                      Set_OsdTimeoutFlag();
+ 824   4                      #if DEBUG_HOTSWITCH
+                                  printMsg("Set_OsdTimeoutFlag");
+                              #endif
+ 827   4                  }
+ 828   3              }
+ 829   2                  
+ 830   2              if (HotKeyCounter)
+ 831   2              {
+ 832   3                  if (--HotKeyCounter == 0)
+ 833   3                  {
+ 834   4                      if (PressExitFlag)
+ 835   4                          Set_EnableShowDDCFlag();
+ 836   4                  }
+ 837   3              }
+ 838   2      
+ 839   2      
+ 840   2      
+ 841   2      #if ENABLE_OVER_SCAN && AudioFunc       //121211 Modify
+                              if (HotKeyPlusCounter)
+                              {
+                                      if (--HotKeyPlusCounter == 0)
+                                      {
+                                              if (PressPlusFlag)
+                                                      Set_EnableExpansionMenuFlag();
+                                      }
+                              }
+              #endif
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 15  
+
+ 851   2              if (DoKeyCountFlag && PowerOnFlag)
+ 852   2              {
+ 853   3                  PowerKeyCounter++;
+ 854   3                  PowerKeyCounter%=2;// /3;For GPM Request
+ 855   3                  if(PowerKeyCounter==0)
+ 856   3                      Set_PowerOffFlag();
+ 857   3              }
+ 858   2      
+ 859   2      
+ 860   2              if (PowerDownCounter)
+ 861   2              {
+ 862   3                  if (--PowerDownCounter == 0)
+ 863   3                  {
+ 864   4                      Set_ForcePowerSavingFlag();
+ 865   4                  }
+ 866   3              }
+ 867   2                  
+ 868   2      
+ 869   2      #if USEFLASH
+ 870   2              UserPref_FlashSaveFlagCheck();//edit by lizzie,100429.for FlashSave every 1s,suggest by hungyi.cai 
+ 871   2      #endif
+ 872   2      
+ 873   2          Set_ChangePatternFlag();
+ 874   2          Clr_SecondFlag();
+ 875   2              
+ 876   2              #if ( defined(OffPower))//  130723 william For PowerSaving timer slowly  && EXT_TIMER0_1S==0 )         //
+             -120919 Modify  20130510 update 
+                      if (UserPrefAutoPowerOff && PowerOnFlag)
+                      {
+                              AutoPowerOffSTime++;
+                              if ((AutoPowerOffSTime%60)==0)
+                              { 
+                                      AutoPowerOffSTime=0;
+                                      AutoPowerOffMTime++;
+                                      if ((!PowerSavingFlag) && (AutoPowerOffHTime == (UserPrefAutoPowerOff-1)))              //130123_3 Henry
+                                      {
+                                              if((AutoPowerOffMTime == 50)
+                                                      )
+                                                      ShowOffPowerWarningFlag = 1;
+                                      }
+                                      if ((AutoPowerOffMTime%60)==0)
+                                      {
+                                              AutoPowerOffMTime=0;
+                                              if (AutoPowerOffHTime<UserPrefAutoPowerOff)
+                                              {
+                                                      AutoPowerOffHTime++;
+                                                      if (AutoPowerOffHTime==UserPrefAutoPowerOff)
+                                                      {
+                                                              {
+                                                                      MenuPageIndex=PowerOffMenu;
+                                                                      MenuItemIndex=0;
+                                                                      PowerOffSystem();
+                                                              }
+                                                      }
+                                              }                                                
+                                      }
+                              }                                
+                      }
+                      #endif
+ 909   2      
+ 910   2          }
+ 911   1      
+C51 COMPILER V9.01   MAIN                                                                  03/09/2023 15:39:00 PAGE 16  
+
+ 912   1      
+ 913   1      #if (EXT_TIMER0_1S)// 2012-05-23-1
+ 914   1          if (g_oneSecondFlag)
+ 915   1          {
+ 916   2              g_oneSecondFlag=0;
+ 917   2              
+ 918   2              // minute routine
+ 919   2              if(g_oneMinuteFlag)
+ 920   2              { 
+ 921   3                  g_oneMinuteFlag = 0;
+ 922   3      
+ 923   3      
+ 924   3      #if     0// 130723 william For PowerSaving timer slowly  OffPower
+                          if(AUTO_POWER_OFF_ACTIVE)
+                          {
+                              AutoPowerOffMTime++;
+              
+                              if(AutoPowerOffMTime == 50)
+                              {
+                                  if((!PowerSavingFlag) &&( AutoPowerOffHTime == (UserPrefAutoPowerOff-1)))
+                                  {
+                                      ShowOffPowerWarningFlag = 1;
+                                  }
+                              }
+                              else if ((AutoPowerOffMTime%60)==0)
+                              {
+                                  AutoPowerOffMTime=0;
+                                  
+                                  if (AutoPowerOffHTime<UserPrefAutoPowerOff)
+                                  {
+                                      AutoPowerOffHTime++;
+                                      
+                                      if (AutoPowerOffHTime==UserPrefAutoPowerOff)
+                                      {
+                                          MenuPageIndex=PowerOffMenu;
+                                          MenuItemIndex=0;
+                                          PowerOffSystem();
+                                      }
+                                  }                                            
+                              }                
+                          }
+              #endif
+ 954   3              }
+ 955   2          }
+ 956   1      #endif
+ 957   1      
+ 958   1      
+ 959   1      
+ 960   1      }
+ 961          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    751    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

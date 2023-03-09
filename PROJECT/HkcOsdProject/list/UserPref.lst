@@ -1,0 +1,1446 @@
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE USERPREF
+OBJECT MODULE PLACED IN .\obj\UserPref.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\KERNEL\SYSTEM\AOC2011\UserPref.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\
+                    -DRIVER\INC;..\..\KERNEL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..
+                    -\..\KERNEL\SYSTEM\INC\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\
+                    -UI\HkcOsd\INC) DEFINE(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\UserPref.lst) OBJECT(.\obj\UserPr
+                    -ef.obj)
+
+line level    source
+
+   1          #include <math.h>
+   2          #include "types.h"
+   3          #include "board.h"
+   4          #include "global.h"
+   5          #include "nvram.h"
+   6          #include "debug.h"
+   7          #include "menudef.h"
+   8          #include "menufunc.h"
+   9          #include "mcu.h"
+  10          #include "ms_reg.h"
+  11          #if 1
+  12              #include "MsDLC.h"
+  13              #include "MsACE.h"
+  14              #include "UserPref.h"
+  15          #endif 
+  16          #if 1//USEFLASH
+  17                  #include "msflash.h"
+  18                  //Bool IsFlashSettingAreaEmpty(BYTE EmptyValue);//edit by lizzie.ding ,for check flash empty
+  19          #endif 
+  20          
+  21          
+  22          
+  23          #include "drvADC.h"
+  24          #define HFreq_Tol   16 // 1.6 KHz
+  25          #define VFreq_Tol   8  // 0.8 Hz
+  26          
+  27          #if USEFLASH
+  28          BYTE xdata ucFlashSaveState;    // Save user Setting flag
+  29          //WORD xdata ucFlashSaveCount;  // Flash Save counter
+  30          #endif
+  31          
+  32          #if !USEFLASH
+              void CheckBoard(void);
+              void ReadBlacklitTime(void);
+              #endif
+  36          Bool IsEEPRomEmpty(BYTE EmptyValue);
+  37          
+  38          //Benz 2007.4.24   23:25:55 void SaveBlacklitTime( void );
+  39          
+  40          Bool CheckFactorySettingOutOfRange(void)
+  41          {
+  42   1      #if 0//def WH_REQUEST
+                      //#if ((CHIP_ID>=CHIP_TSUMV)||CHIP_ID==CHIP_TSUMB)      
+                      #if (CHIP_ID>=CHIP_TSUMU)                       //Fay 2013/8/2   
+                              if (UserPrefAdcPgaGain > 0x2A)
+                                      return TRUE;
+                              if(
+                                      UserPrefAdcRedGain >= 0x600 ||
+                                      UserPrefAdcGreenGain >= 0x600 ||
+                                      UserPrefAdcBlueGain >= 0x600 ||
+                                      UserPrefAdcRedGain <= 0x200 ||
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 2   
+
+                                      UserPrefAdcGreenGain <= 0x200 ||
+                                      UserPrefAdcBlueGain <= 0x200 
+                                      )
+                                      return TRUE;
+                              if( (UserPrefAdcRedOffset != 0x00 && UserPrefAdcRedOffset != 0x800-OffsetValue)||
+                                      (UserPrefAdcBlueOffset != 0x00 && UserPrefAdcBlueOffset != 0x800-OffsetValue)||
+                                      (UserPrefAdcGreenOffset != 0x00 && UserPrefAdcGreenOffset != 0x800-OffsetValue)
+                                      )
+                                      return TRUE;
+                      #endif
+              #else
+  63   1              #if (CHIP_ID>=CHIP_TSUMV)       
+  64   1                      if (UserPrefAdcPgaGain > 0x2A)
+  65   1                              return TRUE;
+  66   1                      if(
+  67   1                              UserPrefAdcRedGain >= 0x600 ||
+  68   1                              UserPrefAdcGreenGain >= 0x600 ||
+  69   1                              UserPrefAdcBlueGain >= 0x600 ||
+  70   1                              UserPrefAdcRedGain <= 0x200 ||
+  71   1                              UserPrefAdcGreenGain <= 0x200 ||
+  72   1                              UserPrefAdcBlueGain <= 0x200 
+  73   1                              )
+  74   1                              return TRUE;
+  75   1                      if( (UserPrefAdcRedOffset != 0x00 && UserPrefAdcRedOffset != 0x800-OffsetValue)||
+  76   1                              (UserPrefAdcBlueOffset != 0x00 && UserPrefAdcBlueOffset != 0x800-OffsetValue)||
+  77   1                              (UserPrefAdcGreenOffset != 0x00 && UserPrefAdcGreenOffset != 0x800-OffsetValue)
+  78   1                              )
+  79   1                              return TRUE;
+  80   1              #endif
+  81   1      #endif
+  82   1          if(
+  83   1              UserPrefRedColorCool1 <= 50||
+  84   1              UserPrefGreenColorCool1 <= 50||
+  85   1              UserPrefBlueColorCool1 <= 50||
+  86   1              #if CT_7500K_ENABLE
+                      UserPrefRedColorNormal <= 50||
+                      UserPrefGreenColorNormal <= 50||
+                      UserPrefBlueColorNormal <= 50||
+                      #endif
+  91   1              UserPrefRedColorWarm1 <= 50||
+  92   1              UserPrefGreenColorWarm1 <= 50||
+  93   1              UserPrefBlueColorWarm1 <= 50
+  94   1                      #if CT_sRGB_ENABLE
+                      ||UserPrefRedColorSRGB <= 50||
+                      UserPrefGreenColorSRGB <= 50||
+                      UserPrefBlueColorSRGB <= 50
+                              #endif
+  99   1              )
+ 100   1              return TRUE;
+ 101   1          if(
+ 102   1              UserPrefRedColorUser < MinColorValue||
+ 103   1              UserPrefRedColorUser > MaxColorValue||
+ 104   1              UserPrefGreenColorUser < MinColorValue||
+ 105   1              UserPrefGreenColorUser > MaxColorValue||
+ 106   1              UserPrefBlueColorUser < MinColorValue||
+ 107   1              UserPrefBlueColorUser > MaxColorValue
+ 108   1              )
+ 109   1              return TRUE;
+ 110   1          if(
+ 111   1                      #if PanelminiLVDS||PANEL_VCOM_ADJUST    //110229 Modify
+                      FactorySetting.VcomValue>MAX_VCOM_VALUE||
+                      FactorySetting.VcomValue<MIN_VCOM_VALUE||
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 3   
+
+                              #endif
+ 115   1      
+ 116   1              abs(UserPrefRedColorCool1-UserPrefGreenColorCool1) >= 100||
+ 117   1              abs(UserPrefGreenColorCool1-UserPrefBlueColorCool1)  >= 100||
+ 118   1              abs(UserPrefRedColorCool1-UserPrefBlueColorCool1)  >= 100||
+ 119   1      
+ 120   1                      #if CT_7500K_ENABLE
+                      abs(UserPrefRedColorNormal-UserPrefGreenColorNormal) >= 100||
+                      abs(UserPrefGreenColorNormal-UserPrefBlueColorNormal)  >= 100||
+                      abs(UserPrefRedColorNormal-UserPrefBlueColorNormal)  >= 100||
+                              #endif
+ 125   1      
+ 126   1              abs(UserPrefRedColorWarm1-UserPrefGreenColorWarm1) >= 100||
+ 127   1              abs(UserPrefGreenColorWarm1-UserPrefBlueColorWarm1)  >= 100||
+ 128   1              abs(UserPrefRedColorWarm1-UserPrefBlueColorWarm1)  >= 100
+ 129   1                      #if CT_sRGB_ENABLE
+                      ||abs(UserPrefRedColorSRGB-UserPrefGreenColorSRGB) >= 100||
+                      abs(UserPrefGreenColorSRGB-UserPrefBlueColorSRGB)  >= 100||
+                      abs(UserPrefRedColorSRGB-UserPrefBlueColorSRGB)  >= 100
+                              #endif
+ 134   1              )
+ 135   1              return TRUE;
+ 136   1              
+ 137   1      #if ENABLE_FACTORY_SSCADJ       //120305 Modify
+ 138   1          if (FactorySetting.SSCModulation>PANEL_SSC_MODULATION_MAX)
+ 139   1              FactorySetting.SSCModulation = PANEL_SSC_MODULATION_MAX;
+ 140   1      
+ 141   1          if (FactorySetting.SSCPercentage>PANEL_SSC_PERCENTAGE_MAX)
+ 142   1              FactorySetting.SSCPercentage = PANEL_SSC_PERCENTAGE_DEF;
+ 143   1      #endif
+ 144   1      
+ 145   1          #if USEFLASH
+ 146   1              if(FactoryCheckSum!=FLASH_CHECKSUM)
+ 147   1              return TRUE;
+ 148   1          #endif
+ 149   1              return FALSE;
+ 150   1      }
+ 151          
+ 152          Bool CheckMonitorSettingOutOfRange(void)
+ 153          {       
+ 154   1          if(
+ 155   1              UserPrefBrightness > MaxBrightnessValue||
+ 156   1              UserPrefContrast > MaxContrastValue ||
+ 157   1              UserPrefContrast < MinContrastValue ||
+ 158   1              UserPrefECOMode  >= ECO_Nums||
+ 159   1              UserPrefColorTemp >= CTEMP_Nums||
+ 160   1              #if AudioFunc
+ 161   1              UserPrefVolume  > 100||
+ 162   1              #endif
+ 163   1              UserPrefLanguage >= LANG_Nums ||
+ 164   1              UserPrefOsdHStart > 100||
+ 165   1              UserPrefOsdVStart > 100||
+ 166   1              UserPrefOsdTime > 120||
+ 167   1              UserPrefOsdTrans >4 ||  
+ 168   1                      #if MWEFunction
+ 169   1              UserPrefSubBrightness<MinSubBrightness||
+ 170   1              UserPrefSubBrightness>MaxSubBrightness||
+ 171   1              UserPrefSubContrast < MinSubContrast||
+ 172   1              UserPrefSubContrast > MaxSubContrast||
+ 173   1                      UserPrefHue > 100 ||
+ 174   1                      #endif
+ 175   1              UserPrefDcrMode > 2 ||      
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 4   
+
+ 176   1              UserPrefGamaMode >= GAMA_Nums||      
+ 177   1                      #if ENABLE_RTE
+                      UserPrefRTEMode>=RTE_Nums||
+                      #endif
+ 180   1              UserPrefInputType>=Input_Nums ||
+ 181   1                      UserPrefSharpness > MaxSharpness||
+ 182   1                      UserPrefSharpness < MinSharpness
+ 183   1              )
+ 184   1              return TRUE;
+ 185   1          return FALSE;
+ 186   1      }
+ 187          
+ 188          
+ 189          #if USEFLASH
+ 190          void Init_FactorySetting(void)
+ 191          {
+ 192   1      #if ENABLE_AUTO_CLOLR_WITHOUT_INPUT
+ 193   1          FactoryAutoColorDone = 0;
+ 194   1      #endif
+ 195   1          UserPrefAdcPgaGain = DEF_ADC_PGA_GAIN;      //110401 Modify
+ 196   1              UserPrefAdcRedGain=DEF_ADC_RED_GAIN;            //120105 Modify
+ 197   1              UserPrefAdcGreenGain=DEF_ADC_GREEN_GAIN;        //120105 Modify
+ 198   1              UserPrefAdcBlueGain=DEF_ADC_BLUE_GAIN;          //120105 Modify
+ 199   1      
+ 200   1              UserPrefAdcRedOffset=DEF_ADC_OFFSET;    //110401 Modify
+ 201   1              UserPrefAdcGreenOffset=DEF_ADC_OFFSET;          //110401 Modify
+ 202   1              UserPrefAdcBlueOffset=DEF_ADC_OFFSET;   //110401 Modify
+ 203   1          
+ 204   1          UserPrefRedColorWarm1 = DefWarm_RedColor;
+ 205   1          UserPrefGreenColorWarm1 = DefWarm_GreenColor;
+ 206   1          UserPrefBlueColorWarm1 = DefWarm_BlueColor;
+ 207   1      
+ 208   1          UserPrefRedColorCool1 = DefCool_RedColor;
+ 209   1          UserPrefGreenColorCool1 = DefCool_GreenColor;
+ 210   1          UserPrefBlueColorCool1 = DefCool_BlueColor;
+ 211   1      #if CT_7500K_ENABLE
+                  UserPrefRedColorNormal = DefNormal_RedColor;
+                  UserPrefGreenColorNormal = DefNormal_GreenColor;
+                  UserPrefBlueColorNormal = DefNormal_BlueColor;
+              #endif
+ 216   1              #if CT_sRGB_ENABLE
+                  UserPrefRedColorSRGB = DefsRGB_RedColor;
+                  UserPrefGreenColorSRGB = DefsRGB_GreenColor;
+                  UserPrefBlueColorSRGB = DefsRGB_BlueColor;
+                      #endif 
+ 221   1          FactoryCheckSum=FLASH_CHECKSUM;
+ 222   1      #if 1//def WH_REQUEST   
+ 223   1              if (FactoryProductModeValue==ProductModeOnValue)
+ 224   1              FactoryProductModeValue=ProductModeOnValue;
+ 225   1              else
+ 226   1      #endif
+ 227   1          FactoryProductModeValue=ProductModeOffValue;
+ 228   1              #if PanelminiLVDS || PANEL_VCOM_ADJUST  //110229 Modify
+                  UserPrefVcomValue = DEF_VCOM_VALUE;
+                  #endif
+ 231   1      #if     DisplayPowerOnLogo 
+ 232   1          UserPrefLogoON=1;   //120420 Modify
+ 233   1      #endif
+ 234   1      #if ENABLE_FACTORY_SSCADJ       //120305 Modify
+ 235   1          FactorySetting.SSCModulation = PANEL_SSC_MODULATION_DEF;
+ 236   1          FactorySetting.SSCPercentage = PANEL_SSC_PERCENTAGE_DEF;
+ 237   1      #endif
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 5   
+
+ 238   1      
+ 239   1          //#ifdef SETTING_IN_FLASH_12K
+ 240   1          FactorySetting.Ident=FLASH_IDENTDATA;
+ 241   1          FactorySetting.CheckSum=FLASH_CHECKSUM;
+ 242   1          //#endif
+ 243   1      }
+ 244          
+ 245          void Init_MonitorSetting(void)
+ 246          {
+ 247   1          UserPrefBrightness = DefBrightness;
+ 248   1          UserPrefContrast = DefContrast;
+ 249   1      
+ 250   1      UserPrefBrightnessUser = UserPrefBrightness;
+ 251   1      UserPrefContrastUser = UserPrefContrast;
+ 252   1              
+ 253   1          UserPrefRedColor = DefRedColor;
+ 254   1          UserPrefGreenColor = DefGreenColor;
+ 255   1          UserPrefBlueColor = DefBlueColor;
+ 256   1          UserPrefRedColorUser = DefRedColor;
+ 257   1          UserPrefGreenColorUser = DefGreenColor;
+ 258   1          UserPrefBlueColorUser = DefBlueColor;
+ 259   1      
+ 260   1              #if PresetMode_Enable
+                       UserPrefColorTemp_Preset       = CTEMP_Warm1;
+                       UserPrefBrightness_Preset      = DefBrightness;
+                       UserPrefContrast_Preset        = DefContrast;
+                       UserPrefGamaMode_Preset = GAMA1;
+                      #endif
+ 266   1      
+ 267   1              
+ 268   1          #if Enable_YMC
+                  UserPrefYColor = DefRedColor;
+                  UserPrefCColor = DefGreenColor;
+                  UserPrefMColor = DefBlueColor;
+                  #endif
+ 273   1      
+ 274   1          UserPrefECOMode = 0;
+ 275   1          UserPrefColorTemp = CTEMP_Warm1;//CTEMP_Warm1;
+ 276   1          UserPrefSharpness = DefSharpness;   //120105 Modify
+ 277   1      
+ 278   1          UserPrefLanguage = DefLanguage;
+ 279   1          UserPrefMuteState=0;
+ 280   1          UserPrefVolume = DefVolume;
+ 281   1          UserPrefOsdHStart = DefOsdHPosValue;//50;
+ 282   1          UserPrefOsdVStart = DefOsdVPosValue;//50;
+ 283   1          UserPrefOsdTime = DefOsdTime;
+ 284   1              UserPrefOsdTrans= 0;            //120119 Modify
+ 285   1              #ifdef OffPower      //090331 xiandi.yu Auto Off Power
+                  UserPrefAutoPowerOff=0;     
+                      #endif
+ 288   1          UserPrefDcrMode = 0;        
+ 289   1          UserPrefGamaMode = 0;
+ 290   1              #if ENABLE_RTE
+                         UserPrefRTEMode=DefRTEMode;  //20150914 gyp
+                         #endif
+ 293   1              
+ 294   1              #if ENABLE_VGA_INPUT
+ 295   1          UserPrefInputType = Input_ANALOG;
+ 296   1              #else
+                  UserPrefInputType = Input_DIGHTAL1;
+                      #endif
+ 299   1              
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 6   
+
+ 300   1          #if INPUT_TYPE == INPUT_1A
+                  UserPrefInputSelectType = INPUT_PRIORITY_VGA;
+                      #elif INPUT_TYPE == INPUT_1H
+                  UserPrefInputSelectType = INPUT_PRIORITY_HDMI;
+                  #else
+ 305   1          #if DISABLE_AUTO_SWITCH
+                      UserPrefInputSelectType = FIXED_PORT;
+                  #else
+ 308   1              UserPrefInputSelectType = INPUT_PRIORITY_AUTO; // 071221 modified for initial UserPrefInputSelectT
+             -ype
+ 309   1          #endif      
+ 310   1          #endif
+ 311   1              
+ 312   1              UserPrefSavedModeIndex = NumberOfMode;
+ 313   1          #if ENABLE_FACTORY_BLACKLEVEL  ||   ENABLE_DDCCI_BLACKLEVEL   
+                      UserprefRedBlackLevel = DefRedBlackLevel;
+                      UserprefGreenBlackLevel = DefGreenBlackLevel;
+                      UserprefBlueBlackLevel = DefBlueBlackLevel;
+                  #endif 
+ 318   1          #if Enable_Expansion
+ 319   1              UserprefExpansionMode = DefExpansion;
+ 320   1          #endif 
+ 321   1          #if MWEFunction
+ 322   1              //UserPrefMWE=OFF_W;
+ 323   1              UserPrefHue = DefHue;
+ 324   1              UserPrefSaturation = DefSaturation;
+ 325   1              UserPrefSubContrast = DefSubContrast;
+ 326   1              UserPrefSubBrightness = DefSubBrightness;
+ 327   1              // 2006/10/26 6:47PM by Emily     UserPrefSubSharpness = 11;
+ 328   1              //UserPrefSkinTone=OFF_SKIN;
+ 329   1              // 2006/10/26 6:48PM by Emily     UserPrefDLCMode = OFF_DLC;
+ 330   1              // UserPrefBFPosition =0;               
+ 331   1          #endif 
+ 332   1          //=======for AutoBacklight=====================
+ 333   1      
+ 334   1          // 2006/11/6 5:34PM by Emily      UserprefAutoModel=1;
+ 335   1          // 2006/11/6 5:33PM by Emily      UserprefCompareRange=8;
+ 336   1          // 2006/11/6 5:33PM by Emily      UserprefDiffHvalue=0x80;
+ 337   1          #if  ENABLE_RTE
+                          MonitorFlags = bPowerOnBit | bBurninModeBit |bDoBurninModeBit| bDCCCIONOBit | bFactoryModeBit|bOverDr
+             -iveOnBit; //Benz 2007.4.23   20:32:00
+                  #else
+ 340   1                  MonitorFlags = bPowerOnBit | bBurninModeBit |bDoBurninModeBit| bDCCCIONOBit | bFactoryModeBit; //Benz
+             - 2007.4.23   20:32:00
+ 341   1          #endif
+ 342   1      
+ 343   1              #if VGA_Write_EEPROM
+                              Set_Load_VGAEDID_Flag();
+                      #endif
+ 346   1      
+ 347   1              #if DVI_Write_EEPROM
+                              Set_Load_DVIEDID_Flag();
+                      #endif
+ 350   1      
+ 351   1              #if HDMI_Write_EEPROM
+ 352   1                      Set_Load_HDMIEDID_Flag();
+ 353   1              #endif
+ 354   1      
+ 355   1              #if HDMI2_Write_EEPROM
+                              Set_Load_HDMI2EDID_Flag();
+                      #endif
+ 358   1              #if WriteSN_Functiom_New
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 7   
+
+                         Clr_DDCCIReadLoadEDIDFlag(); 
+                      #endif
+ 361   1      
+ 362   1              
+ 363   1              
+ 364   1          
+ 365   1      
+ 366   1      #if ENABLE_FREESYNC
+              #if FreeSyncMenu_Enable
+              UserprefFreeSyncMode=FreeSyncStatues;//FreeSyncMenuItems_Off FreeSyncMenuItems_On
+              #else
+              UserprefFreeSyncMode=FreeSyncMenuItems_On;
+              #endif
+              #endif   
+ 373   1      
+ 374   1              #if ENABLE_OSD_LowBlueLight
+ 375   1              UserprefLowBlueLightMode  = DEF_LowBlueLight_MODE;      
+ 376   1              #endif
+ 377   1      
+ 378   1          MonitorSetting.checksum = FLASH_CHECKSUM;
+ 379   1      }
+ 380          void Init_ModeSetting(void)
+ 381          {
+ 382   1          UserPrefHTotal = StandardModeHTotal;
+ 383   1          UserPrefHStart = StandardModeHStart;
+ 384   1          UserPrefVStart = StandardModeVStart;
+ 385   1          UserPrefAutoHStart = UserPrefHStart;
+ 386   1          UserPrefAutoVStart = StandardModeVStart; //2004/01/15 num11
+ 387   1          UserPrefPhase = 18;
+ 388   1          UserPrefAutoTimes = 0;
+ 389   1      #if USEFLASH
+ 390   1              ModeSetting.Index=SaveIndex;
+ 391   1              ModeSetting.Ident=FLASH_IDENTDATA;
+ 392   1              ModeSetting.checksum=FLASH_CHECKSUM;
+ 393   1               ModeSetting.HerFreq=0xFFFF;
+ 394   1               ModeSetting.VerFreq=0xFFFF;
+ 395   1               ModeSetting.VTotal=0xFFFF;
+ 396   1               ModeSetting.Flags=0xFF;
+ 397   1      #else
+                      ModeSetting.CheckSum=FLASH_CHECKSUM;
+              #endif
+ 400   1      }
+ 401          void CheckColorValueRange(void)
+ 402          {
+ 403   1          if (UserPrefContrast > MaxContrastValue || UserPrefContrast < MinContrastValue)
+ 404   1          {
+ 405   2              UserPrefContrast = DefContrast;
+ 406   2          }
+ 407   1          #if 1
+ 408   1              if (UserPrefRedColor > MaxColorValue)
+ 409   1                  UserPrefRedColor = DefRedColor;
+ 410   1              if (UserPrefGreenColor > MaxColorValue)
+ 411   1                  UserPrefGreenColor = DefGreenColor;
+ 412   1              if (UserPrefBlueColor > MaxColorValue)
+ 413   1                  UserPrefBlueColor = DefBlueColor;
+ 414   1          #endif 
+ 415   1      }
+ 416          
+ 417          
+ 418          void CheckModeSettingRange(void)
+ 419          {
+ 420   1          if (abs(UserPrefHTotal - StandardModeHTotal) > 100)
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 8   
+
+ 421   1          {
+ 422   2              UserPrefHTotal = StandardModeHTotal;
+ 423   2          }
+ 424   1          //  if (UserPrefHStart>2*StandardModeHStart)
+ 425   1          //    UserPrefHStart=StandardModeHStart;
+ 426   1          //  if (UserPrefVStart>2*StandardModeVStart)
+ 427   1          //    UserPrefVStart=StandardModeVStart;
+ 428   1          if (abs(UserPrefHStart - UserPrefAutoHStart) > 50)
+ 429   1          //2004/02/10 num1
+ 430   1          {
+ 431   2              UserPrefHStart = UserPrefAutoHStart;
+ 432   2          } //2004/02/10 num1
+ 433   1          if (UserPrefVStart > 2 *UserPrefAutoVStart)
+ 434   1          //2004/02/10 num1
+ 435   1          {
+ 436   2              UserPrefVStart = UserPrefAutoVStart;
+ 437   2          } //2004/02/10 num1
+ 438   1          UserPrefPhase &= MAX_PHASE_VALUE;
+ 439   1          if (/*UserPrefAutoTimes == 0 ||*/ abs(UserPrefHStart - UserPrefAutoHStart) > 50)
+ 440   1          {
+ 441   2              UserPrefAutoHStart = UserPrefHStart;
+ 442   2          }
+ 443   1      }
+ 444          
+ 445          void UserPref_EnableFlashSaveBit(BYTE ucFlag)
+ 446          {
+ 447   1          ucFlashSaveState |= ucFlag;
+ 448   1      }
+ 449          void UserPref_FlashSaveFlagCheck(void)
+ 450          {
+ 451   1          if(FlashSaveMonitorFlag)
+ 452   1          {
+ 453   2              Clr_FlashSaveMonitorFlag();
+ 454   2              Set_FlashForceSaveMonitorFlag();
+ 455   2          }
+ 456   1          if(FlashSaveModeFlag)
+ 457   1          {
+ 458   2              Clr_FlashSaveModeFlag();
+ 459   2              Set_FlashForceSaveModeFlag();
+ 460   2          }
+ 461   1          if(FlashSaveFactoryFlag)
+ 462   1          {
+ 463   2              Clr_FlashSaveFactoryFlag();
+ 464   2              Set_FlashForceSaveFactoryFlag();
+ 465   2          }
+ 466   1          if(FlashSaveMonitor2Flag)
+ 467   1          {
+ 468   2              Clr_FlashSaveMonitor2Flag();
+ 469   2              Set_FlashForceSaveMonitor2Flag();
+ 470   2          }
+ 471   1      }
+ 472          
+ 473          void UserPref_FlashDataSaving(void)
+ 474          {
+ 475   1          if(FlashForceSaveMonitorFlag)
+ 476   1          {
+ 477   2              //USERP_printMsg("--UserPref_FlashDataSaving SaveMonitorSetting");
+ 478   2              Clr_FlashForceSaveMonitorFlag();
+ 479   2              SaveMonitorSetting();
+ 480   2          }
+ 481   1          if(FlashForceSaveModeFlag)
+ 482   1          {
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 9   
+
+ 483   2              //USERP_printMsg("--UserPref_FlashDataSaving SaveModeSetting");
+ 484   2              Clr_FlashForceSaveModeFlag();
+ 485   2              SaveModeSetting();
+ 486   2          }
+ 487   1          if(FlashForceSaveFactoryFlag)
+ 488   1          {
+ 489   2              //USERP_printMsg("--UserPref_FlashDataSaving SaveFactorySetting");
+ 490   2              Clr_FlashForceSaveFactoryFlag();
+ 491   2              SaveFactorySetting();
+ 492   2          }
+ 493   1          if(FlashForceSaveMonitor2Flag)
+ 494   1          {
+ 495   2              //USERP_printMsg("--UserPref_FlashDataSaving SaveMonitorSetting2");
+ 496   2              Clr_FlashForceSaveMonitor2Flag();
+ 497   2              SaveMonitorSetting2();
+ 498   2          }
+ 499   1      }
+ 500          #if Display_Checksum
+ 501          #define PROTECT_START_ADDR                      0x02FFFEul  
+ 502          ///////////////////////////////////////////////////////////////////////////////
+ 503          // <DRV><Description>: Read one byte from flash.
+ 504          // <Returns> : Data value in the address
+ 505          // <Parameter>:  -  <Flow>  -  <Description>
+ 506          //-----------------------------------------------------------------------------
+ 507          //  wAddr   -   In  -   Only in the same bank ot MsFlash.c
+ 508          ///////////////////////////////////////////////////////////////////////////////
+ 509          //#define xfr_FlashCode_NVRom ((BYTE code*)0x0000)
+ 510          void drvFlashWaitSPINotBusy(void);
+ 511          
+ 512          BYTE FlashReadByte_CheckSum(DWORD address)
+ 513          {
+ 514   1      
+ 515   1          SPI_SI_BUF[0]   = (SPI_MODE == SPI_MODE_FR) ? H_READ:READ;
+ 516   1          SPI_SI_BUF[1]   = (address>>16)&0xff;
+ 517   1          SPI_SI_BUF[2]   = (address>>8)&0xff;
+ 518   1          SPI_SI_BUF[3]   = address&0xff;
+ 519   1          //2nd
+ 520   1          SPI_SI_BUF[4]   = RDSR;
+ 521   1          if(SPI_MODE == SPI_MODE_FR)
+ 522   1              SPI_SI_BUF[5]   = RDSR;
+ 523   1          SPI_CTRL0       = SPI_CTRL_VALUE; //ctrl en FSP/reset
+ 524   1          SPI_CTRL1       = (EN_2ND_CMD|RDSR_IN_2ND|EN_AUTO_CHECK);
+ 525   1          SET_WBF_SIZE( (SPI_MODE == SPI_MODE_FR) ? 5:4, 1, 0);
+ 526   1          SET_WBF_SIZE( 5, 1, 0);
+ 527   1          SET_RBF_SIZE(1, 1, 0);
+ 528   1          SPI_TRIGGER     = 0x01; //start flash programming
+ 529   1          
+ 530   1          drvFlashWaitSPINotBusy();
+ 531   1          
+ 532   1          return SPI_SO_BUF[0];
+ 533   1      }
+ 534          
+ 535          void Checksum_Calculator(void)
+ 536          {
+ 537   1              Code_checksun=(FlashReadByte_CheckSum(PROTECT_START_ADDR));
+ 538   1              Code_checksun=((Code_checksun<<8)|(FlashReadByte_CheckSum(PROTECT_START_ADDR+1)));
+ 539   1      }
+ 540          #endif
+ 541          
+ 542          void Init_MonitorSetting2(void)
+ 543          {
+ 544   1          MonitorSetting2.Ident = FLASH_IDENTDATA;
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 10  
+
+ 545   1           #if Show_BackLightTimeValue
+ 546   1               MonitorSetting2.BacklighttimeS=0;
+ 547   1               MonitorSetting2.BacklighttimeM=0;
+ 548   1               MonitorSetting2.BacklighttimeH=0;
+ 549   1              #endif
+ 550   1      
+ 551   1          MonitorSetting2.CheckSum = FLASH_CHECKSUM;
+ 552   1      }
+ 553          void SaveMonitorSetting(void)
+ 554          {
+ 555   1              MonitorSetting.Ident=FLASH_IDENTDATA;
+ 556   1              MonitorSetting.checksum=FLASH_CHECKSUM;
+ 557   1              #if 0//Enable_Cache
+                      MCU_DisableCache();
+                      #endif
+ 560   1      
+ 561   1              Flash_WriteMonitorSet((BYTE*)&MonitorSetting, MonitorSettingSize);
+ 562   1              #if 0//Enable_Cache
+                      MCU_EnableCache();
+                      #endif
+ 565   1      
+ 566   1      }
+ 567          void SaveMonitorSetting2(void)
+ 568          {
+ 569   1          MonitorSetting2.Ident = FLASH_IDENTDATA;
+ 570   1          MonitorSetting2.CheckSum = FLASH_CHECKSUM;
+ 571   1              #if 0//Enable_Cache
+                      MCU_DisableCache();
+                      #endif
+ 574   1      
+ 575   1              Flash_WriteMonitorSet2((BYTE*)&MonitorSetting2, MonitorSetting2Size);
+ 576   1              #if 0//Enable_Cache
+                      MCU_EnableCache();
+                      #endif
+ 579   1      
+ 580   1      
+ 581   1      }
+ 582          void SaveFactorySetting(void)
+ 583          {
+ 584   1              FactorySetting.Ident=FLASH_IDENTDATA;
+ 585   1              FactorySetting.CheckSum=FLASH_CHECKSUM;
+ 586   1              #if 0//Enable_Cache
+                      MCU_DisableCache();
+                      #endif
+ 589   1              Flash_WriteFactorySet((BYTE*)&FactorySetting, FactorySettingSize);
+ 590   1              #if 0//Enable_Cache
+                      MCU_EnableCache();
+                      #endif
+ 593   1      
+ 594   1      }
+ 595          
+ 596          void SaveModeSetting(void)
+ 597          {
+ 598   1              if (SrcInputType>=Input_Digital || SyncLossState())     //110424 Modify
+ 599   1                      return;
+ 600   1      
+ 601   1         // USERP_printData("UserModeFlag %x",UserModeFlag);
+ 602   1              //USERP_printData("SaveIndex %x",SaveIndex);
+ 603   1              #if 0//Enable_Cache
+                      MCU_DisableCache();
+                      #endif
+ 606   1      
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 11  
+
+ 607   1              if(UserModeFlag)
+ 608   1              {       ModeSetting.Index = SaveIndex|BIT7;//|= 0x80;
+ 609   2                      ModeSetting.HerFreq=HFreq(SrcHPeriod);//HFreq(tempHperiod);
+ 610   2                      ModeSetting.VerFreq=VFreq(HFreq(SrcHPeriod), SrcVTotal);
+ 611   2                      ModeSetting.Flags=(SrcFlags&0x13);
+ 612   2      
+ 613   2                      //USERP_printData("ModeSetting.Index %x",ModeSetting.Index);
+ 614   2      
+ 615   2              }
+ 616   1              else
+ 617   1              {       ModeSetting.Index=SaveIndex=SrcModeIndex;
+ 618   2                      ModeSetting.HerFreq=0xFFFF;
+ 619   2                      ModeSetting.VerFreq=0xFFFF;
+ 620   2                      ModeSetting.Flags=0xFF;
+ 621   2              }
+ 622   1      
+ 623   1              ModeSetting.Ident=FLASH_IDENTDATA;
+ 624   1              ModeSetting.checksum=FLASH_CHECKSUM;
+ 625   1      
+ 626   1              if(UserModeFlag)
+ 627   1                      Flash_WriteModeSet((SaveIndex|BIT7), (BYTE*)&ModeSetting);
+ 628   1              else
+ 629   1                      Flash_WriteModeSet(SaveIndex, (BYTE*)&ModeSetting);
+ 630   1              ModeSetting.Index &= 0x7F;
+ 631   1              #if 0//Enable_Cache
+                      MCU_EnableCache();
+                      #endif
+ 634   1      
+ 635   1      }
+ 636          
+ 637          Bool IsFlashSettingAreaEmpty(BYTE EmptyValue)  //add  by lizzie.ding ,for check flashsetting empty
+ 638          {
+ 639   1          BYTE i,j;
+ 640   1          for(i=0;i<FDATA_DYNAMIC_SECTOR_NUM;i++)
+ 641   1          {
+ 642   2                  for(j=0;j<10;j++)
+ 643   2                  {
+ 644   3                      if(FlashReadByte(FDATA_DYNAMIC_ADDR+FDATA_SECTOR_SIZE*i+j)!=EmptyValue) //130812 xiandi
+ 645   3                          return FALSE;
+ 646   3                  }
+ 647   2          }
+ 648   1          return TRUE;
+ 649   1      }
+ 650          
+ 651          void ReadMonitorSetting(void)
+ 652          {
+ 653   1              BYTE xdata FlashEmptyFlag=0; 
+ 654   1              Flash_GetBufferAddr();
+ 655   1                      Flash_AllocateBufferAddr();
+ 656   1                      if(IsFlashSettingAreaEmpty(0x00)||IsFlashSettingAreaEmpty(0xFF))//edit by lizzie.ding ,for make sure fla
+             -shsetting empty
+ 657   1               {
+ 658   2                      FlashEmptyFlag=1;
+ 659   2               }
+ 660   1                      Flash_CheckBufferType();
+ 661   1              #if Display_Checksum
+ 662   1                  Checksum_Calculator();
+ 663   1              #endif  
+ 664   1                      if(!Flash_ReadMonitorSet((BYTE*)&MonitorSetting, MonitorSettingSize))
+ 665   1                      {
+ 666   2                              //printMsg(" RMS MonitorSetting initial");
+ 667   2                              Init_MonitorSetting();
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 12  
+
+ 668   2                              if(FlashEmptyFlag)
+ 669   2                                      {
+ 670   3                                      UserPrefVolume=DefVolume;//PE Request
+ 671   3                                      }
+ 672   2                              SaveMonitorSetting();
+ 673   2                      }
+ 674   1                      if (CheckMonitorSettingOutOfRange())
+ 675   1                      {
+ 676   2                              //USERP_printMsg(" CheckMonitorSettingOutOfRange initial");
+ 677   2                              Init_MonitorSetting();
+ 678   2                              SaveMonitorSetting();
+ 679   2                      }
+ 680   1              
+ 681   1                      if(!Flash_ReadFactorySet((BYTE*)&FactorySetting, FactorySettingSize))
+ 682   1                      {
+ 683   2                              //USERP_printMsg(" RMS FactorySetting initial");
+ 684   2                              Init_FactorySetting();
+ 685   2                              if(FlashEmptyFlag)
+ 686   2                              FactoryProductModeValue=ProductModeOnValue;
+ 687   2                              SaveFactorySetting();
+ 688   2                      }
+ 689   1              
+ 690   1                      if (CheckFactorySettingOutOfRange())
+ 691   1                      {
+ 692   2                              //USERP_printMsg(" CheckFactorySettingOutOfRange initial");
+ 693   2                              Init_FactorySetting();
+ 694   2                              SaveFactorySetting();
+ 695   2                      }
+ 696   1              
+ 697   1          #if 0//EnablePanelServiceMenu
+                              if(!Flash_Read_Factory_KeySet(FLASH_KEY_PANEL, TRUE, 0x00, PanelSettingSize, (BYTE*)&PanelSetting, Panel
+             -SettingSize))        //110311 Modify
+                              {
+                                      //USERP_printMsg(" RMS PanelSetting initial");
+                                      Init_PanelSetting();
+                                      SavePanelSetting();
+                              }
+                              if(CheckPanelSettingRange())
+                              {
+                                      Init_PanelSetting();
+                                      SavePanelSetting();
+                              }
+                              if( PanelPanelTypeNum == UseDefaultPanelValue ) //120112 Modify
+                                      PanelSelect = 0;
+                              else
+                                      PanelSelect = 1;
+                  #endif
+ 714   1              
+ 715   1                      if(!Flash_ReadMonitorSet2((BYTE*)&MonitorSetting2, MonitorSetting2Size))
+ 716   1                      {
+ 717   2                              //USERP_printMsg(" RMS MonitorSetting2 initial");
+ 718   2                              Init_MonitorSetting2();
+ 719   2                              SaveMonitorSetting2();
+ 720   2                      }
+ 721   1                      //USERP_printData("     Backlighttime[%d]",MonitorSetting2.Backlighttime);
+ 722   1          #if DISABLE_AUTO_SWITCH
+                      UserPrefInputSelectType=FIXED_PORT;
+                      UserPrefInputType = FIXED_PORT;
+                  #endif
+ 726   1                      
+ 727   1                      SrcInputType = UserPrefInputType;//0909003
+ 728   1          
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 13  
+
+ 729   1      //-----------------------------------------------------------------
+ 730   1      }
+ 731          
+ 732          Bool ReadUserModeSetting(void)
+ 733          {
+ 734   1              BYTE bFound=FALSE;
+ 735   1              WORD hFreq, vFreq;
+ 736   1              BYTE i;
+ 737   1      
+ 738   1              hFreq=HFreq(SrcHPeriod);//HFreq(tempHperiod);
+ 739   1              vFreq=VFreq(hFreq, SrcVTotal);
+ 740   1      
+ 741   1              // 20070426Albert.Search each user mode
+ 742   1              for (i=0; i<UserModeNumber; i++)
+ 743   1          {
+ 744   2              Flash_ReadModeSet((i|BIT7), (BYTE*)&ModeSetting);       // BIT7 == (UserModeFlag<<1)
+ 745   2                      if(ModeSetting.Ident==FLASH_IDENTDATA && ModeSetting.checksum==FLASH_CHECKSUM)
+ 746   2                      {       if (abs(hFreq-ModeSetting.HerFreq)<HFreq_Tol &&    abs(vFreq-ModeSetting.VerFreq)<VFreq_Tol &&
+ 747   3                                      (SrcFlags&0x13)==ModeSetting.Flags)
+ 748   3                                      break;
+ 749   3                      }
+ 750   2          }
+ 751   1      
+ 752   1              // 20070426Albert,Init new Mode info
+ 753   1          if(i<UserModeNumber)
+ 754   1                      bFound = TRUE;
+ 755   1          else
+ 756   1          {
+ 757   2              UserPrefSavedModeIndex=(UserPrefSavedModeIndex+1)%UserModeNumber;
+ 758   2              SaveIndex=UserPrefSavedModeIndex;
+ 759   2              SaveMonitorSetting();
+ 760   2          }
+ 761   1              return bFound;
+ 762   1      }
+ 763          
+ 764          void ReadModeSetting(void)
+ 765          {
+ 766   1              Bool bFound=FALSE;
+ 767   1      
+ 768   1              if (UserModeFlag)
+ 769   1                      bFound = ReadUserModeSetting();
+ 770   1              else
+ 771   1              {
+ 772   2                      SaveIndex=SrcModeIndex;
+ 773   2                      bFound = Flash_ReadModeSet(SrcModeIndex, (BYTE*)&ModeSetting);
+ 774   2              }
+ 775   1      
+ 776   1              if (bFound)
+ 777   1              {
+ 778   2                      //USERP_printMsg("mode setting found");
+ 779   2                      //USERP_printData("Index=%d",ModeSetting.Index);
+ 780   2                      //USERP_printData("AutoTimes=%d",ModeSetting.AutoTimes);
+ 781   2              }
+ 782   1              else
+ 783   1              {
+ 784   2                      //USERP_printMsg("mode setting found fail");
+ 785   2                      Init_ModeSetting();
+ 786   2                      SaveModeSetting();
+ 787   2              }
+ 788   1              CheckModeSettingRange();
+ 789   1      }
+ 790          
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 14  
+
+ 791          
+ 792          
+ 793          
+ 794          #else
+              
+              void Init_FactorySetting(void)
+              {
+              #if ENABLE_AUTO_CLOLR_WITHOUT_INPUT
+                  FactoryAutoColorDone = 0;
+              #endif
+                  UserPrefAdcPgaGain = DEF_ADC_PGA_GAIN;      //110401 Modify
+                  UserPrefAdcRedGain=DEF_ADC_RED_GAIN;                //120105 Modify
+                  UserPrefAdcGreenGain=DEF_ADC_GREEN_GAIN;    //120105 Modify
+                  UserPrefAdcBlueGain=DEF_ADC_BLUE_GAIN;              //120105 Modify
+              
+                  UserPrefAdcRedOffset=DEF_ADC_OFFSET;        //110401 Modify
+                  UserPrefAdcGreenOffset=DEF_ADC_OFFSET;      //110401 Modify
+                  UserPrefAdcBlueOffset=DEF_ADC_OFFSET;       //110401 Modify
+                  FUserPrefBrightnessWarm1 = DefBrightness;
+                  FUserPrefContrastWarm1 = DefContrast;
+                  UserPrefRedColorWarm1 = DefWarm_RedColor;
+                  UserPrefGreenColorWarm1 = DefWarm_GreenColor;
+                  UserPrefBlueColorWarm1 = DefWarm_BlueColor;
+                  FUserPrefBrightnessCool1 = DefBrightness;
+                  FUserPrefContrastCool1 = DefContrast;
+                  UserPrefRedColorCool1 = DefCool_RedColor;
+                  UserPrefGreenColorCool1 = DefCool_GreenColor;
+                  UserPrefBlueColorCool1 = DefCool_BlueColor;
+                  FUserPrefBrightnessNormal = DefBrightness;
+                  FUserPrefContrastNormal = DefContrast;
+                  UserPrefRedColorNormal = DefNormal_RedColor;
+                  UserPrefGreenColorNormal = DefNormal_GreenColor;
+                  UserPrefBlueColorNormal = DefNormal_BlueColor;
+                  UserPrefRedColorSRGB = DefsRGB_RedColor;
+                  UserPrefGreenColorSRGB = DefsRGB_GreenColor;
+                  UserPrefBlueColorSRGB = DefsRGB_BlueColor;
+                  FUserPrefBrightnessSRGB = DefBrightness;
+                  FUserPrefContrastSRGB = DefContrast;
+                  //FactoryCheckSum=FLASH_CHECKSUM;
+                  FactoryProductModeValue=ProductModeOffValue;
+                      #if PanelminiLVDS || PANEL_VCOM_ADJUST  //110229 Modify
+                  UserPrefVcomValue = DEF_VCOM_VALUE;
+                  #endif
+                  UserPrefLogoON=1;   //120420 Modify
+              #if ENABLE_FACTORY_SSCADJ       //120305 Modify
+                  FactorySetting.SSCModulation = PANEL_SSC_MODULATION_DEF;
+                  FactorySetting.SSCPercentage = PANEL_SSC_PERCENTAGE_DEF;
+              #endif
+              
+              
+                  //#ifdef SETTING_IN_FLASH_12K
+                  FactorySetting.CheckSum=FactoryChecksumValue;
+                  //#endif
+              }
+              
+              void Init_MonitorSetting(void)
+                  {
+                      UserPrefBrightness = DefBrightness;
+                      UserPrefContrast = DefContrast;
+                      UserPrefRedColor = DefRedColor;
+                      UserPrefGreenColor = DefGreenColor;
+                      UserPrefBlueColor = DefBlueColor;
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 15  
+
+              
+                      UserPrefRedColorUser = DefRedColor;
+                      UserPrefGreenColorUser = DefGreenColor;
+                      UserPrefBlueColorUser = DefBlueColor;
+                  #if Enable_YMC
+                      UserPrefYColor = DefRedColor;
+                      UserPrefCColor = DefGreenColor;
+                      UserPrefMColor = DefBlueColor;
+                  #endif
+              
+              UserPrefBrightnessUser = UserPrefBrightness;
+              UserPrefContrastUser = UserPrefContrast;
+              
+                      UserPrefECOMode = 0;
+                      UserPrefColorTemp = DefColorTemp;//CTEMP_Warm1;//CTEMP_Warm1;
+                      UserPrefSharpness = DefSharpness;   //120105 Modify
+              
+                      UserPrefLanguage = LANG_English;
+              
+                       UserPrefMuteState=0;
+                      UserPrefVolume = DefVolume;
+                      UserPrefOsdHStart = 50;
+                      UserPrefOsdVStart = 50;
+                      UserPrefOsdTime = DefOsdTime;
+                      UserPrefOsdTrans= 0;        //120119 Modify
+                      #ifdef OffPower      //090331 xiandi.yu Auto Off Power
+                      UserPrefAutoPowerOff=0; 
+                      #endif
+                      UserPrefDcrMode = 0;
+                      UserPrefGamaMode = 0;
+                      #if ENABLE_RTE
+                          UserPrefRTEMode=DefRTEMode; //20150914 GYP
+                      #endif
+                      #if 0
+                      #else
+                      #if (INPUT_TYPE == INPUT_2H) || (INPUT_TYPE == INPUT_1H)
+                      UserPrefInputType = Input_Digital;
+                      #else
+                      UserPrefInputType = Input_ANALOG;
+                      #endif
+                      #endif
+                  #if INPUT_TYPE == INPUT_1A
+                      UserPrefInputSelectType = INPUT_PRIORITY_VGA;       
+                  #elif INPUT_TYPE == INPUT_1H
+                  UserPrefInputSelectType = INPUT_PRIORITY_HDMI;
+                  #else
+                  #if DISABLE_AUTO_SWITCH
+                      UserPrefInputSelectType = FIXED_PORT;
+                  #else
+                      UserPrefInputSelectType = INPUT_PRIORITY_AUTO; // 071221 modified for initial UserPrefInputSelectT
+             -ype
+                  #endif      
+                  #endif
+                      UserPrefSavedModeIndex = NumberOfMode;
+                  #if DDCCI_ENABLE
+                          UserprefRedBlackLevel = DefRedBlackLevel;
+                          UserprefGreenBlackLevel = DefGreenBlackLevel;
+                          UserprefBlueBlackLevel = DefBlueBlackLevel;
+                  #endif 
+                  #if Enable_Expansion
+                          UserprefExpansionMode = DefExpansion;
+                  #endif 
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 16  
+
+                  #if MWEFunction
+                          //UserPrefMWE=OFF_W;
+                          UserPrefHue = DefHue;
+                          UserPrefSaturation = DefSaturation;
+                          UserPrefSubContrast = DefSubContrast;
+                          UserPrefSubBrightness = DefSubBrightness;
+                          // 2006/10/26 6:47PM by Emily     UserPrefSubSharpness = 11;
+                          //UserPrefSkinTone=OFF_SKIN;
+                          // 2006/10/26 6:48PM by Emily     UserPrefDLCMode = OFF_DLC;
+                          // UserPrefBFPosition =0;               
+                  #endif 
+                      //=======for AutoBacklight=====================
+                      UserprefHistogram1 = 0x40;
+                      UserprefHistogram2 = 0xB0;
+                      UserprefALha = 50;
+                      UserprefBata = 50;
+                      // 2006/11/6 5:34PM by Emily      UserprefAutoModel=1;
+                      // 2006/11/6 5:33PM by Emily      UserprefCompareRange=8;
+                      // 2006/11/6 5:33PM by Emily      UserprefDiffHvalue=0x80;
+                  #if ENABLE_RTE 
+                          MonitorFlags = bPowerOnBit | bBurninModeBit | bDCCCIONOBit |bOverDriveOnBit; //Benz 2007.4.23 
+             -  20:32:00]
+                  #else
+                          MonitorFlags = bPowerOnBit | bBurninModeBit | bDCCCIONOBit; //Benz 2007.4.23   20:32:00
+                  #endif
+              
+              
+                      
+              
+                      
+              #if ENABLE_FREESYNC
+              #if FreeSyncMenu_Enable
+              UserprefFreeSyncMode=FreeSyncStatues;//FreeSyncMenuItems_Off FreeSyncMenuItems_On
+              #else
+              UserprefFreeSyncMode=FreeSyncMenuItems_On;
+              #endif
+              #endif 
+                
+              
+                      
+                   #if ENABLE_OSD_LowBlueLight
+                   UserprefLowBlueLightMode  = DEF_LowBlueLight_MODE; 
+                   #endif
+                       
+                       
+                   MonitorSetting.checksum = ChecksumValue;
+                  }
+              
+              void Init_ModeSetting(void)
+                  {
+                      UserPrefHTotal = StandardModeHTotal;
+                      UserPrefHStart = StandardModeHStart;
+                      UserPrefVStart = StandardModeVStart;
+                      UserPrefAutoHStart = UserPrefHStart;
+                      UserPrefAutoVStart = StandardModeVStart; //2004/01/15 num11
+                      UserPrefPhase = 18;
+                      UserPrefAutoTimes = 0;
+                      ModeSetting.checksum = ChecksumValue;
+                  }
+              
+              void CheckColorValueRange(void)
+              {
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 17  
+
+                  if (UserPrefContrast > MaxContrastValue || UserPrefContrast < MinContrastValue)
+                  {
+                      UserPrefContrast = DefContrast;
+                  }
+                  #if 1
+                      if (UserPrefRedColor > MaxColorValue)
+                          UserPrefRedColor = DefRedColor;
+                      if (UserPrefGreenColor > MaxColorValue)
+                          UserPrefGreenColor = DefGreenColor;
+                      if (UserPrefBlueColor > MaxColorValue)
+                          UserPrefBlueColor = DefBlueColor;
+                  #endif 
+              }
+              void CheckMonitorSettingRange(void)
+              {
+                  CheckColorValueRange();
+              
+                  UserPrefBrightness %= 101;
+                  UserPrefColorTemp %= CTEMP_Nums;
+                  UserPrefSharpness %= 11;
+                  UserPrefLanguage %= LANG_Nums;
+                  UserPrefInputType %= Input_Nums;
+                  UserPrefECOMode %= ECO_Nums; //Benz 2007.4.23   16:12:21
+                  UserPrefHue %= (MAX_VIDEO_HUE + 1);
+                  UserPrefSaturation %= (MAX_VIDEO_SATURATION + 1);
+                  UserPrefSubContrast %= 256;
+                  UserPrefSubBrightness %= 256;
+                  // 2006/10/26 6:47PM by Emily     UserPrefSubSharpness %= 16;
+              
+                  
+              }
+              void CheckModeSettingRange(void)
+              {
+                  if (abs(UserPrefHTotal - StandardModeHTotal) > 100)
+                  {
+                      UserPrefHTotal = StandardModeHTotal;
+                  }
+                  //  if (UserPrefHStart>2*StandardModeHStart)
+                  //    UserPrefHStart=StandardModeHStart;
+                  //  if (UserPrefVStart>2*StandardModeVStart)
+                  //    UserPrefVStart=StandardModeVStart;
+                  if (abs(UserPrefHStart - UserPrefAutoHStart) > 50)
+                  //2004/02/10 num1
+                  {
+                      UserPrefHStart = UserPrefAutoHStart;
+                  } //2004/02/10 num1
+                  if (UserPrefVStart > 2 *UserPrefAutoVStart)
+                  //2004/02/10 num1
+                  {
+                      UserPrefVStart = UserPrefAutoVStart;
+                  } //2004/02/10 num1
+                  UserPrefPhase &= MAX_PHASE_VALUE;
+                  if (UserPrefAutoTimes == 0 || abs(UserPrefHStart - UserPrefAutoHStart) > 50)
+                  {
+                      UserPrefAutoHStart = UserPrefHStart;
+                  }
+              }
+              void SaveMonitorSetting(void)
+              {
+                  NVRam_WriteTbl(MonitorSettingAddr, (BYTE*) &MonitorSetting, MonitorSettingSize);
+              }
+              
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 18  
+
+              void SaveModeSetting(void)
+              {
+                      if (SrcInputType>=Input_Digital || SyncLossState())     //110424 Modify
+                              return;
+                      //NVRam_WriteTbl(nvrModeBaseAddr(SrcModeIndex), (BYTE*)&ModeSetting, ModeSettingSize);
+                      NVRam_WriteTbl( nvrModeBaseAddr( SaveIndex ), ( BYTE* ) &ModeSetting, ModeSettingSize );
+              #if DEBUG_MSG
+                  //    printMsg( "Save SaveModeSetting" );
+              #endif
+              }
+              
+              
+              void ReadMonitorSetting(void)
+              {
+                  BYTE tempValue,i;
+                      BYTE xdata EEPromEmptyFlag=0; 
+              #if Display_Checksum
+                              Checksum_Calculator();
+              #endif
+              
+                       if(IsEEPRomEmpty(0xFF)||IsEEPRomEmpty(0x00))
+                              {
+                               //WORD temp=ProductModeOnValue;
+                              // NVRam_WriteTbl(ProductModeAddr, (BYTE*)(&temp), 2);
+                                           NVRam_WriteWord(ProductModeAddr, ProductModeOnValue);
+                               Init_FactorySetting();
+                               SaveFactorySetting();
+                               Init_MonitorSetting();
+                                              #if AudioFunc
+                                              UserPrefVolume=DefVolume;
+                                              #endif
+                                       SaveMonitorSetting();
+                                      #if 0//EnablePanelServiceMenu&&!USEFLASH
+                                              Init_PanelSetting();
+                                              SavePanelSetting();
+                                      #endif
+                                              EEPromEmptyFlag = 1;
+                              }
+                          CheckBoard(); //Benz 2007.4.24   23:28:02 Why?
+                          NVRam_ReadByte(nvrMonitorAddr(checksum), &tempValue);
+                  
+                  if (tempValue == ChecksumValue)
+                  {
+                      NVRam_ReadTbl(MonitorSettingAddr, (BYTE*) &MonitorSetting, MonitorSettingSize);
+                  }
+                  else
+                  {
+                      for(i=0;i<10;i++)
+                      {       
+                           NVRam_ReadByte(nvrMonitorAddr(checksum), &tempValue);
+                           if (tempValue==ChecksumValue)   // double check
+                           {
+                              NVRam_ReadTbl(MonitorSettingAddr, (BYTE*)&MonitorSetting, MonitorSettingSize);
+                              break;
+                           }
+                      }
+                      if(i==10)
+                       {
+                           Init_MonitorSetting();
+                               if(EEPromEmptyFlag)
+                               {
+                                      #if AudioFunc
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 19  
+
+                                      UserPrefVolume=DefVolume;
+                                      #endif
+                               }
+                          SaveMonitorSetting();
+                      }
+                  }
+              
+              
+                  NVRam_ReadByte( nvrFactoryAddr( CheckSum ), &tempValue );
+                  if( tempValue == FactoryChecksumValue )
+                  {
+                      NVRam_ReadTbl( FactorySettingAddr, ( BYTE* ) &FactorySetting, FactorySettingSize );
+                  }
+                  else
+                  {
+                      for( i = 0; i < 10; i++ )
+                      {
+                          NVRam_ReadByte( nvrFactoryAddr( CheckSum ), &tempValue );
+                          if( tempValue == FactoryChecksumValue ) // double check
+                          {
+                              NVRam_ReadTbl( FactorySettingAddr, ( BYTE* )&FactorySetting, FactorySettingSize );
+                              break;
+                          }
+                      }
+                      if( i == 10 )
+                      {
+                          Init_FactorySetting();
+                          SaveFactorySetting();
+                      }
+                  }
+                      
+                  //************************************************************
+                      #if 0//EnablePanelServiceMenu   //120420 Modify
+                  {
+                      WORD temp;
+                      NVRam_ReadTbl(PanelTypeNumAddr, (BYTE*)(&temp), 2);
+                      if(temp==UseUserPanelValue)
+                      {
+                          PanelSelect=1;
+                          //NVRam_ReadByte(nvrPanelAddr(CheckSum), &tempValue);
+                                      NVRam_ReadTbl(PanelSettingAddr, (BYTE*) &PanelSetting, PanelSettingSize);
+                          if (PanelSetting.CheckSum == CalculateSettingCheckSum((BYTE *)(&PanelSetting)+PanelSettingChec
+             -ksumSize, PanelSettingSize-PanelSettingChecksumSize))
+                          {
+                              //NVRam_ReadTbl(PanelSettingAddr, (BYTE*) &PanelSetting, PanelSettingSize);
+                              if(CheckPanelSettingRange())
+                              {
+                                  Init_PanelSetting();
+                                  SavePanelSetting();
+                              }
+                          }
+                          else
+                          {
+                              for(i=0;i<10;i++)
+                              {       
+                                                      //NVRam_ReadByte(nvrPanelAddr(CheckSum), &tempValue);
+                                                      NVRam_ReadTbl(PanelSettingAddr, (BYTE*) &PanelSetting, PanelSettingSize);
+                                                      if (PanelSetting.CheckSum == (CalculateSettingCheckSum((BYTE *)(&PanelSetting)+PanelSettingChecksumSi
+             -ze, PanelSettingSize-PanelSettingChecksumSize)!=PanelSetting.CheckSum))
+                                                      {
+                                                              NVRam_ReadTbl(PanelSettingAddr, (BYTE*) &PanelSetting, PanelSettingSize);
+                                                              if(CheckPanelSettingRange())
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 20  
+
+                                                              {
+                                                                      Init_PanelSetting();
+                                                                      SavePanelSetting();
+                                                              }
+                                                              break;
+                                                      }
+                              }
+                                              if(i==10)
+                                              {
+                                                      Init_PanelSetting();
+                                                      SavePanelSetting();
+                                              }
+                          }
+                      }
+                      else
+                      {
+                              Init_PanelSetting();
+                              PanelSelect=0;
+                      }
+                  }
+                  #endif
+                  //************************************************************
+                      
+                  CheckMonitorSettingRange();
+              
+                  if( CheckMonitorSettingOutOfRange() )
+                  {
+                      Init_MonitorSetting();
+                      SaveMonitorSetting();
+                  }
+              
+                  if( CheckFactorySettingOutOfRange() )
+                  {
+                      Init_FactorySetting();
+                      SaveFactorySetting();
+                      
+                  }
+                      
+                  #if DISABLE_AUTO_SWITCH
+                      UserPrefInputSelectType=FIXED_PORT;
+                      UserPrefInputType = FIXED_PORT;
+                  #endif
+                      
+                  SrcInputType = UserPrefInputType;
+                      
+                  {
+                      WORD temp;
+                      NVRam_ReadTbl(ProductModeAddr, (BYTE*)(&temp), 2);
+              
+                  }
+              
+              
+              }
+              void GetModeSaveIndex(void)
+                  {
+                      ModeInfoType modeInfo;
+                      BYTE i;
+                      WORD hFreq, vFreq;
+                      hFreq = HFreq( SrcHPeriod );
+                      vFreq = VFreq( hFreq, SrcVTotal );
+                      for( i = 0; i < NumberOfMode; i++ )
+                      {
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 21  
+
+                          NVRam_ReadTbl( nvrModeInfoAddr( i ), ( BYTE* ) &modeInfo, ModeInfoSize );
+                          if( abs( hFreq - modeInfo.HerFreq ) < HFreq_Tol && abs( vFreq - modeInfo.VerFreq ) < VFreq_Tol
+                          && abs( SrcVTotal - modeInfo.VTotal ) < 3 && ( SrcFlags & 0x13 ) == modeInfo.Flags )
+                          {
+                          #if DEBUG_MSG
+                             // printMsg( "found saveindex" );
+                             // printData( "SaveIndex=%d", i );
+                          #endif
+                              break;
+                          }
+                      }
+                      
+                      if( i >= NumberOfMode )
+                      {
+                          UserPrefSavedModeIndex = ( UserPrefSavedModeIndex + 1 ) % NumberOfMode;
+                          SaveIndex = UserPrefSavedModeIndex;
+                          modeInfo.HerFreq = hFreq;
+                          modeInfo.VerFreq = vFreq;
+                          modeInfo.VTotal = SrcVTotal;
+                          modeInfo.Flags = SrcFlags & 0x13;
+                          NVRam_WriteTbl( nvrModeInfoAddr( SaveIndex ), ( BYTE* ) &modeInfo, ModeInfoSize );
+                          NVRam_WriteByte( nvrModeAddr( checksum ), 0 );
+                          NVRam_WriteByte( nvrMonitorAddr( SavedModeIndex ), UserPrefSavedModeIndex );
+                      }
+                      else
+                      {
+                          SaveIndex = i;
+                      }
+                  }
+              
+              void ReadModeSetting(void)
+                  {
+                      BYTE tempValue;
+                      if(CURRENT_INPUT_IS_VGA())//( SrcInputType < Input_Digital ) //if (SrcInputType != Input_Digital)
+                      {
+                          GetModeSaveIndex();
+                          NVRam_ReadByte( nvrModeAddr(checksum), &tempValue );
+                          if( tempValue == ChecksumValue )    //120612 Modify
+                          {
+                          #if DEBUG_MSG
+                             // printMsg( "mode setting found" );
+                          #endif
+                              NVRam_ReadTbl( nvrModeBaseAddr( SaveIndex ), ( BYTE* ) &ModeSetting, ModeSettingSize );
+                          }
+                          else
+                          {
+                          #if DEBUG_MSG
+                             // printMsg( "mode setting not found" );
+                          #endif
+                              Init_ModeSetting();
+                              SaveModeSetting();
+                          }
+                          CheckModeSettingRange();
+                      }
+                      else
+                      {
+                          Init_ModeSetting();
+                      }
+                  }
+              
+              Bool IsEEPRomEmpty(BYTE EmptyValue)
+              {
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 22  
+
+                  BYTE tempValue,i;
+                  for ( i = 0; i < ModeSettingAddr-1; i++ )
+                      {
+                          NVRam_ReadByte(i, &tempValue);
+                          if(tempValue==EmptyValue)
+                              continue;
+                          else
+                              return FALSE;
+                      }
+                  return TRUE;
+              }
+              
+              void EraseEEPROM(void)
+              {
+                  NVRam_WriteByte(nvrMonitorAddr(checksum), 0);
+                  for (SaveIndex = 0; SaveIndex < NumberOfMode; SaveIndex++)
+                  {
+                      NVRam_WriteByte(nvrModeAddr(checksum), 0);
+                  }
+              //    SrcFlags |= bUserMode;
+              //    for (SaveIndex = 0; SaveIndex < NumberOfMode; SaveIndex++)
+              //    {
+              //        NVRam_WriteByte(nvrModeInfoAddr(checksum), 0);
+              //    }
+                  SrcFlags &= ~bUserMode;
+                  //  NVRam_WriteByte(Factory9300KBrightnessAddr, DefBrightness);
+                  //  NVRam_WriteByte(Factory6500KBrightnessAddr, DefBrightness);
+                  //  NVRam_WriteByte(Factory9300KContrastAddr, DefContrast);
+                  // NVRam_WriteByte(Factory6500KContrastAddr, DefContrast);
+              }
+              /**********
+              void CheckBoard(void)
+              { BYTE tempValue;
+              NVRam_ReadByte(CheckBoardAddr, &tempValue);
+              if (tempValue!=BoardChecksum)
+              { EraseEEPROM();
+              BlacklitTime=0;
+              SaveBlacklitTime();
+              NVRam_WriteByte(CheckBoardAddr, BoardChecksum);
+              }
+              else
+              ReadBlacklitTime();
+              }
+               ************/
+              void CheckBoard(void)
+              {
+                  BYTE tempValue;
+                  BYTE i;
+                  NVRam_ReadByte( CheckBoardAddr, &tempValue );
+                  if ( tempValue != BoardChecksum )
+                  {
+                      for ( i = 0; i < 10; i++ )
+                      {
+                          NVRam_ReadByte( CheckBoardAddr, &tempValue );
+                          if ( tempValue == BoardChecksum )   // double check
+                          {
+                          ReadBlacklitTime();
+                          break;
+                          }
+                      }
+                      if ( i == 10 )
+                      {
+C51 COMPILER V9.01   USERPREF                                                              03/09/2023 15:39:14 PAGE 23  
+
+                          EraseEEPROM();
+                          BlacklitTime = 0;
+                          SaveBlacklitTime();
+                          NVRam_WriteByte( CheckBoardAddr, BoardChecksum );    
+                      }
+                  }
+                  else
+                  {
+                      ReadBlacklitTime();
+                  }
+              }
+              void ReadBlacklitTime(void)
+              {
+                  NVRam_ReadTbl(BlacklitTimeAddr, (BYTE*)(&BlacklitTime), 4);
+              }
+              
+              void SaveBlacklitTime(void)
+              {
+                  NVRam_WriteTbl(BlacklitTimeAddr, (BYTE*)(&BlacklitTime), 4);
+              }
+              #endif
+1366          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2463    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      1       1
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      13
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

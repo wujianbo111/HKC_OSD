@@ -1,0 +1,42 @@
+C51 COMPILER V9.01   DRVDAC                                                                03/09/2023 15:39:18 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE DRVDAC
+OBJECT MODULE PLACED IN .\obj\drvDAC.obj
+COMPILER INVOKED BY: D:\Keil4\C51\BIN\C51.EXE ..\..\DRIVER\drvDAC.c OPTIMIZE(SIZE) BROWSE INCDIR(..\..\DRIVER\INC;..\..\
+                    -KERNEL\SCALER\INC;..\..\KERNEL\SYSTEM\INC;..\..\LIB\INC;..\..\PANEL\INC;..\..\BOARD;..\..\DRIVER\INC;..\..\KERNEL\SYSTEM
+                    -\INC\AOC2011;..\..\DRIVER\extDEVICE\INC;..\..\MODEL;..\..\CONFIG;..\..\PANEL;..\..\UI\F_LOGO\INC;..\..\UI\HkcOsd\INC) DE
+                    -FINE(ModelName=JRY_TESTBOARD_C_BOARD) DEBUG OBJECTEXTEND PRINT(.\list\drvDAC.lst) OBJECT(.\obj\drvDAC.obj)
+
+line level    source
+
+   1          
+   2          #include "global.h"
+   3          #if MS_DAC
+   4          
+   5              #if (CHIP_ID == CHIP_TSUMU ||CHIP_ID == CHIP_TSUMY || CHIP_ID == CHIP_TSUMB || CHIP_ID == CHIP_TSUM2)
+                  #include "drvDAC_OLD.c"
+                  #elif (CHIP_ID == CHIP_TSUMC || CHIP_ID == CHIP_TSUMD)
+   8              #include "drvDAC_C.c"
+   9              #elif (CHIP_ID == CHIP_TSUM9)||(CHIP_ID == CHIP_TSUMF)
+                  #include "drvDAC_9.c"
+                  #elif (CHIP_ID == CHIP_TSUMV || CHIP_ID == CHIP_TSUMY)
+                  #else
+                  #message "please implement DrvDAC for new chip"
+                  #endif
+  15          
+  16          #endif
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1513    ----
+   CONSTANT SIZE    =    270    ----
+   XDATA SIZE       =      2    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       7
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
