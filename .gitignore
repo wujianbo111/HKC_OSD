@@ -50,3 +50,5 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+/PROJECT/HkcOsdProject/bin
+/PROJECT/HkcOsdProject/obj
