@@ -7312,10 +7312,10 @@
       <FileType>1</FileType>
       <tvExp>0</tvExp>
       <Focus>0</Focus>
-      <ColumnNumber>14834579</ColumnNumber>
+      <ColumnNumber>10</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>0</TopLine>
-      <CurrentLine>0</CurrentLine>
+      <TopLine>1448</TopLine>
+      <CurrentLine>1458</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\..\KERNEL\SYSTEM\msflash.c</PathWithFileName>
       <FilenameWithoutPath>msflash.c</FilenameWithoutPath>
@@ -8685,28 +8685,5 @@
       </Window>
     </View>
   </WinLayout>
-
-  <MDIGroups>
-    <Orientation>1</Orientation>
-    <ActiveMDIGroup>0</ActiveMDIGroup>
-    <MDIGroup>
-      <Size>100</Size>
-      <ActiveTab>0</ActiveTab>
-      <Documents>
-        <Doc>
-          <Name>..\..\UI\F_LOGO\FactoryString.c</Name>
-          <ColumnNumber>0</ColumnNumber>
-          <TopLine>287</TopLine>
-          <CurrentLine>307</CurrentLine>
-        </Doc>
-        <Doc>
-          <Name>..\..\UI\HkcOsd\menu.c</Name>
-          <ColumnNumber>83</ColumnNumber>
-          <TopLine>533</TopLine>
-          <CurrentLine>549</CurrentLine>
-        </Doc>
-      </Documents>
-    </MDIGroup>
-  </MDIGroups>
 
 </ProjectOpt>

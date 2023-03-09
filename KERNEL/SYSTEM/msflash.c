@@ -1435,7 +1435,6 @@ void Flash_AllocateBufferAddr(void)
 		FLASH_printData( "_FABA_ FLASH_HDCP_EDIDAddr %x ", ( WORD )( FLASH_HDCP_EDIDAddr) );
 		#endif
 	}
-
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1444,46 +1443,46 @@ void Flash_AllocateBufferAddr(void)
 //////////////////////////////////////////////////////////////////////////////
 void Flash_CheckBufferType(void)
 {
-
-	{ 
-	    bFlashWriteFactory= TRUE;
-		FlashSectorErase(  TRUE, FLASH_HDCP_EDIDAddr );
+	if( FBufType_HDCP_EDID != FlashReadByte( FLASH_HDCP_EDIDAddr) )
+	{
+		bFlashWriteFactory = TRUE;
+		FlashSectorErase( TRUE, FLASH_HDCP_EDIDAddr );
 		FlashWriteByte( TRUE, FLASH_HDCP_EDIDAddr, FBufType_HDCP_EDID);
 		bFlashWriteFactory = FALSE;
 		FLASH_printMsg( "Flash_CheckBufferType SetHDCPType" );
-		
-B}ufType_FactorySetting !=FlashReadByte(FLASH_FactorySettingAddr))
-	{	bFlashWriteFactory = TRUE; 
-	#
-	if 0
-		 if(FlashReadByte(HDCPKEYSET_START)==0xFF&&FlashReadByte(HDCPKEYSET_START+1)==0xFF
-		&&FlashReadByte(HDCPKEYSET_START+2 )= =0xF F& &FlashReadByte(HDCPKEYSET_STAR T +3 )= =0xFF
-		        && FlashReadByte(HDCPKEYSET_START + 4) == 0xFF )	 		//charles test 1125    
-	#        en dif    
+	}
+	if(FBufType_FactorySetting != FlashReadByte(FLASH_FactorySettingAddr))
+	{
+		bFlashWriteFactory = TRUE;
+		#if 0
+		if(FlashReadByte(HDCPKEYSET_START) == 0xFF && FlashReadByte(HDCPKEYSET_START + 1) == 0xFF
+		        && FlashReadByte(HDCPKEYSET_START + 2) == 0xFF && FlashReadByte(HDCPKEYSET_START + 3) == 0xFF
+		        && FlashReadByte(HDCPKEYSET_START + 4) == 0xFF)			//charles test 1125
+		#endif
 			FlashSectorErase(TRUE, FLASH_FactorySettingAddr);
-			FlashWriteByte(TRUE,FLASH_FactorySettingAddr, FBufType_FactorySetting);
-		bFlashWriteFactory =  FALSE;
+		FlashWriteByte(TRUE, FLASH_FactorySettingAddr, FBufType_FactorySetting);
+		bFlashWriteFactory = FALSE;
 		FLASH_printMsg("Flash_CheckBufferType SetFactoryType");
 	}
-	if(FBufType_MonitorSetting!=FlashReadByte(FLASH_MonitorSettingAddr))
-	{	FlashSectorErase(TRUE, F LA SH_MonitorSettingAddr);
-		
-	FlashWriteByte(TRUE,FLASH_MonitorSettingAddr, FBufType_MonitorSetting);
-		FLASH_printMsg("Flas h_CheckBufferType SetMonitorType");
+	if(FBufType_MonitorSetting != FlashReadByte(FLASH_MonitorSettingAddr))
+	{
+		FlashSectorErase(TRUE, FLASH_MonitorSettingAddr);
+		FlashWriteByte(TRUE, FLASH_MonitorSettingAddr, FBufType_MonitorSetting);
+		FLASH_printMsg("Flash_CheckBufferType SetMonitorType");
 	}
-	if(FBufType_MonitorSetting2!=FlashReadByte(FLASH_MonitorSetting2Addr))
-	{	FlashSectorErase(TRUE, FL AS H_MonitorSetting2Addr);
-		
-	FlashWriteByte(TRUE,FLASH_MonitorSetting2Addr, FBufType_MonitorSetting2);
-		FLASH_printMsg("Flas h_CheckBufferType SetMonitorSetting2Type");
+	if(FBufType_MonitorSetting2 != FlashReadByte(FLASH_MonitorSetting2Addr))
+	{
+		FlashSectorErase(TRUE, FLASH_MonitorSetting2Addr);
+		FlashWriteByte(TRUE, FLASH_MonitorSetting2Addr, FBufType_MonitorSetting2);
+		FLASH_printMsg("Flash_CheckBufferType SetMonitorSetting2Type");
 	}
-	if(FBufType_TimingMode!=FlashReadByte(FLASH_TimingModeAddr))
-	{	FlashSectorErase(TRU E,  FLASH_TimingModeAddr);
-		
-	FlashWriteByte(TRUE,FLASH_TimingModeAddr, FBufType_TimingMode);
-		FLASH_printMsg("Flas h_CheckBufferType SetTimingModeAddrType");
+	if(FBufType_TimingMode != FlashReadByte(FLASH_TimingModeAddr))
+	{
+		FlashSectorErase(TRUE, FLASH_TimingModeAddr);
+		FlashWriteByte(TRUE, FLASH_TimingModeAddr, FBufType_TimingMode);
+		FLASH_printMsg("Flash_CheckBufferType SetTimingModeAddrType");
 	}
-
+}
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1492,9 +1491,9 @@ B}ufType_FactorySetting !=FlashReadByte(FLASH_FactorySettingAddr))
 void Flash_ClearModeSet(void)
 {
 	FLASH_printMsg("_FCMS_ Flash_ClearModeSet");
-
-	FlashWriteByte(TRUE, FLASH_TimingModeAddr,FBufType_TimingMode);
-} 
+	FlashSectorErase(TRUE, FLASH_TimingModeAddr);
+	FlashWriteByte(TRUE, FLASH_TimingModeAddr, FBufType_TimingMode);
+}
 
 //////////////////////////////////////////////////////////////////////////////
 // <API><Description>:	Write Factory setting, HDCP Key, DDCA, DDCD key to free buffer,
@@ -1502,71 +1501,71 @@ void Flash_ClearModeSet(void)
 //////////////////////////////////////////////////////////////////////////////
 BYTE Flash_GetKeyIndex(FLASH_KEY_TYPE ucType, Bool bWrite)
 {
-    BYTE ucIndex, ucStatus, ucSize=0;
-	WORD wAddr;  
-	
+	BYTE ucIndex, ucStatus, ucSize = 0;
+	WORD wAddr;
+	if(ucType == FLASH_KEY_FACTORY)
 	{
-	    ucSize = FACTORY_SECTOR_SIZE/FACTORY_SIZE;
-		wAddr  = FACTORY_STATUS_ADDR ; 
-		
-	
-	    eif(ucType == FLASH_KEY_GAMMA)
+		ucSize = FACTORY_SECTOR_SIZE / FACTORY_SIZE;
+		wAddr  = FACTORY_STATUS_ADDR;
+	}
+	#if 0
+	else if(ucType == FLASH_KEY_GAMMA)
 	{
-	    ucSize = GAMMA_SECTOR_SIZE/GAMMA_SIZE;
-		wAddr  = GAMMA_STATUS_ADDR ; 
-		
-	if    
-	#if 1/HIP_ID == CHIP_TSUM9 || CHIP_ID == CHIP_TSUMF) && ENABLE_CABLE_5V_EDID)
-	    else if(ucType == FLASH_KEY_HDCP)
+		ucSize = GAMMA_SECTOR_SIZE / GAMMA_SIZE;
+		wAddr  = GAMMA_STATUS_ADDR;
+	}
+	#endif
+	#if 1//((CHIP_ID == CHIP_TSUM9 || CHIP_ID == CHIP_TSUMF) && ENABLE_CABLE_5V_EDID)
+	else if(ucType == FLASH_KEY_HDCP)
 	{
-	    ucSize = HDCPKEY_SECTOR_SIZE/HDCPKEY_SIZE;
-		wAddr  = HDCPKEY_STATUS_ADDR ; 
-		
-	
+		ucSize = HDCPKEY_SECTOR_SIZE / HDCPKEY_SIZE;
+		wAddr  = HDCPKEY_STATUS_ADDR;
+	}
+	else if(ucType == FLASH_KEY_DDCA)
 	{
-	    ucSize = DDCAKEY_SECTOR_SIZE/DDCAKEY_SIZE;
-		wAddr  = DDCAKEY_STATUS_ADDR ; 
-		
+		ucSize = DDCAKEY_SECTOR_SIZE / DDCAKEY_SIZE;
+		wAddr  = DDCAKEY_STATUS_ADDR;
+	}
 	else if(ucType == FLASH_KEY_DDCD)
 	{
-	    ucSize = DDCDKEY_SECTOR_SIZE/DDCDKEY_SIZE;
-		wAddr  = DDCDKEY_STATUS_ADDR ; 
-		
-	lse if(ucType == FLASH_KEY_DDCH)
-	 {
-	    ucSize = DDCHKEY_SECTOR_SIZE/DDCHKEY_SIZE;
-		wAddr  = DDCHKEY_STATUS_ADDR ; 
-		
-	e
-	    else if(ucType == FLASH_KEY_DDCDP)
+		ucSize = DDCDKEY_SECTOR_SIZE / DDCDKEY_SIZE;
+		wAddr  = DDCDKEY_STATUS_ADDR;
+	}
+	else if(ucType == FLASH_KEY_DDCH)
 	{
-	    ucSize = DDCDPKEY_SECTOR_SIZE/DDCDPKEY_SIZE;
-		wAddr  = DDCDPKEY_STATUS_ADDR ; 
-		
-	if
-	    for(ucIndex=0;ucIndex<ucSize;ucIndex++)
-	{      
-	    ucStatus = FlashReadByte(wAddr+ucIndex);
-		if(bWrite)  
+		ucSize = DDCHKEY_SECTOR_SIZE / DDCHKEY_SIZE;
+		wAddr  = DDCHKEY_STATUS_ADDR;
+	}
+	#else
+	else if(ucType == FLASH_KEY_DDCDP)
+	{
+		ucSize = DDCDPKEY_SECTOR_SIZE / DDCDPKEY_SIZE;
+		wAddr  = DDCDPKEY_STATUS_ADDR;
+	}
+	#endif
+	for(ucIndex = 0; ucIndex < ucSize; ucIndex++)
+	{
+		ucStatus = FlashReadByte(wAddr + ucIndex);
+		if(bWrite)
 		{
-		    if( ucStatus == FLASH_KEY_EMPTY || ucStatus == FLASH_KEY_WRITE)
-			    break;
-				
+			if( ucStatus == FLASH_KEY_EMPTY || ucStatus == FLASH_KEY_WRITE)
+				break;
+		}
 		else
 		{
-		    if( ucStatus == FLASH_KEY_VALID)
-			    break;
-				
-		
-	
+			if( ucStatus == FLASH_KEY_VALID)
+				break;
+		}
+	}
+	if( ucIndex >= ucSize )
 	{
-	    if(bWrite)
-		    ucIndex = ucSize - 1;
-			
-		    ucIndex = 0;
-			
-	
-	
+		if(bWrite)
+			ucIndex = ucSize - 1;
+		else
+			ucIndex = 0;
+	}
+	return ucIndex;
+}
 //////////////////////////////////////////////////////////////////////////////
 // <API><Description>:	Write Factory setting, HDCP Key, DDCA, DDCD key to free buffer,
 //                  Exchange buffer address FLASH_FreeBufferAddr and FLASH_FactorySettingAddr
@@ -1575,119 +1574,119 @@ void Flash_BackupFactorySetToBuffer(BYTE ucBufferType)
 {
 	BYTE xdata ucKeyIndex;
 	WORD wAddr;
-
-
-#if 1//((CHIP_ID == CHIP_TSUM9 || CHIP_ID == CHIP_TSUMF) && ENABLE_CABLE_5V_EDID)
-		 if( ucBufferType == FBufType_HDCP_EDID )
-    {
-	    ucKeyIndex = Flash_GetKeyIndex(FLASH_KEY_HDCP, FALSE);
-		if(FlashReadByte(HDCPKEY_STATUS_ADDR+ucKeyIndex) == FLASH_KEY_VALID
-		&& FlashReadByte(HDCPKEY_BUF_STATUS_ A DDR) == FLASH_KEY_EMPTY)
-		        {
-		    Flash_MoveTbl( FALSE, HDCPKEYSET_START + ucKeyIndex * HDCPKEY_SIZE, HDCPKEYSET_BUF_START, HDCPKEY_SIZE );
-			hWriteByte(FALSE, HDCPKEY_BUF_STATUS_ADDR, FLASH_KEY_VALID);
+	FLASH_printMsg( "  Flash_BackupFactorySetToBuffer " );
+	FlashDisableWP( FLASH_FreeBufferAddr );
+	#if 1//((CHIP_ID == CHIP_TSUM9 || CHIP_ID == CHIP_TSUMF) && ENABLE_CABLE_5V_EDID)
+	if( ucBufferType == FBufType_HDCP_EDID )
+	{
+		ucKeyIndex = Flash_GetKeyIndex(FLASH_KEY_HDCP, FALSE);
+		if(FlashReadByte(HDCPKEY_STATUS_ADDR + ucKeyIndex) == FLASH_KEY_VALID
+		        && FlashReadByte(HDCPKEY_BUF_STATUS_ADDR) == FLASH_KEY_EMPTY)
+		{
+			Flash_MoveTbl( FALSE, HDCPKEYSET_START + ucKeyIndex * HDCPKEY_SIZE, HDCPKEYSET_BUF_START, HDCPKEY_SIZE );
+			FlashWriteByte(FALSE, HDCPKEY_BUF_STATUS_ADDR, FLASH_KEY_VALID);
 			FLASH_printMsg("  _HDCP_ ");
-			}
-		
-		if(FlashReadByte(DDCAKEY_STATUS_ADDR+ucKeyIndex) == FLASH_KEY_VALID
-		&& FlashReadByte(DDCAKEY_BUF_STATUS_ A DDR) == FLASH_KEY_EMPTY)
-		        {
-		    Flash_MoveTbl( FALSE, DDCAKEYSET_START + ucKeyIndex * DDCAKEY_SIZE, DDCAKEYSET_BUF_START, DDCAKEY_SIZE );
+		}
+		ucKeyIndex = Flash_GetKeyIndex(FLASH_KEY_DDCA, FALSE);
+		if(FlashReadByte(DDCAKEY_STATUS_ADDR + ucKeyIndex) == FLASH_KEY_VALID
+		        && FlashReadByte(DDCAKEY_BUF_STATUS_ADDR) == FLASH_KEY_EMPTY)
+		{
+			Flash_MoveTbl( FALSE, DDCAKEYSET_START + ucKeyIndex * DDCAKEY_SIZE, DDCAKEYSET_BUF_START, DDCAKEY_SIZE );
 			FlashWriteByte(FALSE, DDCAKEY_BUF_STATUS_ADDR, FLASH_KEY_VALID);
 			FLASH_printMsg("  _DDCA_ ");
-			
-		
-		if(FlashReadByte(DDCDKEY_STATUS_ADDR+ucKeyIndex) == FLASH_KEY_VALID
-		&& FlashReadByte(DDCDKEY_BUF_STATUS_ A DDR) == FLASH_KEY_EMPTY)
-		        {
-		    Flash_MoveTbl( FALSE, DDCDKEYSET_START + ucKeyIndex * DDCDKEY_SIZE, DDCDKEYSET_BUF_START, DDCDKEY_SIZE );
+		}
+		ucKeyIndex = Flash_GetKeyIndex(FLASH_KEY_DDCD, FALSE);
+		if(FlashReadByte(DDCDKEY_STATUS_ADDR + ucKeyIndex) == FLASH_KEY_VALID
+		        && FlashReadByte(DDCDKEY_BUF_STATUS_ADDR) == FLASH_KEY_EMPTY)
+		{
+			Flash_MoveTbl( FALSE, DDCDKEYSET_START + ucKeyIndex * DDCDKEY_SIZE, DDCDKEYSET_BUF_START, DDCDKEY_SIZE );
 			FlashWriteByte(FALSE, DDCDKEY_BUF_STATUS_ADDR, FLASH_KEY_VALID);
 			FLASH_printMsg("  _DDCD_ ");
-			
-		
-	      if(FlashReadByte(DDCHKEY_STATUS_ADDR+ucKeyIndex) == FLASH_KEY_VALID
-		&& FlashReadByte(DDCHKEY_BUF_STATUS_ A DDR) == FLASH_KEY_EMPTY)
-		        {
-		    Flash_MoveTbl( FALSE, DDCHKEYSET_START + ucKeyIndex * DDCHKEY_SIZE, DDCHKEYSET_BUF_START, DDCHKEY_SIZE );
+		}
+		ucKeyIndex = Flash_GetKeyIndex(FLASH_KEY_DDCH, FALSE);
+		if(FlashReadByte(DDCHKEY_STATUS_ADDR + ucKeyIndex) == FLASH_KEY_VALID
+		        && FlashReadByte(DDCHKEY_BUF_STATUS_ADDR) == FLASH_KEY_EMPTY)
+		{
+			Flash_MoveTbl( FALSE, DDCHKEYSET_START + ucKeyIndex * DDCHKEY_SIZE, DDCHKEYSET_BUF_START, DDCHKEY_SIZE );
 			FlashWriteByte(FALSE, DDCHKEY_BUF_STATUS_ADDR, FLASH_KEY_VALID);
 			FLASH_printMsg("  _DDCH_ ");
-			
-		
+		}
+		FlashWriteByte( FALSE, FLASH_FreeBufferAddr, ucBufferType );
 		FlashEnableWP();
 		FlashWriteByte( TRUE, FLASH_HDCP_EDIDAddr, 0x00 );
 		wAddr = FLASH_FreeBufferAddr;
 		FLASH_FreeBufferAddr = FLASH_HDCP_EDIDAddr;
 		FLASH_HDCP_EDIDAddr = wAddr;
-		
-	f
-		 if( ucBufferType == FBufType_FactorySetting )
-    {	
- { ucKeyIndex = Flash_GetKeyIndex(FLASH_KEY_FACTORY, FALSE);
-		(FlashReadByte(FACTORY_STATUS_ADDR+ucKeyIndex) == FLASH_KEY_VALID
-			&& FlashReadByte(FACTORY_BUF_STATUS _ ADDR) == FLASH_KEY_EMPTY)
-		        
-			Flash_MoveTbl(FALSE, FACTORY_START+(WORD)ucKeyIndex*FACTORY_SIZE, FACTORY_BUF_START, FACTORY_SIZE);
-			FlashWriteByte(FALSE, FACTORY_BUF_ S TATUS_ADDR, FLAS H _KEY_VALID);
+	}
+	#endif
+	if( ucBufferType == FBufType_FactorySetting )
+	{
+		ucKeyIndex = Flash_GetKeyIndex(FLASH_KEY_FACTORY, FALSE);
+		if(FlashReadByte(FACTORY_STATUS_ADDR + ucKeyIndex) == FLASH_KEY_VALID
+		        && FlashReadByte(FACTORY_BUF_STATUS_ADDR) == FLASH_KEY_EMPTY)
+		{
+			Flash_MoveTbl(FALSE, FACTORY_START + (WORD)ucKeyIndex * FACTORY_SIZE, FACTORY_BUF_START, FACTORY_SIZE);
+			FlashWriteByte(FALSE, FACTORY_BUF_STATUS_ADDR, FLASH_KEY_VALID);
 			FLASH_printMsg( "  _FACT_ " );
 		}
-	    
-			ucKeyIndex = Flash_GetKeyIndex(FLASH_KEY_GAMMA, FALSE);
-		if(FlashReadByte(GAMMA_STATUS_ADDR+ucKeyIndex) == FLASH_KEY_VALID
-			&& FlashReadByte(GAMMA_BUF_STATUS _ ADDR) == FLASH_KEY_EMPTY)
-		        
-			Flash_MoveTbl(FALSE, GAMMA_START+(WORD)ucKeyIndex*GAMMA_SIZE, GAMMA_BUF_START, GAMMA_SIZE);
-			FlashWriteByte(FALSE, GAMMA_BUF_ S TATUS_ADDR, FLAS H _KEY_VALID);
+		#if 0
+		ucKeyIndex = Flash_GetKeyIndex(FLASH_KEY_GAMMA, FALSE);
+		if(FlashReadByte(GAMMA_STATUS_ADDR + ucKeyIndex) == FLASH_KEY_VALID
+		        && FlashReadByte(GAMMA_BUF_STATUS_ADDR) == FLASH_KEY_EMPTY)
+		{
+			Flash_MoveTbl(FALSE, GAMMA_START + (WORD)ucKeyIndex * GAMMA_SIZE, GAMMA_BUF_START, GAMMA_SIZE);
+			FlashWriteByte(FALSE, GAMMA_BUF_STATUS_ADDR, FLASH_KEY_VALID);
 			FLASH_printMsg("  _GAMMA_ ");
 		}
-		
-		if(FlashReadByte(HDCPKEY_STATUS_ADDR+ucKeyIndex) == FLASH_KEY_VALID
-			&& FlashReadByte(HDCPKEY_BUF_STATUS _ ADDR) == FLASH_KEY_EMPTY)
-		        
-			Flash_MoveTbl(FALSE, HDCPKEYSET_START+(WORD)ucKeyIndex*HDCPKEY_SIZE, HDCPKEYSET_BUF_START, HDCPKEY_SIZE);
-			FlashWriteByte(FALSE, HDCPKEY_BUF_STA T US_ADDR, FLASH_K E Y_VALID);
+		ucKeyIndex = Flash_GetKeyIndex(FLASH_KEY_HDCP, FALSE);
+		if(FlashReadByte(HDCPKEY_STATUS_ADDR + ucKeyIndex) == FLASH_KEY_VALID
+		        && FlashReadByte(HDCPKEY_BUF_STATUS_ADDR) == FLASH_KEY_EMPTY)
+		{
+			Flash_MoveTbl(FALSE, HDCPKEYSET_START + (WORD)ucKeyIndex * HDCPKEY_SIZE, HDCPKEYSET_BUF_START, HDCPKEY_SIZE);
+			FlashWriteByte(FALSE, HDCPKEY_BUF_STATUS_ADDR, FLASH_KEY_VALID);
 			FLASH_printMsg("  _HDCP_ ");
 		}
-		
-		if(FlashReadByte(DDCAKEY_STATUS_ADDR+ucKeyIndex) == FLASH_KEY_VALID
-			&& FlashReadByte(DDCAKEY_BUF_STATUS _ ADDR) == FLASH_KEY_EMPTY)
-		        
-			Flash_MoveTbl(FALSE, DDCAKEYSET_START+(WORD)ucKeyIndex*DDCAKEY_SIZE, DDCAKEYSET_BUF_START, DDCAKEY_SIZE);
-			FlashWriteByte(FALSE, DDCAKEY_BUF_STA T US_ADDR, FLASH_K E Y_VALID);
+		ucKeyIndex = Flash_GetKeyIndex(FLASH_KEY_DDCA, FALSE);
+		if(FlashReadByte(DDCAKEY_STATUS_ADDR + ucKeyIndex) == FLASH_KEY_VALID
+		        && FlashReadByte(DDCAKEY_BUF_STATUS_ADDR) == FLASH_KEY_EMPTY)
+		{
+			Flash_MoveTbl(FALSE, DDCAKEYSET_START + (WORD)ucKeyIndex * DDCAKEY_SIZE, DDCAKEYSET_BUF_START, DDCAKEY_SIZE);
+			FlashWriteByte(FALSE, DDCAKEY_BUF_STATUS_ADDR, FLASH_KEY_VALID);
 			FLASH_printMsg("  _DDCA_ ");
 		}
-		
-		if(FlashReadByte(DDCDKEY_STATUS_ADDR+ucKeyIndex) == FLASH_KEY_VALID
-			&& FlashReadByte(DDCDKEY_BUF_STATUS _ ADDR) == FLASH_KEY_EMPTY)
-		        
-			Flash_MoveTbl(FALSE, DDCDKEYSET_START+(WORD)ucKeyIndex*DDCDKEY_SIZE, DDCDKEYSET_BUF_START, DDCDKEY_SIZE);
-			FlashWriteByte(FALSE, DDCDKEY_BUF_STA T US_ADDR, FLASH_K E Y_VALID);
+		ucKeyIndex = Flash_GetKeyIndex(FLASH_KEY_DDCD, FALSE);
+		if(FlashReadByte(DDCDKEY_STATUS_ADDR + ucKeyIndex) == FLASH_KEY_VALID
+		        && FlashReadByte(DDCDKEY_BUF_STATUS_ADDR) == FLASH_KEY_EMPTY)
+		{
+			Flash_MoveTbl(FALSE, DDCDKEYSET_START + (WORD)ucKeyIndex * DDCDKEY_SIZE, DDCDKEYSET_BUF_START, DDCDKEY_SIZE);
+			FlashWriteByte(FALSE, DDCDKEY_BUF_STATUS_ADDR, FLASH_KEY_VALID);
 			FLASH_printMsg("  _DDCD_ ");
 		}
-		
+		if( FlashReadByte( DDCHKEY_STATUS_ADDR ) == FLASH_KEY_VALID )
 		{
 			Flash_MoveTbl( FALSE, DDCHKEYSET_START, DDCHKEYSET_BUF_START, DDCHKEY_SIZE );
 			FlashWriteByte( FALSE, DDCHKEY_BUF_STATUS_ADDR, FLASH_KEY_VALID );
 			FLASH_printMsg( "  _DDCH_ " );
 		}
-	#endif
+		#endif
 		#if 0//((CHIP_ID == CHIP_TSUM9 || CHIP_ID == CHIP_TSUMF) && ENABLE_CABLE_5V_EDID)
-		
-		if(FlashReadByte(DDCDPKEY_STATUS_ADDR+ucKeyIndex) == FLASH_KEY_VALID
-			&& FlashReadByte(DDCDPKEY_BUF_STATUS _ ADDR) == FLASH_KEY_EMPTY)
-		        
-			Flash_MoveTbl(FALSE, DDCDPKEYSET_START+(WORD)ucKeyIndex*DDCDPKEY_SIZE, DDCDPKEYSET_BUF_START, DDCDPKEY_SIZE);
-			FlashWriteByte(FALSE, DDCDPKEY_BUF_STA T US_ADDR, FLASH_K E Y_VALID);
+		ucKeyIndex = Flash_GetKeyIndex(FLASH_KEY_DDCDP, FALSE);
+		if(FlashReadByte(DDCDPKEY_STATUS_ADDR + ucKeyIndex) == FLASH_KEY_VALID
+		        && FlashReadByte(DDCDPKEY_BUF_STATUS_ADDR) == FLASH_KEY_EMPTY)
+		{
+			Flash_MoveTbl(FALSE, DDCDPKEYSET_START + (WORD)ucKeyIndex * DDCDPKEY_SIZE, DDCDPKEYSET_BUF_START, DDCDPKEY_SIZE);
+			FlashWriteByte(FALSE, DDCDPKEY_BUF_STATUS_ADDR, FLASH_KEY_VALID);
 			FLASH_printMsg("  _DDCDP_ ");
 		}
-	#endif
-			FlashWriteByte( FALSE, FLASH_FreeBufferAddr, FBufType_FactorySetting );
+		#endif
+		FlashWriteByte( FALSE, FLASH_FreeBufferAddr, FBufType_FactorySetting );
 		FlashEnableWP();
 		FlashWriteByte( TRUE, FLASH_FactorySettingAddr, 0x00 );
 		wAddr = FLASH_FreeBufferAddr;
 		FLASH_FreeBufferAddr = FLASH_FactorySettingAddr;
 		FLASH_FactorySettingAddr = wAddr;
 	}
-	
+}
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1712,86 +1711,86 @@ void Flash_Write_Factory_KeySet(FLASH_KEY_TYPE ucType, WORD wIndex, WORD wBufSiz
 	WORD xdata wKEYSET_BUF_START;
 	WORD xdata wKEYSET_STATUS_ADDR;
 	WORD xdata wKEYSET_BUF_STATUS_ADDR;
-
-	
+	ucKeyIndex = Flash_GetKeyIndex(ucType, TRUE);
+	if(ucType == FLASH_KEY_FACTORY)
 	{
 		wKEY_SIZE				= FACTORY_SIZE;
-		wKEYSET_START			= FACTORY_START + (WORD)ucKeyIndex*FACTORY_SIZE;
-		wKEYSET_BUF_START		= FACTORY_BUF_START;  
+		wKEYSET_START			= FACTORY_START + (WORD)ucKeyIndex * FACTORY_SIZE;
+		wKEYSET_BUF_START		= FACTORY_BUF_START;
 		wKEYSET_STATUS_ADDR 	= FACTORY_STATUS_ADDR + ucKeyIndex;
 		wKEYSET_BUF_STATUS_ADDR = FACTORY_BUF_STATUS_ADDR;
 	}
-#if 0    
-		elseucType == FLASH_KEY_GAMMA)
+	#if 0
+	else if(ucType == FLASH_KEY_GAMMA)
 	{
 		wKEY_SIZE				= GAMMA_SIZE;
-		wKEYSET_START			= GAMMA_START + (WORD)ucKeyIndex*GAMMA_SIZE;
-		wKEYSET_BUF_START		= GAMMA_BUF_START;  
+		wKEYSET_START			= GAMMA_START + (WORD)ucKeyIndex * GAMMA_SIZE;
+		wKEYSET_BUF_START		= GAMMA_BUF_START;
 		wKEYSET_STATUS_ADDR 	= GAMMA_STATUS_ADDR + ucKeyIndex;
 		wKEYSET_BUF_STATUS_ADDR = GAMMA_BUF_STATUS_ADDR;
 	}
-#endif  
-	
-		else if(ucType == FLASH_KEY_HDCP)
+	#endif
+	#if 1//((CHIP_ID == CHIP_TSUM9 || CHIP_ID == CHIP_TSUMF) && ENABLE_CABLE_5V_EDID)
+	else if(ucType == FLASH_KEY_HDCP)
 	{
 		wKEY_SIZE				= HDCPKEY_SIZE;
-		wKEYSET_START			= HDCPKEYSET_START + (WORD)ucKeyIndex*HDCPKEY_SIZE;
-		wKEYSET_BUF_START		= HDCPKEYSET_BUF_START;  
+		wKEYSET_START			= HDCPKEYSET_START + (WORD)ucKeyIndex * HDCPKEY_SIZE;
+		wKEYSET_BUF_START		= HDCPKEYSET_BUF_START;
 		wKEYSET_STATUS_ADDR 	= HDCPKEY_STATUS_ADDR + ucKeyIndex;
 		wKEYSET_BUF_STATUS_ADDR = HDCPKEY_BUF_STATUS_ADDR;
 	}
 	else if(ucType == FLASH_KEY_DDCA)
 	{
 		wKEY_SIZE				= DDCAKEY_SIZE;
-		wKEYSET_START			= DDCAKEYSET_START + (WORD)ucKeyIndex*DDCAKEY_SIZE;
-		wKEYSET_BUF_START		= DDCAKEYSET_BUF_START;  
+		wKEYSET_START			= DDCAKEYSET_START + (WORD)ucKeyIndex * DDCAKEY_SIZE;
+		wKEYSET_BUF_START		= DDCAKEYSET_BUF_START;
 		wKEYSET_STATUS_ADDR 	= DDCAKEY_STATUS_ADDR + ucKeyIndex;;
 		wKEYSET_BUF_STATUS_ADDR = DDCAKEY_BUF_STATUS_ADDR;
 	}
 	else if(ucType == FLASH_KEY_DDCD)
 	{
 		wKEY_SIZE				= DDCDKEY_SIZE;
-		wKEYSET_START			= DDCDKEYSET_START + (WORD)ucKeyIndex*DDCDKEY_SIZE;
-		wKEYSET_BUF_START		= DDCDKEYSET_BUF_START;  
+		wKEYSET_START			= DDCDKEYSET_START + (WORD)ucKeyIndex * DDCDKEY_SIZE;
+		wKEYSET_BUF_START		= DDCDKEYSET_BUF_START;
 		wKEYSET_STATUS_ADDR 	= DDCDKEY_STATUS_ADDR + ucKeyIndex;;
 		wKEYSET_BUF_STATUS_ADDR = DDCDKEY_BUF_STATUS_ADDR;
 	}
-    else if(ucType == FLASH_KEY_DDCH)
+	else if(ucType == FLASH_KEY_DDCH)
 	{
-	    wKEY_SIZE               = DDCHKEY_SIZE;
-		wKEYSET_START           = DDCHKEYSET_START + (WORD)ucKeyIndex*DDCHKEY_SIZE;
-		wKEYSET_BUF_START       = DDCHKEYSET_BUF_START;  
+		wKEY_SIZE               = DDCHKEY_SIZE;
+		wKEYSET_START           = DDCHKEYSET_START + (WORD)ucKeyIndex * DDCHKEY_SIZE;
+		wKEYSET_BUF_START       = DDCHKEYSET_BUF_START;
 		wKEYSET_STATUS_ADDR     = DDCHKEY_STATUS_ADDR + ucKeyIndex;;
 		wKEYSET_BUF_STATUS_ADDR = DDCHKEY_BUF_STATUS_ADDR;
-		
-	
-		else if(ucType == FLASH_KEY_DDCDP)
+	}
+	#else
+	else if(ucType == FLASH_KEY_DDCDP)
 	{
 		wKEY_SIZE				= DDCDPKEY_SIZE;
-		wKEYSET_START			= DDCDPKEYSET_START + (WORD)ucKeyIndex*DDCDPKEY_SIZE;
-		wKEYSET_BUF_START		= DDCDPKEYSET_BUF_START;  
+		wKEYSET_START			= DDCDPKEYSET_START + (WORD)ucKeyIndex * DDCDPKEY_SIZE;
+		wKEYSET_BUF_START		= DDCDPKEYSET_BUF_START;
 		wKEYSET_STATUS_ADDR 	= DDCDPKEY_STATUS_ADDR + ucKeyIndex;;
 		wKEYSET_BUF_STATUS_ADDR = DDCDPKEY_BUF_STATUS_ADDR;
 	}
-#endif
-		else
+	#endif
+	else
 		return;
-
-
+	bFlashWriteFactory = TRUE;
+	if( FlashReadByte( wKEYSET_STATUS_ADDR ) == FLASH_KEY_EMPTY || FlashReadByte( wKEYSET_STATUS_ADDR ) == FLASH_KEY_WRITE )
 	{
 		if( wIndex == 0x00 )
 		{
 			// FLASH_printData("  _FWFK_StatusAddr [%x] ",wKEYSET_STATUS_ADDR);
-			 FlashWriteByte(TRUE, wKEYSET_STATUS_ADDR, FLASH_KEY_WRITE);
-           g_wKEYSET_START         = wKEYSET_START;
-			
+			FlashWriteByte(TRUE, wKEYSET_STATUS_ADDR, FLASH_KEY_WRITE);
+			g_wKEYSET_START         = wKEYSET_START;
+		}
 		Flash_WriteTbl( TRUE, wKEYSET_START + wIndex * wBufSize, buf, wLen );
 		if(( wIndex * wBufSize + wLen ) >= wKEY_SIZE ) // check write end
 		{
 			FlashWriteByte( TRUE, wKEYSET_STATUS_ADDR, FLASH_KEY_VALID );
-			if(ucKeyIndex>0)
-				FlashWriteBy t e(TRUE, wKEYSET_STATUS_ADDR-1, FLASH_KEY_INVALID);
-		}  
+			if(ucKeyIndex > 0)
+				FlashWriteByte(TRUE, wKEYSET_STATUS_ADDR - 1, FLASH_KEY_INVALID);
+		}
 	}
 	else
 	{
@@ -1799,29 +1798,29 @@ void Flash_Write_Factory_KeySet(FLASH_KEY_TYPE ucType, WORD wIndex, WORD wBufSiz
 		{
 			FlashSectorErase(TRUE, FLASH_FreeBufferAddr);
 			FlashWriteByte(TRUE, wKEYSET_BUF_STATUS_ADDR, FLASH_KEY_WRITE);
-            g_wKEYSET_START         = 0xF000;
-			
-
+			g_wKEYSET_START         = 0xF000;
+		}
+		Flash_WriteTbl( TRUE, wKEYSET_BUF_START + wIndex * wBufSize, buf, wLen );
 		if(( wIndex * wBufSize + wLen ) >= wKEY_SIZE ) // check write end
 		{
 			FlashWriteByte( TRUE, wKEYSET_BUF_STATUS_ADDR, FLASH_KEY_VALID );
 			//FLASH_printData("  _FWFK_buffer write End [%x] ",ucType);
 			#if 1//((CHIP_ID == CHIP_TSUM9 || CHIP_ID == CHIP_TSUMF) && ENABLE_CABLE_5V_EDID)
-           		 if( ucType >= FLASH_KEY_HDCP && ucType <= FLASH_KEY_DDCH )
-	 		Flash_BackupFactorySetToBuffer( FBufType_HDCP_EDID );
-	
-			#endif
-				Flash_BackupFactorySetToBuffer(FBufType_FactorySetting);
-				FlashSectorErase( TRUE, FLASH_FreeBufferAddr );
-			if 1//((CHIP_ID == CHIP_TSUM9 || CHIP_ID == CHIP_TSUMF) && ENABLE_CABLE_5V_EDID)
-            		if( ucType >= FLASH_KEY_HDCP && ucType <= FLASH_KEY_DDCH )
+			if( ucType >= FLASH_KEY_HDCP && ucType <= FLASH_KEY_DDCH )
 				Flash_BackupFactorySetToBuffer( FBufType_HDCP_EDID );
-	
+			else
 			#endif
 				Flash_BackupFactorySetToBuffer(FBufType_FactorySetting);
-				FlashSectorErase( TRUE, FLASH_FreeBufferAddr );    //charles test
+			FlashSectorErase( TRUE, FLASH_FreeBufferAddr );
+			#if 1//((CHIP_ID == CHIP_TSUM9 || CHIP_ID == CHIP_TSUMF) && ENABLE_CABLE_5V_EDID)
+			if( ucType >= FLASH_KEY_HDCP && ucType <= FLASH_KEY_DDCH )
+				Flash_BackupFactorySetToBuffer( FBufType_HDCP_EDID );
+			else
+			#endif
+				Flash_BackupFactorySetToBuffer(FBufType_FactorySetting);
+			FlashSectorErase( TRUE, FLASH_FreeBufferAddr );    //charles test
 		}
-
+	}
 	bFlashWriteFactory = FALSE;
 }
 
@@ -1846,67 +1845,67 @@ Bool Flash_Read_Factory_KeySet(FLASH_KEY_TYPE ucType, Bool bReadVaild, WORD wInd
 	WORD xdata wKEY_SIZE;
 	WORD xdata wKEYSET_START;
 	WORD xdata wKEYSET_STATUS_ADDR;
-
+	if(bReadVaild)
 		ucKeyIndex = Flash_GetKeyIndex(ucType, FALSE);
 	else
 		ucKeyIndex = Flash_GetKeyIndex(ucType, TRUE);
-
+	if( ucType == FLASH_KEY_FACTORY )
 	{
 		wKEY_SIZE			= FACTORY_SIZE;
-		wKEYSET_START		= FACTORY_START + (WORD)ucKeyIndex*FACTORY_SIZE;
-		wKEYSET_STATUS_ADDR = FACTORY_STATUS_ADDR + ucKey I ndex;
+		wKEYSET_START		= FACTORY_START + (WORD)ucKeyIndex * FACTORY_SIZE;
+		wKEYSET_STATUS_ADDR = FACTORY_STATUS_ADDR + ucKeyIndex;
 	}
-#if 0    
-		else ucType == FLASH_KEY_GAMMA )
+	#if 0
+	else if( ucType == FLASH_KEY_GAMMA )
 	{
 		wKEY_SIZE			= GAMMA_SIZE;
-		wKEYSET_START		= GAMMA_START + (WORD)ucKeyIndex*GAMMA_SIZE;
-		wKEYSET_STATUS_ADDR = GAMMA_STATUS_ADDR + ucKey I ndex;
+		wKEYSET_START		= GAMMA_START + (WORD)ucKeyIndex * GAMMA_SIZE;
+		wKEYSET_STATUS_ADDR = GAMMA_STATUS_ADDR + ucKeyIndex;
 	}
-#endif    
-	#if 1/HIP_ID == CHIP_TSUM9 || CHIP_ID == CHIP_TSUMF) && ENABLE_CABLE_5V_EDID)
-		else if(ucType == FLASH_KEY_HDCP)
+	#endif
+	#if 1//((CHIP_ID == CHIP_TSUM9 || CHIP_ID == CHIP_TSUMF) && ENABLE_CABLE_5V_EDID)
+	else if(ucType == FLASH_KEY_HDCP)
 	{
 		wKEY_SIZE			= HDCPKEY_SIZE;
-		wKEYSET_START		= HDCPKEYSET_START + (WORD)ucKeyIndex*HDCPKEY_SIZE;
-		wKEYSET_STATUS_ADDR = HDCPKEY_STATUS_ADDR + ucKeyInd e x;
+		wKEYSET_START		= HDCPKEYSET_START + (WORD)ucKeyIndex * HDCPKEY_SIZE;
+		wKEYSET_STATUS_ADDR = HDCPKEY_STATUS_ADDR + ucKeyIndex;
 	}
 	else if( ucType == FLASH_KEY_DDCA )
 	{
 		wKEY_SIZE			= DDCAKEY_SIZE;
-		wKEYSET_START		= DDCAKEYSET_START + (WORD)ucKeyIndex*DDCAKEY_SIZE;;
-		wKEYSET_STATUS_ADDR = DDCAKEY_STATUS_ADDR + ucKeyInd e x;
+		wKEYSET_START		= DDCAKEYSET_START + (WORD)ucKeyIndex * DDCAKEY_SIZE;;
+		wKEYSET_STATUS_ADDR = DDCAKEY_STATUS_ADDR + ucKeyIndex;
 	}
 	else if( ucType == FLASH_KEY_DDCD )
 	{
 		wKEY_SIZE		= DDCDKEY_SIZE;
-		wKEYSET_START		= DDCDKEYSET_START + (WORD)ucKeyIndex*DDCDKEY_SIZE;;
-		wKEYSET_STATUS_ADDR = DDCDKEY_STATUS_ADDR + ucKeyInd e x;
+		wKEYSET_START		= DDCDKEYSET_START + (WORD)ucKeyIndex * DDCDKEY_SIZE;;
+		wKEYSET_STATUS_ADDR = DDCDKEY_STATUS_ADDR + ucKeyIndex;
 	}
 	else if( ucType == FLASH_KEY_DDCH )
 	{
 		wKEY_SIZE		= DDCHKEY_SIZE;
-		wKEYSET_START		= DDCHKEYSET_START + (WORD)ucKeyIndex*DDCHKEY_SIZE;;
-		wKEYSET_STATUS_ADDR = DDCHKEY_STATUS_ADDR + ucKeyInd e x;
+		wKEYSET_START		= DDCHKEYSET_START + (WORD)ucKeyIndex * DDCHKEY_SIZE;;
+		wKEYSET_STATUS_ADDR = DDCHKEY_STATUS_ADDR + ucKeyIndex;
 	}
-#else
-		else if( ucType == FLASH_KEY_DDCDP )
+	#else
+	else if( ucType == FLASH_KEY_DDCDP )
 	{
 		wKEY_SIZE		= DDCDPKEY_SIZE;
-		wKEYSET_START		= DDCDPKEYSET_START + (WORD)ucKeyIndex*DDCDPKEY_SIZE;;
-		wKEYSET_STATUS_ADDR = DDCDPKEY_STATUS_ADDR + ucKeyInd e x;
+		wKEYSET_START		= DDCDPKEYSET_START + (WORD)ucKeyIndex * DDCDPKEY_SIZE;;
+		wKEYSET_STATUS_ADDR = DDCDPKEY_STATUS_ADDR + ucKeyIndex;
 	}
-#endif
-		else
+	#endif
+	else
 		return FALSE;
-
+	if( FlashReadByte( wKEYSET_STATUS_ADDR ) == FLASH_KEY_WRITE || FlashReadByte( wKEYSET_STATUS_ADDR ) == FLASH_KEY_VALID )
 	{
 		//FLASH_printData("  Flash_ReadDDCAKeySet Succ [%x]",wKEYSET_START+i*wKEY_SIZE+1+wIndex*wBufSize);
 		if(bReadVaild && FlashReadByte(wKEYSET_STATUS_ADDR) != FLASH_KEY_VALID)
 			return FALSE;
 		else
-			Flash_ReadTbl(wKEYSET_START+wIndex*wBufSize, buf, wLen);
-		    return TRUE;
+			Flash_ReadTbl(wKEYSET_START + wIndex * wBufSize, buf, wLen);
+		return TRUE;
 	}
 	else
 	{
@@ -1922,53 +1921,53 @@ Bool Flash_Read_Factory_KeySet(FLASH_KEY_TYPE ucType, Bool bReadVaild, WORD wInd
 // <API><Description>:	Write Factory setting to flash,
 //					It will exchange buffer when not found empty space
 //////////////////////////////////////////////////////////////////////////////
-void Flash_WriteFactorySet(BYTE* pbuf,BYTE ucLen)
-{ 
-    Flash_Write_Factory_KeySet(FLASH_KEY_FACTORY, 0, FACTORY_SIZE, pbuf, ucLen);
-	
+void Flash_WriteFactorySet(BYTE* pbuf, BYTE ucLen)
+{
+	Flash_Write_Factory_KeySet(FLASH_KEY_FACTORY, 0, FACTORY_SIZE, pbuf, ucLen);
+}
 //////////////////////////////////////////////////////////////////////////////
 // <API><Description>:	Read latest factory setting struct from flash.
 // <Returns> : return TRUE when found factory setting
 //////////////////////////////////////////////////////////////////////////////
-Bool Flash_ReadFactorySet(BYTE* pbuf,BYTE ucLen)
-{ 
-    return Flash_Read_Factory_KeySet(FLASH_KEY_FACTORY, TRUE, 0, FACTORY_SIZE, pbuf, ucLen);	//110311 Modify
-	
+Bool Flash_ReadFactorySet(BYTE* pbuf, BYTE ucLen)
+{
+	return Flash_Read_Factory_KeySet(FLASH_KEY_FACTORY, TRUE, 0, FACTORY_SIZE, pbuf, ucLen);	//110311 Modify
+}
 //////////////////////////////////////////////////////////////////////////////
 // <API><Description>:	Write Monitor setting struct to flash,
 //					It will exchange buffer when buffer full
 //////////////////////////////////////////////////////////////////////////////
-void Flash_WriteMonitorSet(BYTE* buf,BYTE len)
-{ 
+void Flash_WriteMonitorSet(BYTE* buf, BYTE len)
+{
 	WORD wAddr;
 	WORD i;
-
-	if(i != IDENT_NOT_FOUND)// Found the empty index  
+	i = Flash_SearchIdentChecksum(MONITORSET_START, 0, MAX_MONITORSET_NUM - 1, MONITORSET_SIZE, FLASH_EMPTYDATA, FLASH_EMPTYDATA);
+	if(i != IDENT_NOT_FOUND)// Found the empty index
 	{
-	 	//MonitorSetting.Ident= FLASH_IDENTDATA;
+		//MonitorSetting.Ident= FLASH_IDENTDATA;
 		//MonitorSetting.CheckSum	= FLASH_CHECKSUM;
-	   wAddr = MONITORSET_START + i*MONITORSET_SIZE;
-		WriteTbl(TRUE, wAddr, (BYTE* ) buf, len);
-		FLASH_printData("_FWMS_0 wAddr %x",wAddr);
-        if(i>0) 
-		{  
-		    wAddr = MONITORSET_START + (i-1)*MONITORSET_SIZE;
-			FlashWriteByte(TRUE, wAddr,FL A SH _ IDENTDATA_CLEAR);
-			 
-		
+		wAddr = MONITORSET_START + i * MONITORSET_SIZE;
+		Flash_WriteTbl(TRUE, wAddr, (BYTE*)buf, len);
+		FLASH_printData("_FWMS_0 wAddr %x", wAddr);
+		if(i > 0)
+		{
+			wAddr = MONITORSET_START + (i - 1) * MONITORSET_SIZE;
+			FlashWriteByte(TRUE, wAddr, FLASH_IDENTDATA_CLEAR);
+		}
+	}
 	else
 	{
-	ashSectorErase(TRUE, FLASH_FreeBufferAddr);
+		FlashSectorErase(TRUE, FLASH_FreeBufferAddr);
 		Flash_WriteTbl(TRUE, MONITORSET_BUF_START, (BYTE*)buf, len);
-		FLASH_printData("_FWMS_1 wAddr %x",MONITORSET_BUF_START);
-		FLASH_printData("FLASH_FreeBufferAd dr11 wAddr %x",FLASH_FreeBufferAddr);
-		FlashWriteByte(TRUE, FLASH_FreeBufferAddr,FBufType _MonitorSetting);
-		FlashWriteByte(TRUE, FLASH_MonitorSettingA ddr,0x00);
-		wAddr = FLASH_FreeBufferAddr; 
+		FLASH_printData("_FWMS_1 wAddr %x", MONITORSET_BUF_START);
+		FLASH_printData("FLASH_FreeBufferAddr11 wAddr %x", FLASH_FreeBufferAddr);
+		FlashWriteByte(TRUE, FLASH_FreeBufferAddr, FBufType_MonitorSetting);
+		FlashWriteByte(TRUE, FLASH_MonitorSettingAddr, 0x00);
+		wAddr = FLASH_FreeBufferAddr;
 		FLASH_FreeBufferAddr = FLASH_MonitorSettingAddr;
 		FLASH_MonitorSettingAddr = wAddr;
-    }
-	
+	}
+}
 //////////////////////////////////////////////////////////////////////////////
 // <API><Description>:	Read latest Monitor setting struct from flash.
 //					1.Got monitor setting index by check flash identity
@@ -1976,82 +1975,82 @@ void Flash_WriteMonitorSet(BYTE* buf,BYTE len)
 //					3.read the Monitor setting struct
 // <Returns> : return TRUE when found MonitorSetting
 //////////////////////////////////////////////////////////////////////////////
-Bool Flash_ReadMonitorSet(BYTE* buf,BYTE len)
-{ 
-    WORD i;
-	
-	if(i != IDENT_NOT_FOUND)  
+Bool Flash_ReadMonitorSet(BYTE* buf, BYTE len)
+{
+	WORD i;
+	i = Flash_SearchIdentChecksum(MONITORSET_START, (MAX_MONITORSET_NUM - 1), 0, MONITORSET_SIZE, FLASH_IDENTDATA, FLASH_CHECKSUM);
+	if(i != IDENT_NOT_FOUND)
 	{
-		Flash_ReadTbl(MONITORSET_START + i*MONITORSET_SIZE, buf, len);
-		FLASH_printData("_FRMS_ wAddr %x", M ONITORSET_START + i*MONITORSET_SIZE);
-	    return TRUE;   
-		
+		Flash_ReadTbl(MONITORSET_START + i * MONITORSET_SIZE, buf, len);
+		FLASH_printData("_FRMS_ wAddr %x", MONITORSET_START + i * MONITORSET_SIZE);
+		return TRUE;
+	}
 	else
 	{
-	    i = Flash_SearchIdentChecksum(MONITORSET_START, (MAX_MONITORSET_NUM-1), 0, MONITORSET_SIZE, FLASH_IDENTDATA_CLEAR, FLASH_CHECKSUM);
-		if(i != IDENT_NOT_FOUND)  
+		i = Flash_SearchIdentChecksum(MONITORSET_START, (MAX_MONITORSET_NUM - 1), 0, MONITORSET_SIZE, FLASH_IDENTDATA_CLEAR, FLASH_CHECKSUM);
+		if(i != IDENT_NOT_FOUND)
 		{
-			Flash_ReadTbl(MONITORSET_START + i*MONITORSET_SIZE, buf, len);
-		 //   FLASH_printMsg("_FRMS_ Only C h ecksum Correct! ");
-			/	FLASH_printData("_FRMS_ wAddr %x",MONITORSET_START + i*MONITORSET_SIZE);
-			    return TRUE;
-			
+			Flash_ReadTbl(MONITORSET_START + i * MONITORSET_SIZE, buf, len);
+			//   FLASH_printMsg("_FRMS_ Only Checksum Correct! ");
+			//	FLASH_printData("_FRMS_ wAddr %x",MONITORSET_START + i*MONITORSET_SIZE);
+			return TRUE;
+		}
 		else
-		    return FALSE;
-			
-	
+			return FALSE;
+	}
+}
 
 
 //////////////////////////////////////////////////////////////////////////////
 // <API><Description>:	Flash_WriteMonitorSet2 isues to save MonitorSetting2
 //					It will exchange buffer when buffer full
 //////////////////////////////////////////////////////////////////////////////
-void Flash_WriteMonitorSet2(BYTE* buf,BYTE len)
-{ 
+void Flash_WriteMonitorSet2(BYTE* buf, BYTE len)
+{
 	WORD wAddr;
 	WORD i;
-
-	if(i != IDENT_NOT_FOUND)  
+	i = Flash_SearchIdentChecksum(MONITORSET2_START, 0, MAX_MONITORSET2_NUM - 1, MONITORSET2_SIZE, FLASH_EMPTYDATA, FLASH_EMPTYDATA);
+	if(i != IDENT_NOT_FOUND)
 	{
-	ddr = MONITORSET2_START + i*MONITORSET2_SIZE;
-		Flash_WriteTbl(TRUE, wAddr, ( B YTE*)buf, len);
+		wAddr = MONITORSET2_START + i * MONITORSET2_SIZE;
+		Flash_WriteTbl(TRUE, wAddr, (BYTE*)buf, len);
 		//FLASH_printData("_FWMS2_ wAddr %x",wAddr);
-    }
+	}
 	else
 	{
-	ashSectorErase(TRUE, FLASH_FreeBufferAddr);
+		FlashSectorErase(TRUE, FLASH_FreeBufferAddr);
 		Flash_WriteTbl(TRUE, MONITORSET2_BUF_START, (BYTE*)buf, len);
 		//FLASH_printData("_FWMS2_ wAddr %x",MONITORSET2_BUF_START);
-		FlashWriteByte(TRUE, FLASH_FreeBufferAddr,FBufType_MonitorSetting2);
-		FlashWriteByte(TRUE, FLASH_MonitorSetting2 Addr,0x00);
-		wAddr = FLASH_FreeBufferAddr; 
+		FlashWriteByte(TRUE, FLASH_FreeBufferAddr, FBufType_MonitorSetting2);
+		FlashWriteByte(TRUE, FLASH_MonitorSetting2Addr, 0x00);
+		wAddr = FLASH_FreeBufferAddr;
 		FLASH_FreeBufferAddr = FLASH_MonitorSetting2Addr;
 		FLASH_MonitorSetting2Addr = wAddr;
-    }
-	
+	}
+}
 
 //////////////////////////////////////////////////////////////////////////////
 // <API><Description>:	Read MonitorSetting2 struct from flash.
 //					1.Got monitor setting index by check flash identity
 // <Returns> : return TRUE when found MonitorSetting2
 //////////////////////////////////////////////////////////////////////////////
-Bool Flash_ReadMonitorSet2(BYTE* buf,BYTE len)
-{ 
-    Bool bFound=FALSE;
-	D i;  
-
-	if(i != IDENT_NOT_FOUND)  
+Bool Flash_ReadMonitorSet2(BYTE* buf, BYTE len)
+{
+	Bool bFound = FALSE;
+	WORD i;
+	i = Flash_SearchIdentChecksum(MONITORSET2_START, (MAX_MONITORSET2_NUM - 1), 0, MONITORSET2_SIZE, FLASH_IDENTDATA, FLASH_CHECKSUM);
+	if(i != IDENT_NOT_FOUND)
 	{
-		Flash_ReadTbl(MONITORSET2_START + i*MONITORSET2_SIZE, buf, len);
-		//FLASH_printData("_FRMS2_ wAddr %x " ,MONITORSET2_START + i*MONITORSET2_SIZE);
-	    return TRUE;
-		
+		Flash_ReadTbl(MONITORSET2_START + i * MONITORSET2_SIZE, buf, len);
+		//FLASH_printData("_FRMS2_ wAddr %x",MONITORSET2_START + i*MONITORSET2_SIZE);
+		return TRUE;
+	}
 	else
 	{
-	    FLASH_printMsg("  Flash_ReadMonitorSet2 Fail");
+		FLASH_printMsg("  Flash_ReadMonitorSet2 Fail");
 		return FALSE;
-		
-	
+	}
+}
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2060,36 +2059,36 @@ Bool Flash_ReadMonitorSet2(BYTE* buf,BYTE len)
 //////////////////////////////////////////////////////////////////////////////
 Bool Flash_CheckModeFull(void)
 {
-    BYTE i,wExitModeCount=0;
-	//check  buffer full  
-	(i=0;i < MAX_MODESET_NUM; i++)
-	{   
-		if(FlashReadByte(MODESET_START+i*MODESET_SIZE)==FLASH_IDENTDATA && FlashReadByte(MODESET_START+i*MODESET_SIZE+MODESET_SIZE-1)==FLASH_CHECKSUM)
-            wExitModeCount++;                
-			
+	BYTE i, wExitModeCount = 0;
+	//check buffer full
+	for(i = 0; i < MAX_MODESET_NUM; i++)
+	{
+		if(FlashReadByte(MODESET_START + i * MODESET_SIZE) == FLASH_IDENTDATA && FlashReadByte(MODESET_START + i * MODESET_SIZE + MODESET_SIZE - 1) == FLASH_CHECKSUM)
+			wExitModeCount++;
+	}
 	if(wExitModeCount == MAX_MODESET_NUM)
-	    return TRUE;
-		
-	    return FALSE;
-		
+		return TRUE;
+	else
+		return FALSE;
+}
 //////////////////////////////////////////////////////////////////////////////
 // <API><Description>:	Clear all user mode ident.
 //
 //////////////////////////////////////////////////////////////////////////////
 void Flash_ClearUserModeSpace(void)
 {
-    BYTE i,ucIdent=0;
-	//check  buffer   full
-	(i=0;i < MAX_MODESET_NUM; i++)
-	{   
-	    ucIdent = FlashReadByte(MODESET_START+i*MODESET_SIZE);
-		ucIdent == FLASH_IDENTDATA)    
-        {
-		lashReadByte(MODESET_START+i*MODESET_SIZE+1)&0x80)==0x80)
-                FlashWriteByte(TRU E ,   MODESET_STAR T +i * MODES ET _SIZE, 0x00); // Clear Identdata.
-				    
-		
-	SH_printMsg("Flash_ClearUserModeSpace");
+	BYTE i, ucIdent = 0;
+	//check buffer full
+	for(i = 0; i < MAX_MODESET_NUM; i++)
+	{
+		ucIdent = FlashReadByte(MODESET_START + i * MODESET_SIZE);
+		if(ucIdent == FLASH_IDENTDATA)
+		{
+			if((FlashReadByte(MODESET_START + i * MODESET_SIZE + 1) & 0x80) == 0x80)
+				FlashWriteByte(TRUE, MODESET_START + i * MODESET_SIZE, 0x00); // Clear Identdata.
+		}
+	}
+	FLASH_printMsg("Flash_ClearUserModeSpace");
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2104,61 +2103,61 @@ void Flash_ClearUserModeSpace(void)
 //  index			-    In		-	timing index, UserMode need |_BIT7 in index
 //  *buf			-    In		-	point to the address of timing struct
 //////////////////////////////////////////////////////////////////////////////
-void Flash_WriteModeSet(BYTE index,BYTE *buf)
-{ 
-	WORD i=0, j=0;
-	WORD w A ddr;  
+void Flash_WriteModeSet(BYTE index, BYTE *buf)
+{
+	WORD i = 0, j = 0;
+	WORD wAddr;
 	xdata ModeSettingType modeSetting;
-
-    // find orginal mode index in flash
-	(i=0;i < MAX_MODESET_NUM; i++)
-	{   
-		if(FlashReadByte(MODESET_START+i*MODESET_SIZE)==FLASH_IDENTDATA && FlashReadByte(MODESET_START+i*MODESET_SIZE+MODESET_SIZE-1)==FLASH_CHECKSUM)
-		{                
-			if(FlashReadByte(MODESET_START+i*MODESET_SIZE+1)==index)
-			{        
-				FlashWriteByte(TRUE, MODESET_START+i*MODESET_SIZE, 0x00); // Clear Identdata.
-				FLASH_printData("_FWMS_ Clear inde x   % x",i);
-			} 
-		}
-	}
-
-	i = Flash_SearchIdentChecksum(MODESET_START, 0, (MAX_MODESET_NUM-1), MODESET_SIZE, FLASH_EMPTYDATA, FLASH_EMPTYDATA);
-	if(i != IDENT_NOT_FOUND)  
+	//FLASH_printData("_FWMS_ Target index 0x%x",index);
+	// find orginal mode index in flash
+	for(i = 0; i < MAX_MODESET_NUM; i++)
 	{
-	    FLASH_printData("_FWMS_ write to empty Addr %x",MODESET_START+i*MODESET_SIZE);
-		Flash_WriteTbl(TRUE, MODESET_START+i*MODESET_SIZ E, buf, MODES E T _ SIZE);
-		    
-	else
-	{
-	    if(Flash_CheckModeFull())
-		    Flash_ClearUserModeSpace();
-			
-		0;i < MAX_MODESET_NUM; i++)
-		{   
-			if(FlashReadByte(MODESET_START+i*MODESET_SIZE)==FLASH_IDENTDATA  && FlashReadByte(MODESET_START+i*MODESET_SIZE+MODESET_SIZE-1)==FLASH_CHECKSUM)
-			{                
-				Flash_ReadTbl(MODESET_START+i*MODESET_SIZE, (BYTE*)&modeSetting, MODESET_SIZE);
-				Flash_WriteTbl(TRUE, MODESE T _ B UF_START+j*MODESET_SIZE, (BYTE*)&modeSetting, MODESET_SIZE);
-				j++;    
+		if(FlashReadByte(MODESET_START + i * MODESET_SIZE) == FLASH_IDENTDATA && FlashReadByte(MODESET_START + i * MODESET_SIZE + MODESET_SIZE - 1) == FLASH_CHECKSUM)
+		{
+			if(FlashReadByte(MODESET_START + i * MODESET_SIZE + 1) == index)
+			{
+				FlashWriteByte(TRUE, MODESET_START + i * MODESET_SIZE, 0x00); // Clear Identdata.
+				FLASH_printData("_FWMS_ Clear index %x", i);
 			}
 		}
-        if(j < (MAX_MODESET_NUM-1))
-		{  
-		    FLASH_printData("_FWMS_ write to empty Addr %x",MODESET_BUF_START+j*MODESET_SIZE);
-			Flash_WriteTbl(TRUE, MODESET_BUF_START+j*MODESET _SIZE, buf, MODES E T _ SIZE);
-			    
-		
-		riteByte(TRUE, FLASH_FreeBufferAddr,FBufType_TimingMode);
+	}
+	// find empty position
+	i = Flash_SearchIdentChecksum(MODESET_START, 0, (MAX_MODESET_NUM - 1), MODESET_SIZE, FLASH_EMPTYDATA, FLASH_EMPTYDATA);
+	if(i != IDENT_NOT_FOUND)
+	{
+		FLASH_printData("_FWMS_ write to empty Addr %x", MODESET_START + i * MODESET_SIZE);
+		Flash_WriteTbl(TRUE, MODESET_START + i * MODESET_SIZE, buf, MODESET_SIZE);
+	}
+	else
+	{
+		if(Flash_CheckModeFull())
+			Flash_ClearUserModeSpace();
+		FlashSectorErase(TRUE, FLASH_FreeBufferAddr);
+		for(i = 0; i < MAX_MODESET_NUM; i++)
+		{
+			if(FlashReadByte(MODESET_START + i * MODESET_SIZE) == FLASH_IDENTDATA  && FlashReadByte(MODESET_START + i * MODESET_SIZE + MODESET_SIZE - 1) == FLASH_CHECKSUM)
+			{
+				Flash_ReadTbl(MODESET_START + i * MODESET_SIZE, (BYTE*)&modeSetting, MODESET_SIZE);
+				Flash_WriteTbl(TRUE, MODESET_BUF_START + j * MODESET_SIZE, (BYTE*)&modeSetting, MODESET_SIZE);
+				j++;
+			}
+		}
+		if(j < (MAX_MODESET_NUM - 1))
+		{
+			FLASH_printData("_FWMS_ write to empty Addr %x", MODESET_BUF_START + j * MODESET_SIZE);
+			Flash_WriteTbl(TRUE, MODESET_BUF_START + j * MODESET_SIZE, buf, MODESET_SIZE);
+		}
+		//	Exchange Buffer
+		FlashWriteByte(TRUE, FLASH_FreeBufferAddr, FBufType_TimingMode);
 		FlashWriteByte(TRUE, FLASH_TimingModeAddr, 0x00);
-		wAddr = FLASH_FreeBufferAddr; 
+		wAddr = FLASH_FreeBufferAddr;
 		FLASH_FreeBufferAddr = FLASH_TimingModeAddr;
 		FLASH_TimingModeAddr = wAddr;
 		//i=j;//Write empty one index
-
-		FLASH_printData("_FWMS_ Buffer exchange FreeAddr %x ",(W ORD)(FLASH_FreeBufferAddr>> 8) );
-    }   
-	
+		FLASH_printData("_FWMS_ Buffer exchange TimingAddr %x ", (WORD)(FLASH_TimingModeAddr >> 8));
+		FLASH_printData("_FWMS_ Buffer exchange FreeAddr %x ", (WORD)(FLASH_FreeBufferAddr >> 8));
+	}
+}
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2173,28 +2172,28 @@ void Flash_WriteModeSet(BYTE index,BYTE *buf)
 //  index			-    In		-	timing index, UserMode need |_BIT7 in index
 //  *buf			-    In		-	point to the address of timing mode struct
 //////////////////////////////////////////////////////////////////////////////
-Bool Flash_ReadModeSet(BYTE index,BYTE *buf)
-{ 
-    WORD i;
-	
-	{   
-	    if(FlashReadByte(MODESET_START+i*MODESET_SIZE)==FLASH_IDENTDATA
-		    && FlashReadByte(MODESET_S T A R T+i*MODESET_S IZ E+MODESET_SIZE-1)==FLASH_CHECKSUM
-		        && FlashReadByte(MODESET_START + i * MODESET_SIZE + 1)==index)    
-		    {        
-		    break;
-			
-		
-	
+Bool Flash_ReadModeSet(BYTE index, BYTE *buf)
+{
+	WORD i;
+	for(i = 0; i < MAX_MODESET_NUM; i++)
 	{
-	    FLASH_printMsg("_FRMS_ RModeSet Not Found");
+		if(FlashReadByte(MODESET_START + i * MODESET_SIZE) == FLASH_IDENTDATA
+		        && FlashReadByte(MODESET_START + i * MODESET_SIZE + MODESET_SIZE - 1) == FLASH_CHECKSUM
+		        && FlashReadByte(MODESET_START + i * MODESET_SIZE + 1) == index)
+		{
+			break;
+		}
+	}
+	if(i >= MAX_MODESET_NUM)
+	{
+		FLASH_printMsg("_FRMS_ RModeSet Not Found");
 		return FALSE;
-		
-		FLASH_printData("_FRMS_ RModeSet=%x",i);
-	FLASH_printData("_FRMS_ ModeR=%x",(MO DESET_START+i*MODESET_SIZE)&0xFFFF);
-	Flash_ReadTbl(MODESET_START+i*MODE SET_SIZE, buf,   M O DESET_SIZE);  
-    return TRUE;    
-	
+	}
+	FLASH_printData("_FRMS_ RModeSet=%x", i);
+	FLASH_printData("_FRMS_ ModeR=%x", (MODESET_START + i * MODESET_SIZE) & 0xFFFF);
+	Flash_ReadTbl(MODESET_START + i * MODESET_SIZE, buf, MODESET_SIZE);
+	return TRUE;
+}
 
 #endif//USEFLASH
 

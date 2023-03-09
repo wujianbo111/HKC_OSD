@@ -6486,10 +6486,10 @@
       <FileType>1</FileType>
       <tvExp>1</tvExp>
       <Focus>0</Focus>
-      <ColumnNumber>0</ColumnNumber>
+      <ColumnNumber>83</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>2187</TopLine>
-      <CurrentLine>2195</CurrentLine>
+      <TopLine>533</TopLine>
+      <CurrentLine>549</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\..\UI\HkcOsd\menu.c</PathWithFileName>
       <FilenameWithoutPath>menu.c</FilenameWithoutPath>
@@ -7251,8 +7251,8 @@
       <Focus>0</Focus>
       <ColumnNumber>0</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>523</TopLine>
-      <CurrentLine>523</CurrentLine>
+      <TopLine>287</TopLine>
+      <CurrentLine>307</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\..\UI\F_LOGO\FactoryString.c</PathWithFileName>
       <FilenameWithoutPath>FactoryString.c</FilenameWithoutPath>
@@ -8696,8 +8696,14 @@
         <Doc>
           <Name>..\..\UI\F_LOGO\FactoryString.c</Name>
           <ColumnNumber>0</ColumnNumber>
-          <TopLine>523</TopLine>
-          <CurrentLine>523</CurrentLine>
+          <TopLine>287</TopLine>
+          <CurrentLine>307</CurrentLine>
+        </Doc>
+        <Doc>
+          <Name>..\..\UI\HkcOsd\menu.c</Name>
+          <ColumnNumber>83</ColumnNumber>
+          <TopLine>533</TopLine>
+          <CurrentLine>549</CurrentLine>
         </Doc>
       </Documents>
     </MDIGroup>
