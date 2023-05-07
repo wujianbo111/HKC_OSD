@@ -973,6 +973,7 @@ Bool ExecuteKeyEvent(MenuItemActionType menuAction)
 					#if 1
 					BYTE xdata TempIndex = 0;	//111223 Modify
 					#endif
+					#if 0
 					if( MenuPageIndex == MainMenu )
 					{
 						Osd_SetTextMonoColor(0x00, 0x06);
@@ -984,6 +985,7 @@ Bool ExecuteKeyEvent(MenuItemActionType menuAction)
 						}
 						tempValue = PrevMenuItemIndex;
 					}
+					#endif
 					#if Hot_Corss_FY_ColorSelect
 					if(MenuPageIndex == HotCorssMenu)
 					{
@@ -1016,12 +1018,14 @@ Bool ExecuteKeyEvent(MenuItemActionType menuAction)
 					}
 					#endif
 					DrawOsdMenuItem(MenuItemIndex, &CurrentMenuItem);
+					#if 0
 					if( MenuPageIndex == MainMenu )
 					{
 						DrawOsdSubMenu( NextMenuPage );
 						if( MenuItemIndex == MAIN_Misc_ITEM)
 							DrawTimingInfo();
 					}
+					#endif
 					#if Hot_Corss_FY_ColorSelect || Hot_Corss_FND_Select
 					if(MenuPageIndex == HotCorssMenu)
 					{
@@ -1196,8 +1200,10 @@ Bool ExecuteKeyEvent(MenuItemActionType menuAction)
 					CurrentMenu.ExecFunction();
 				#endif
 				DrawOsdMenu();
+				#if 0
 				if( MenuPageIndex == MainMenu )
 					DrawOsdSubMenu( NextMenuPage );
+				#endif
 				#if DDCCI_ENABLE && DDCCCIMenu_Enable
 				if (MenuPageIndex == DdcciInfoMenu)
 					Delay1ms(200);
@@ -3617,131 +3623,33 @@ BYTE GetMenuItemIndex(BYTE menuPageIndex)
 #endif
 void DrawOsdBackGround(void)
 {
-	BYTE i;
+	BYTE i,j;
+	BYTE* str;
 	if ( MenuPageIndex == MainMenu )
 	{
-		Osd_SetTextMonoColor(0x00, 0x0E);
-		for (i = 0; i <= OsdWindowHeight - 1; i++)
+		Osd_SetTextMonoColor(LightBlack, LightBlack);
+		for(i = 0; i <= OsdWindowHeight - 1; i++)
 		{
-			Osd_DrawContinuesChar( 0, i, SpaceFont, OsdWindowWidth);
+			Osd_DrawContinuesChar(0, i, SpaceFont, OsdWindowWidth);
 		}
-		//draw Four Cornu
-		Osd_SetTextMonoColor(0x06, CPC_TranColor);
-		Osd_DrawCharDirect(0, 0, MonoFrame_LT);
-		Osd_DrawCharDirect(CurrentMenu.XSize - 1, 0, MonoFrame_RT);
-		#if OsdHelpKeyType == OsdHelpKey_Right
-		#else
-		Osd_DrawCharDirect(0, CurrentMenu.YSize - 1, MonoFrame_LD);
-		Osd_DrawCharDirect(CurrentMenu.XSize - 1, CurrentMenu.YSize - 1, MonoFrame_RD);
-		#endif
-		//draw frame
-		Osd_SetTextMonoColor(0, 2);
-		for(i = 1; i <= CurrentMenu.XSize - 2; i++)
-		{
-			Osd_DrawCharDirect(i, 0, SpaceFont);
-			Osd_DrawCharDirect(i, 1, SpaceFont);
-		}
-		Osd_DrawCharDirect(0, 1, SpaceFont);
-		Osd_DrawCharDirect(CurrentMenu.XSize - 1, 1, SpaceFont);
-		//draw Top and Bottom& left & right line
-		Osd_SetTextMonoColor(5, 2);
+		
+		Osd_Set256TextColor(Selected_ForeAndBackColors, Color_2);
 		for(i = 0; i < CurrentMenu.XSize; i++)
 		{
-			Osd_DrawCharDirect(i, 2, MenuFrame_TopSide);
+			Osd_DrawCharDirect(i, 2, HorizontalLine);
 		}
-		for(i = 0; i < CurrentMenu.XSize; i++)
-		{
-			Osd_DrawCharDirect(i, CurrentMenu.YSize - underBlankFontWide, MenuFrame_BottomSide);
-		}
-		Osd_SetTextMonoColor(5, 7);
-		for(i = 3; i < CurrentMenu.YSize - underBlankFontWide; i++)
-		{
-			Osd_DrawCharDirect(5, i, MenuFrame_LeftSide);
-		}
-		#if OsdHelpKeyType == OsdHelpKey_Right
-		for(i = 3; i < CurrentMenu.YSize - underBlankFontWide; i++)
-		{
-			Osd_DrawCharDirect(CurrentMenu.XSize - 5, i, MenuFrame_RightSide);
-		}
-		Osd_SetTextMonoColor(2, 2);
-		for(i = 3; i < CurrentMenu.YSize - underBlankFontWide; i++)
-		{
-			Osd_DrawCharDirect(CurrentMenu.XSize - 4, i, SpaceFont);
-			Osd_DrawCharDirect(CurrentMenu.XSize - 3, i, SpaceFont);
-			Osd_DrawCharDirect(CurrentMenu.XSize - 2, i, SpaceFont);
-			Osd_DrawCharDirect(CurrentMenu.XSize - 1, i, SpaceFont);
-		}
-		#else
-		for(i = 3; i < CurrentMenu.YSize - underBlankFontWide; i++)
-		{
-			Osd_DrawCharDirect(CurrentMenu.XSize - 1, i, MenuFrame_RightSide);
-		}
-		#endif
-		Osd_SetTextMonoColor(0, 2);
-		#if OsdHelpKeyType == OsdHelpKey_Right
-		#else
-		for(i = 1; i <= CurrentMenu.XSize - 2; i++)
-		{
-			Osd_DrawCharDirect(i, CurrentMenu.YSize - 2, SpaceFont);
-			Osd_DrawCharDirect(i, CurrentMenu.YSize - 1, SpaceFont);
-		}
-		Osd_DrawCharDirect(0, CurrentMenu.YSize - 2, SpaceFont);
-		Osd_DrawCharDirect(CurrentMenu.XSize - 1, CurrentMenu.YSize - 2, SpaceFont);
-		#endif
-		#if	OsdHelpKeyType == OsdHelpKey_Under
-		UpdataHelyKeyShowInMenu();
-		Osd_SetTextMonoColor(7, 2);
-		Osd_DrawCharDirect(13, CurrentMenu.YSize - 2, 0x11);
-		Osd_DrawCharDirect(14, CurrentMenu.YSize - 2, 0x12);
-		Osd_DrawCharDirect(16, CurrentMenu.YSize - 2, 0x13);
-		Osd_DrawCharDirect(17, CurrentMenu.YSize - 2, 0x14);
-		Osd_DrawCharDirect(18, CurrentMenu.YSize - 2, 0x15);
-		Osd_DrawCharDirect(20, CurrentMenu.YSize - 2, 0x16);
-		Osd_DrawCharDirect(21, CurrentMenu.YSize - 2, 0x17);
-		Osd_DrawCharDirect(23, CurrentMenu.YSize - 2, 0x18);
-		Osd_DrawCharDirect(24, CurrentMenu.YSize - 2, 0x19);
-		Osd_DrawCharDirect(25, CurrentMenu.YSize - 2, 0x1A);
-		#elif OsdHelpKeyType ==	 OsdHelpKey_Right
-		UpdataHelyKeyShowInMenu();
-		Osd_SetTextMonoColor(7, 2);
+
+		Osd_Set256TextColor(Selected_ForeAndBackColors, Color_2);
+		str = HKCIcon();
 		OSD_TEXT_HI_ADDR_SET_BIT8();
-		#if ModelName == MODEL_HS275HFB
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 12, 0x80);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 12, 0x81);
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 11, 0x82);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 11, 0x83);
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 9, 0x84);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 9, 0x85);
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 8, 0x86);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 8, 0x87);
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 6, 0x88);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 6, 0x89);
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 5, 0x8A);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 5, 0x8B);
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 4, 0x8C);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 4, 0x8D);
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 3, 0x8E);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 3, 0x8F);
-		#elif ModelName == MODEL_HS225HFB
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 13, 0x80);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 13, 0x81);
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 12, 0x82);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 12, 0x83);
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 9, 0x84);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 9, 0x85);
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 8, 0x86);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 8, 0x87);
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 6, 0x88);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 6, 0x89);
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 5, 0x8A);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 5, 0x8B);
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 3, 0x8C);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 3, 0x8D);
-		Osd_DrawCharDirect(0x2A, CurrentMenu.YSize - 2, 0x8E);
-		Osd_DrawCharDirect(0x2B, CurrentMenu.YSize - 2, 0x8F);
-		#endif
+		for(i = 0; i < MonoHKC_Line; i++)
+		{
+			for(j = 0; j < MonoHKC_Column; j++)
+			{
+				Osd_DrawCharDirect((j + ((MAIN_MENU_H_SIZE / 2 - 1) - (MonoHKC_Column / 2))), i, str[j + (MonoHKC_Column + 1) * i]);
+			}
+		}
 		OSD_TEXT_HI_ADDR_CLR_TO_0();
-		#endif
 	}
 	else if ( (MenuPageIndex >= HotKeyECOMenu && MenuPageIndex <= AutoMenu)
 	          || MenuPageIndex == InputInfoMenu

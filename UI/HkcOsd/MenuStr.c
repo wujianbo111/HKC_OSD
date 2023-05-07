@@ -10,6 +10,7 @@
 #include "menuTextProp.h"
 #endif
 
+#define Icon2Color_AddrShift   1
 #define Icon4Color_AddrShift   2
 #define Icon8Color_AddrShift   3
 
@@ -78,6 +79,15 @@ BYTE code strMiscIcon[7] =
 	'\0'
 };
 
+#define tiM(x)	(_2ColorMainIconStart + x * Icon2Color_AddrShift)
+ BYTE code strHKCIcon[2][6]=
+{
+	{	 tiM(0x00), tiM(0x01), tiM(0x02), tiM(0x03), tiM(0x04), 
+	 0},
+	{	 tiM(0x05), tiM(0x06), tiM(0x07), tiM(0x08), tiM(0x09), 
+	 0}
+};
+
 BYTE* BrightnessIcon(void)
 {
 	return strBrightnessIcon;
@@ -102,7 +112,10 @@ BYTE* MiscIcon(void)
 {
 	return strMiscIcon;
 }
-
+BYTE* HKCIcon(void)
+{
+	return strHKCIcon;
+}
 
 //----Eson Start----------------------------------
 //========= TEXT =========

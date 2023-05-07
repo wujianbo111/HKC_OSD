@@ -519,18 +519,21 @@ void LoadCommonFont(void)
 	#endif
 	LoadLanguageStatusPropfont();
 	OSD_FONT_HI_ADDR_SET_BIT8();//0x100~0x1FF
-	OSD_WRITE_FONT_ADDRESS(MonoGuageFontStar);
+	OSD_WRITE_FONT_ADDRESS(MonoHKCFontStart);
 	#if CHIP_ID>=CHIP_TSUM2
-	mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(MonoGuageFontStar), tMonoGauge, 0 );
+	mStar_LoadCompressedFont( GET_FONT_RAM_ADDR(MonoHKCFontStart), tMonoHKC, 0 );
+	
 	#else
 	mStar_LoadCompressedFont( MonoGuageFontStar, tMonoGauge, 0 );
 	#endif
 	OSD_FONT_HI_ADDR_CLR_TO_0();
 	OSD_FONT_HI_ADDR_SET_BIT9();//0x200~0x2FF
+	/*
 	OSD_WRITE_FONT_ADDRESS(_4ColorMainIconStart);
 	LoadCompressColorFont(&tMainMenuIcon4ColorFont, NULL, 18); // load osd fonts
 	OSD_WRITE_FONT_ADDRESS(_8ColorMainIconStart);
 	Osd_Load8ColorFont( _8ColorMainIconStart, &tMainMenuIcon8ColorFont, sizeof( tMainMenuIcon8ColorFont ) );
+	*/
 	OSD_FONT_HI_ADDR_CLR_TO_0();
 	Load256ColorPalette(0, 0, &tOSDColorPalette256, sizeof( tOSDColorPalette256 ) / sizeof(ColorPaletteType) );
 }

@@ -94,8 +94,8 @@ MenuItemType code MainMenuItems[] =
 		7, Color_8, // ForeColor, BackColor;
 		6, Color_8, // SelForeColor, SelBackColor;
 		OSD_BriContrastMenu,///NextMenuPage;
-		DWI_Icon,// DrawMenuItemType;
-		BrightnessIcon, // DisplayText;
+		NULL,//DWI_Icon,// DrawMenuItemType;
+		NULL,//BrightnessIcon, // DisplayText;
 		NaviKeyEvent,
 		{
 			NULL, // AdjustFunction
@@ -104,7 +104,7 @@ MenuItemType code MainMenuItems[] =
 		{
 			NULL, // DrawNumberType
 			NULL, // DrawGuageType
-			DrawBrightnessTextRatioGroup, // DrawRadioGroupType
+			NULL,//DrawBrightnessTextRatioGroup, // DrawRadioGroupType
 		},
 		MenuPage1, //Font
 		mibSelectable  // Flags
@@ -115,8 +115,8 @@ MenuItemType code MainMenuItems[] =
 		0x05, Color_4, // ForeColor, BackColor;
 		0x04, Color_4, // SelForeColor, SelBackColor;
 		PictureMenu,///NextMenuPage;
-		DWI_Icon,// DrawMenuItemType;
-		ImageIcon, // DisplayText;
+		NULL,//DWI_Icon,// DrawMenuItemType;
+		NULL,//ImageIcon, // DisplayText;
 		NaviKeyEvent,
 		{
 			NULL, // AdjustFunction
@@ -125,7 +125,7 @@ MenuItemType code MainMenuItems[] =
 		{
 			NULL, // DrawNumberType
 			NULL, // DrawGuageType
-			DrawImageTextRatioGroup, // DrawRadioGroupType
+			NULL,//DrawImageTextRatioGroup, // DrawRadioGroupType
 		},
 		MenuPage2, //Font
 		mibSelectable
@@ -139,8 +139,8 @@ MenuItemType code MainMenuItems[] =
 		9, Color_8, // ForeColor, BackColor;
 		8, Color_8, // SelForeColor, SelBackColor;
 		RGBColorMenu,///NextMenuPage;
-		DWI_Icon,// DrawMenuItemType;
-		ColorTempIcon, // DisplayText;
+		NULL,//DWI_Icon,// DrawMenuItemType;
+		NULL,//ColorTempIcon, // DisplayText;
 		NaviKeyEvent,
 		{
 			NULL, // AdjustFunction
@@ -149,7 +149,7 @@ MenuItemType code MainMenuItems[] =
 		{
 			NULL, // DrawNumberType
 			NULL, // DrawGuageType
-			DrawColorTextRatioGroup, // DrawRadioGroupType
+			NULL,//DrawColorTextRatioGroup, // DrawRadioGroupType
 		},
 		MenuPage3, //Font
 		mibSelectable  // Flags
@@ -160,8 +160,8 @@ MenuItemType code MainMenuItems[] =
 		11, Color_8, // ForeColor, BackColor;
 		10, Color_8, // SelForeColor, SelBackColor;
 		OsdMenu,///NextMenuPage;
-		DWI_Icon,// DrawMenuItemType;
-		OSDIcon, // DisplayText;
+		NULL,//DWI_Icon,// DrawMenuItemType;
+		NULL,//OSDIcon, // DisplayText;
 		NaviKeyEvent,
 		{
 			NULL, // AdjustFunction
@@ -170,7 +170,7 @@ MenuItemType code MainMenuItems[] =
 		{
 			NULL, // DrawNumberType
 			NULL, // DrawGuageType
-			DrawOSDTextRatioGroup, // DrawRadioGroupType
+			NULL,//DrawOSDTextRatioGroup, // DrawRadioGroupType
 		},
 		MenuPage4, //Font
 		mibSelectable  // Flags
@@ -181,8 +181,8 @@ MenuItemType code MainMenuItems[] =
 		0x07, Color_4, // ForeColor, BackColor;
 		0x06, Color_4, // SelForeColor, SelBackColor;
 		SettingMenu,///NextMenuPage;
-		DWI_Icon,// DrawMenuItemType;
-		ResetIcon, // DisplayText;
+		NULL,//DWI_Icon,// DrawMenuItemType;
+		NULL,//ResetIcon, // DisplayText;
 		NaviKeyEvent,
 		{
 			NULL, // AdjustFunction
@@ -202,8 +202,8 @@ MenuItemType code MainMenuItems[] =
 		0x09, Color_4, // ForeColor, BackColor;
 		0x08, Color_4, // SelForeColor, SelBackColor;
 		OSD_MiscMenu,///NextMenuPage;
-		DWI_Icon,// DrawMenuItemType;
-		MiscIcon, // DisplayText;
+		NULL,//DWI_Icon,// DrawMenuItemType;
+		NULL,//MiscIcon, // DisplayText;
 		NaviKeyEvent,
 		{
 			NULL, // AdjustFunction
@@ -212,7 +212,7 @@ MenuItemType code MainMenuItems[] =
 		{
 			NULL, // DrawNumberType
 			NULL, // DrawGuageType
-			DrawMiscTextRatioGroup, // DrawRadioGroupType
+			NULL,//DrawMiscTextRatioGroup, // DrawRadioGroupType
 		},
 		MenuPage6, //Font
 		mibSelectable  // Flags

@@ -431,19 +431,23 @@ typedef enum
 
 #define MonoGuageFontStar           0x00//0x100
 
-
 #define ResoulationAddress  0x20//0x120
 
 
 //=================================================page3
-
+#define FONT_2COLOR_ICON_START	0x000
 #define FONT_4COLOR_ICON_START 	0x000
 #define FONT_8COLOR_ICON_START	0x045//0x2E
 
+#define _2ColorFontStart            FONT_2COLOR_ICON_START//0x000
 #define _4ColorFontStart            FONT_4COLOR_ICON_START//0x180
 #define _8ColorFontStart            FONT_8COLOR_ICON_START//0x200
 
-#define _4ColorHotIconStart      _4ColorFontStart
+#define _2ColorMainIconStart      _2ColorFontStart//0x000
+
+#define _2ColorHotIconStart       _2ColorFontStart//0x000
+
+#define _4ColorHotIconStart       _4ColorFontStart
 
 #define _4ColorMainIconStart      _4ColorHotIconStart+30
 
@@ -477,8 +481,8 @@ typedef enum
 #define MAIN_MENU_H_SIZE            0x2D//1368 pixel
 #define MAIN_MENU_V_SIZE            0x10
 #else
-#define MAIN_MENU_H_SIZE            0x29//1368 pixel
-#define MAIN_MENU_V_SIZE            0x12
+#define MAIN_MENU_H_SIZE            0x7E//0x29//1368 pixel
+#define MAIN_MENU_V_SIZE            0x0A//0x12
 #endif
 
 #define MainMenuIcon_DrawXPos		0x01
@@ -951,4 +955,22 @@ typedef struct
 	MenuFontType *Fonts;
 	BYTE Flags;
 } MenuPageType;
+
+
+/*********************wujianbo define***************************/
+#if WUJIANBO_DEFINE
+#define UnSelected_ForeAndBackColors					0x5E
+#define NoSelected_ForeAndBackColors					0x6E
+#define Selected_ForeAndBackColors						0x7E
+
+#define LightBlack						0x0E
+#define HorizontalLine					0x02
+
+#define DEFINE_FONT						1
+#define MonoHKCFontStart				0x00
+
+#define MonoHKC_Line					2
+#define MonoHKC_Column					5
+#endif
+/*********************wujianbo define end************************/
 #endif

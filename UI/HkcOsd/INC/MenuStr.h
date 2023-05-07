@@ -31,6 +31,7 @@ extern BYTE* ColorTempIcon(void);
 extern BYTE* OSDIcon(void);
 extern BYTE* ResetIcon(void);
 extern BYTE* MiscIcon(void);
+extern BYTE* HKCIcon(void);
 extern BYTE *Main_FText(void);
 
 

@@ -6,7 +6,7 @@
 #define CHIP_ID                			CHIP_TSUMC
 #define MainBoardType    				MainBoard_JRY_W58CDT9_AV7//MainBorad_JRY_L58CDT9_GV2
 #define PanelType 						PanelM215HGE_L21
-#define DisplayLogo					YMH_LOGO//YWYBIRD_LOGO//YWYLBS_LOGO//YWYDGM_LOGO//LOGO_DUNPAI//YWYMIMO_LOGO//CHANG_LOGO//YWYPOLY_LOGO//TEST_LOGO//YWY_LOGO//LOGO_YINGYAN   
+#define DisplayLogo						POLY_LOGO//YMH_LOGO//YWYBIRD_LOGO//YWYLBS_LOGO//YWYDGM_LOGO//LOGO_DUNPAI//YWYMIMO_LOGO//CHANG_LOGO//YWYPOLY_LOGO//TEST_LOGO//YWY_LOGO//LOGO_YINGYAN   
 
 //#define EEPROM_TYPE       EEPROM_24C16
 ////////////////////////////////////////////////////////////
@@ -266,5 +266,11 @@
 #define ADCKEY_B1       KEY_MINUS
 #define ADCKEY_B2       KEY_EXIT
 ///////////////////////////////////////////////////////////////
+/**********************wujianbo define******************************/
+#if 1
+#define WUJIANBO_DEFINE									1
+
+#endif
+/**********************wujianbo define end**************************/
 #endif
 
